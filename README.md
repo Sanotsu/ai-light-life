@@ -8,6 +8,10 @@
 
 ### 核心想法
 
+记账，“账”虽然是重点，但也不应该忽视“记”这个动作，如果全都自动化了，岂不是"强化数字消费中的失去感"。
+
+还是觉得手动记账，一笔一笔在输入时才能体会的金钱的份量、和记账的意义。
+
 理论上：
 
 - 消费和收入的分类应该有非常专业详细的数据，在后续的报表时肯定用得上。
@@ -18,21 +22,38 @@
 
 ```sql
 CREATE TABLE "income_list" (
-	"uuid"	    INTEGER NOT NULL,
+	"income_id"	    INTEGER NOT NULL,
 	"date"	    TEXT,
 	"category"	TEXT,
 	"item"	    TEXT,
 	"value"	    REAL,
-	PRIMARY KEY("uuid" AUTOINCREMENT)
+	PRIMARY KEY("income_id" AUTOINCREMENT)
 );
 
-CREATE TABLE "expand_list" (
-	"uuid"	    INTEGER,
+CREATE TABLE "expend_list" (
+	"expend_id"	    INTEGER,
 	"date"	    TEXT,
 	"category"	TEXT,
 	"item"	    TEXT,
 	"value"	    REAL,
-	PRIMARY KEY("uuid" AUTOINCREMENT)
+	PRIMARY KEY("expend_id" AUTOINCREMENT)
+);
+```
+
+=>
+再简单一点，只有一个表，用`type`表示收入和支出；
+再加一个`gmt_modified`，排序时联合`date`栏位共同排序避免和实际新增记录时不一致
+
+```sql
+CREATE TABLE "bill_item_list" (
+	"bill_item_id"	TEXT, 		-- 账单条目编号(万一多账本有bill_id呢)
+	"item_type"		INTEGER,	-- 0 收入；1 支出
+	"date"	    	TEXT,		-- yyyy-MM-dd 年月日即可
+	"category"		TEXT,		-- 支出或收入的大分类(比如支出的：通勤、医疗、饮食……)
+	"item"	    	TEXT,		-- 支出或收入的细项目(比如饮食的晚餐吃快餐) 还可以有细节就再多个detail表
+	"value"	    	REAL,		-- 支出或收入的具体数值
+	"gmt_modified"	TEXT,		-- 记录的创建或者修改时间
+	PRIMARY KEY("bill_item_id")
 );
 ```
 
