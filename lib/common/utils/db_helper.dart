@@ -281,6 +281,100 @@ class DBHelper {
     return CusDataResult(data: dishes, total: totalCount);
   }
 
+  Future<CusDataResult> queryBillItemWithBillCountList({
+    String? startDate, // 日期范围
+    String? endDate,
+    int? page,
+    int? pageSize, // 不传就默认为10
+  }) async {
+    Database db = await database;
+
+    print("queryBillItemWithBillCountList 账单查询传入的条件：");
+    print("startDate $startDate");
+    print("endDate $endDate");
+    print("page $page");
+    print("pageSize $pageSize");
+
+    // 分页相关处理
+    page ??= 1;
+    // 如果size为0,则查询所有(暂时这个所有就10w吧)
+    if (pageSize == 0) {
+      pageSize = 100000;
+    } else if (pageSize == null || pageSize < 1 && pageSize != 0) {
+      pageSize = 10;
+    }
+
+    print("page2222 $page");
+    print("pageSize2222 $pageSize");
+
+    final offset = (page - 1) * pageSize;
+
+    final where = <String>[];
+    final whereArgs = <dynamic>[];
+
+    var formatStr = "%Y-%m";
+    var rangeWhere = "";
+    if (startDate != null && endDate != null) {
+      rangeWhere = 'WHERE "date" BETWEEN "$startDate" AND "$endDate"';
+    }
+
+    // var sql2 = """
+    //   SELECT
+    //       *,
+    //       strftime("$formatStr", "date") AS month,
+    //       SUM(CASE WHEN "item_type" = 1 THEN "value" ELSE 0 END) OVER (PARTITION BY strftime("$formatStr", "date")) AS expend_total,
+    //       SUM(CASE WHEN "item_type" = 0 THEN "value" ELSE 0 END) OVER (PARTITION BY strftime("$formatStr", "date")) AS income_total
+    //   FROM ${BriefAccountingDdl.tableNameOfBillItem}
+    //   $rangeWhere
+    //   ORDER BY "date" DESC
+    //   LIMIT $pageSize
+    //   OFFSET $offset
+    //   """;
+
+    // sql2语句中的OVER、PARTITION等新特性好像 sqflite: 2.3.2 不支持,而且这个查询很耗性能
+    var sql3 = """
+      SELECT       
+          b.*,  
+        strftime("$formatStr", "date") AS month,
+          (SELECT ROUND(SUM(CASE WHEN "item_type" = 1 THEN "value" ELSE 0.0 END), 2) 
+          FROM ${BriefAccountingDdl.tableNameOfBillItem} AS sub  
+          WHERE strftime("$formatStr", sub."date") = strftime("$formatStr", b."date")) AS expend_total,  
+          (SELECT ROUND(SUM(CASE WHEN "item_type" = 0 THEN "value" ELSE 0.0 END), 2)  
+          FROM ${BriefAccountingDdl.tableNameOfBillItem} AS sub  
+          WHERE strftime("$formatStr", sub."date") = strftime("$formatStr", b."date")) AS income_total  
+      FROM ${BriefAccountingDdl.tableNameOfBillItem} AS b
+      $rangeWhere 
+      ORDER BY b."date" DESC  
+      LIMIT $pageSize 
+      OFFSET $offset
+      """;
+
+    try {
+      final rows = await db.rawQuery(sql3);
+
+      // 数据是分页查询的，但这里带上满足条件的一共多少条
+      String sql =
+          'SELECT COUNT(*) FROM ${BriefAccountingDdl.tableNameOfBillItem}';
+      if (where.isNotEmpty) {
+        sql += ' WHERE ${where.join(' AND ')}';
+      }
+
+      int totalCount =
+          Sqflite.firstIntValue(await db.rawQuery(sql, whereArgs)) ?? 0;
+
+      print(sql);
+      print("whereArgs $whereArgs totalCount $totalCount");
+
+      var dishes = rows.map((row) => BillItem.fromMap(row)).toList();
+
+      return CusDataResult(data: dishes, total: totalCount);
+    } catch (e) {
+      print("eeeeeeeeeeeeeeee=$e");
+
+      return CusDataResult(data: [], total: 1);
+    }
+  }
+
   /// 查询当前账单记录中存在的年月数据，供下拉筛选
   Future<List<Map<String, Object?>>> queryMonthList() async {
     return (await database).rawQuery(
@@ -353,6 +447,44 @@ class DBHelper {
           WHERE $dateWhere item_type IN (0, 1)) AS combined_data  
       GROUP BY period        
       ORDER BY period DESC;
+      """;
+
+    var rows = await (await database).rawQuery(sql);
+    return rows.map((row) => BillPeriodCount.fromMap(row)).toList();
+  }
+
+  // 简单统计每月、每年、每日的收支总计
+  Future<List<BillPeriodCount>> querySimpleBillCountList({
+    // 年度统计year 或者月度统计 month
+    String? countType,
+    // 查询日期范围固定为年月日的完整日期格式，只是统计结果时才切分到年或月
+    // 所有月度统计2024-04,但起止范围为2024-04-10 ~ 2024-04-15,也只是这5天的范围
+    String? startDate,
+    String? endDate,
+  }) async {
+    // 默认是月度统计，除非指定到年度统计
+    var formatStr = "%Y-%m";
+    if (countType == "year") {
+      formatStr = "%Y";
+    } else if (countType == "day") {
+      formatStr = "%Y-%m-%d";
+    }
+
+    // 默认统计所有，除非有指定范围
+    var dateWhere = "";
+    if (startDate != null && endDate != null) {
+      dateWhere = ' WHERE "date" BETWEEN "$startDate" AND "$endDate" ';
+    }
+
+    var sql = """
+      SELECT  
+        strftime('$formatStr', "date") AS period,  
+        round(SUM(CASE WHEN "item_type" = 1 THEN "value" ELSE 0.0 END), 2) AS expand_total_value,  
+        round(SUM(CASE WHEN "item_type" = 0 THEN "value" ELSE 0.0 END), 2) AS income_total_value  
+    FROM  
+        ${BriefAccountingDdl.tableNameOfBillItem} 
+    $dateWhere 
+    GROUP BY period 
       """;
 
     var rows = await (await database).rawQuery(sql);

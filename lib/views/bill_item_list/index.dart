@@ -17,6 +17,25 @@ import '../../common/utils/db_helper.dart';
 import '../../models/brief_accounting_state.dart';
 import 'mock_data/index.dart';
 
+/// 2024-05-25
+/// 首页的账单列表显示暂时不按照微信那样可以滚动加载更多和滑动了。
+/// 简单一点，就只支持按月查看，而不是将查询的结果分组了。
+/// 上方点击月份可以弹窗选择其他月份，旁边两个按钮， 切换到上一个月下一个月
+/// 【即当前listview中只显示当月的数据】
+///     如果想看2023-12-14 ~ 2024-01-13的跨月数据在一个listview，不行。
+///   ？？？因为目前的简单设计，没法在滚动处知道listview中已经存在的月份数据，
+/// 所以无法实时更新当前的选中月份，导致每次拖动到顶或者底查询新的数据时，条件有误。
+///
+/// 比如先查2023-04的，往下拉一直更新到当前月为2023-08,此时已有 2023-04到-08的数据，当前月为2023-08
+///   现在拉到底，查询上一个月的，此时被选中的月份是2023-08,再一次查询的是2023-07的数据，
+///   但listview原本底部显示的是2023-04的数据。所以此时又查询了一次2023-07的数据，
+///   用于显示的billItems列表数据就有重复了。
+///     --- 这个问题可以再有一个变量存已经查询过的月份列表(或者两个date变量存已查询的最大最小日期)，
+///         如果此时的当前月在这个范围内，就再更新被选中的月份为已经查询的最新+1或者最旧-1 月份
+///         又因为手动切换月份本来就要清0重新查询，所有滚动时更新一个最大日期和最小日期即可
+/// 此外，在已有的200023-04 ~ 08 之前滚动，无法定位当前的月份是哪一个月
+///     --- ？？？暂时无解
+///
 class BillItemIndex extends StatefulWidget {
   const BillItemIndex({super.key});
 
@@ -44,10 +63,27 @@ class _BillItemIndexState extends State<BillItemIndex> {
   );
   // 被选中的月份(yyyy-MM格式，作为查询条件或者反格式化为Datetime时，手动补上day)
   String selectedMonth = DateFormat(constMonthFormat).format(DateTime.now());
+  // 在页面滚动时已经查询过的月份
+  // 如果滚动到底部或者顶部要触发新查询，如果此时的当前月在这个范围内，就再更新被选中的月份为已经查询的最新或者最旧月份
+  List<String> queryedMonths = [];
+
+  // 虽然是已查询的最大最小日期，但逻辑中只关注年月，所以日最好存1号，避免产生影响
+  DateTime minQueryedDate = DateTime.now();
+  DateTime maxQueryedDate = DateTime.now();
+
+  // 滚动方向，往上拉是up，往下拉时down，默认为none
+  String scollDirection = "none";
 
   @override
   void initState() {
     super.initState();
+
+    // 2024-05-25 初始化查询时就更新已查询的最大日期和最小日期为当天所在月份的1号(后续用到的地方也只关心年月)
+    maxQueryedDate = DateTime.tryParse("$selectedMonth-01") ?? DateTime.now();
+    minQueryedDate = DateTime.tryParse("$selectedMonth-01") ?? DateTime.now();
+
+    print("初始化时的最大最小查询日期-------------$maxQueryedDate $minQueryedDate");
+
     _loadBillItemData();
 
     _loadDateRange();
@@ -96,9 +132,16 @@ class _BillItemIndexState extends State<BillItemIndex> {
     var newData = temp.data as List<BillItem>;
 
     setState(() {
-      billItems.addAll(newData);
+      // 2024-05-24 暂时每个月切换后不保留之前查询的数据，只显示当月的
+      // billItems.clear();
+      // 2024-05-24 这里不能直接添加，还需要排序，不然上拉后下拉日期新的列表在日期旧的列表后面
+      if (scollDirection == "down") {
+        billItems.insertAll(0, newData);
+      } else {
+        billItems.addAll(newData);
+      }
       billItemGroupByDayMap = groupBy(billItems, (item) => item.date);
-
+      // 2024-05-25 已经查询过的月份数据放入列表，避免重复查询
       isLoading = false;
     });
   }
@@ -120,6 +163,8 @@ class _BillItemIndexState extends State<BillItemIndex> {
   // 滑动到底部或者底部加载更多
   // ？？？还有个小问题，就是当前月份的记录没有堆满页面时，上拉或者下拉不会加载更多
   // 这里应该使用手势等其他方式来触发
+  // 还有问题，已经加载了很多个月份的数据，在切换不同月份的列表时，当前选中的月份数据不会变化。？？？
+  // 往上拉往下拉之后，重复几次，数据就重复了？？？
   void _scrollListener() {
     if (isLoading) return;
 
@@ -134,47 +179,65 @@ class _BillItemIndexState extends State<BillItemIndex> {
       // 滚动到顶部
       print("到顶部了 ${DateTime(2023, 2, 31)} ${DateTime.tryParse("2023-2-31")}");
 
-      DateTime date = DateTime.tryParse("$selectedMonth-01") ?? DateTime.now();
-      String nextMonth = DateFormat(constMonthFormat).format(
-        DateTime(date.year, date.month + 1, date.day),
+      // 如果要查询的下一个月在已查询的最大月份之前，则更新下一个月为已查询最大月
+      // 比如一直往上拉，已有202304-202308的数据，因为往上拉，此时被选中的月份是2023-04。
+      // 现在往下拉到顶，应该查询2022309的数据，因为选中的是2023-04,不做任何处理的话查询的实际是202305的值，这不对。
+      // 所以直接使用已查询的最大日期去+1查最新数据，并更新选中月份
+      DateTime nextMonthDate = DateTime(
+        maxQueryedDate.year,
+        maxQueryedDate.month + 1,
+        maxQueryedDate.day,
       );
 
+      String nextMonth = DateFormat(constMonthFormat).format(nextMonthDate);
       // 如果当前月份的下一月的1号已经账单中最大日期了，到顶了也不再加载
-      if ((DateTime(date.year, date.month + 1, date.day))
-          .isAfter(billPeriod.maxDate)) {
+      if (nextMonthDate.isAfter(billPeriod.maxDate)) {
         print("滚动到顶部，但已经到了账单【最新】的月份了，没有更【新】的数据可查了");
-
+        setState(() {
+          selectedMonth = DateFormat(constMonthFormat).format(maxQueryedDate);
+        });
         return;
       }
+
+      //
+      if (queryedMonths.contains(nextMonth)) {}
 
       print("到顶部了，当前选中的日期$selectedMonth 下个月$nextMonth  ");
 
       setState(() {
+        // 查询了更新的数据，要更新当前选中值和最大查询日期
         selectedMonth = nextMonth;
+        maxQueryedDate = nextMonthDate;
+        scollDirection = "down";
         _loadBillItemData();
       });
     } else if (atEdge &&
         !outOfRange &&
         scrollController.offset >= maxScrollExtent) {
       // 滚动到底部，查询下一个月的
-
-      // 当前月数据到底了，再滚动就取上一个月的数据了(选中的日期格式化为年月了，反格式化要补day,否则是null，就取now了)
-      DateTime date =
-          DateTime.tryParse("$selectedMonth-01 00:00:01") ?? DateTime.now();
-      String lastMonth = DateFormat(constMonthFormat).format(
-        DateTime(date.year, date.month - 1, date.day),
+      // 参看往上拉的逻辑说明
+      DateTime lastMonthDate = DateTime(
+        minQueryedDate.year,
+        minQueryedDate.month - 1,
+        minQueryedDate.day,
       );
+      String lastMonth = DateFormat(constMonthFormat).format(lastMonthDate);
 
       // 如果当前月份的1号已经账单中最大日期了，到顶了也不再加载
       // ???这里的比较其实有问题，2023-02-01 > 2023-02-12 时成立的
-      if (date.isBefore(billPeriod.minDate)) {
+      if (lastMonthDate.isBefore(billPeriod.minDate)) {
         print("滚动到底部，但已经到了账单【最旧】的月份了，没有更【旧】的数据可查了");
+        setState(() {
+          selectedMonth = DateFormat(constMonthFormat).format(minQueryedDate);
+        });
         return;
       }
 
-      print("到底了，当前选中的日期$selectedMonth $date 上个月$lastMonth ");
+      print("到底了，当前选中的日期$selectedMonth   上个月$lastMonth ");
       setState(() {
         selectedMonth = lastMonth;
+        minQueryedDate = lastMonthDate;
+        scollDirection = "up";
         _loadBillItemData();
       });
     }
@@ -183,6 +246,8 @@ class _BillItemIndexState extends State<BillItemIndex> {
   void _handleSearch() {
     setState(() {
       billItems.clear();
+      queryedMonths.clear();
+      scollDirection == "none";
       query = searchController.text;
     });
     // 在当前上下文中查找最近的 FocusScope 并使其失去焦点，从而收起键盘。
@@ -204,6 +269,7 @@ class _BillItemIndexState extends State<BillItemIndex> {
             onPressed: () async {
               setState(() {
                 billItems.clear();
+                scollDirection == "none";
                 isLoading = true;
               });
 
@@ -222,6 +288,29 @@ class _BillItemIndexState extends State<BillItemIndex> {
       body: SafeArea(
         child: Column(
           children: [
+            /// test 已查询的月度范围
+            Container(
+              height: 50.sp,
+              color: Colors.amberAccent,
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(4.sp, 0, 4, 0),
+                child: Row(
+                  children: [
+                    const Expanded(
+                      flex: 1,
+                      child: Text("已经显示的数据范围"),
+                    ),
+                    Expanded(
+                      flex: 1,
+                      child: Text(
+                        "${DateFormat(constMonthFormat).format(minQueryedDate)} ~ ${DateFormat(constMonthFormat).format(maxQueryedDate)}",
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
             /// 按月显示收支列表详情的月度切换按钮和月度收支总计的行
             /// 本页面不要appbar的话，这范围要给点富裕的高度
             buildMonthCountRow(),
@@ -274,6 +363,12 @@ class _BillItemIndexState extends State<BillItemIndex> {
                           print(date);
                           selectedMonth =
                               DateFormat(constMonthFormat).format(date);
+                          maxQueryedDate =
+                              DateTime.tryParse("$selectedMonth-01") ??
+                                  DateTime.now();
+                          minQueryedDate =
+                              DateTime.tryParse("$selectedMonth-01") ??
+                                  DateTime.now();
                           _handleSearch();
                         });
                       }

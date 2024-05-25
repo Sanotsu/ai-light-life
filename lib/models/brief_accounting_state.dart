@@ -18,6 +18,10 @@ class BillItem {
   String item; // 条目
   double value; // 数值
   String? gmtModified; // 异动时间
+  /// 扩展的几个栏位，懒得加VO了
+  String? month;
+  double? expendTotal;
+  double? incomeTotal;
 
   BillItem({
     required this.billItemId,
@@ -27,6 +31,9 @@ class BillItem {
     required this.item,
     required this.value,
     this.gmtModified,
+    this.month,
+    this.expendTotal,
+    this.incomeTotal,
   });
 
   Map<String, dynamic> toMap() {
@@ -50,6 +57,9 @@ class BillItem {
       item: map['item'] as String,
       value: map['value'] as double,
       gmtModified: map['gmt_modified'] as String?,
+      month: map['month'] as String?,
+      expendTotal: map['expend_total'] as double?,
+      incomeTotal: map['income_total'] as double?,
     );
   }
 
@@ -85,7 +95,8 @@ class BillItem {
     return '''
     BillItem{
       billItemId: $billItemId, itemType: $itemType, date: $date, category: $category, 
-      item: $item, value: $value, gmtModified: $gmtModified
+      item: $item, value: $value, gmtModified: $gmtModified,
+      month: $month, expendTotal: $expendTotal, incomeTotal: $incomeTotal,
     }
     ''';
   }
@@ -178,7 +189,7 @@ class BillPeriodCount {
       period: map['period'] as String,
       expandTotalValue: map['expand_total_value'] as double,
       incomeTotalValue: map['income_total_value'] as double,
-      ratio: map['ratio'] as double,
+      ratio: map['ratio'] != null ? map['ratio'] as double : 0,
     );
   }
 
