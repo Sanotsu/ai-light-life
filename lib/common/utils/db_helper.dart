@@ -401,8 +401,11 @@ class DBHelper {
       maxDate: DateTime.now(),
     );
 
+    print("------------------$list");
     // 如果有账单记录，则获取到最大最小值
-    if (list.isNotEmpty) {
+    if (list.isNotEmpty &&
+        list.first["min_date"] != null &&
+        list.first["max_date"] != null) {
       range = SimplePeriodRange.fromMap(list.first);
     }
     return range;
@@ -432,21 +435,21 @@ class DBHelper {
     var sql = """
       SELECT         
           period,        
-          round(SUM(expand_total_value), 2) AS expand_total_value,        
+          round(SUM(expend_total_value), 2) AS expend_total_value,        
           round(SUM(income_total_value), 2) AS income_total_value,      
           CASE       
               WHEN SUM(income_total_value) = 0.0 THEN 0.0      
-              ELSE round(SUM(expand_total_value) / NULLIF(SUM(income_total_value), 0.0), 5)      
+              ELSE round(SUM(expend_total_value) / NULLIF(SUM(income_total_value), 0.0), 5)      
           END AS ratio      
       FROM   
           (SELECT   
               strftime("$formatStr", "date") AS period,   
-              CASE WHEN item_type = 1 THEN value ELSE 0.0 END AS expand_total_value,  
+              CASE WHEN item_type = 1 THEN value ELSE 0.0 END AS expend_total_value,  
               CASE WHEN item_type = 0 THEN value ELSE 0.0 END AS income_total_value  
           FROM ${BriefAccountingDdl.tableNameOfBillItem}   
           WHERE $dateWhere item_type IN (0, 1)) AS combined_data  
       GROUP BY period        
-      ORDER BY period DESC;
+      ORDER BY period ASC;
       """;
 
     var rows = await (await database).rawQuery(sql);
@@ -479,7 +482,7 @@ class DBHelper {
     var sql = """
       SELECT  
         strftime('$formatStr', "date") AS period,  
-        round(SUM(CASE WHEN "item_type" = 1 THEN "value" ELSE 0.0 END), 2) AS expand_total_value,  
+        round(SUM(CASE WHEN "item_type" = 1 THEN "value" ELSE 0.0 END), 2) AS expend_total_value,  
         round(SUM(CASE WHEN "item_type" = 0 THEN "value" ELSE 0.0 END), 2) AS income_total_value  
     FROM  
         ${BriefAccountingDdl.tableNameOfBillItem} 

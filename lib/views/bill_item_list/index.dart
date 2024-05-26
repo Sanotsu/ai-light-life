@@ -461,7 +461,7 @@ class _BillItemIndexState extends State<BillItemIndex> {
     List<BillItem> itemsForDate = entry.value;
 
     // // 计算每天的总花费
-    // var totalExpand = itemsForDate.fold(0.0, (sum, item) {
+    // var totalExpend = itemsForDate.fold(0.0, (sum, item) {
     //   if (item.itemType != 0) {
     //     // 如果是支出，则累加支出
     //     return sum + item.value;
@@ -482,17 +482,17 @@ class _BillItemIndexState extends State<BillItemIndex> {
     // });
 
     // 上面的其实更简单的一次遍历即可
-    double totalExpand = 0.0;
+    double totalExpend = 0.0;
     double totalIncome = 0.0;
     for (var item in itemsForDate) {
       if (item.itemType != 0) {
-        totalExpand += item.value;
+        totalExpend += item.value;
       } else {
         totalIncome += item.value;
       }
     }
 
-    print("total expand--$totalExpand income $totalIncome");
+    print("total expend--$totalExpend income $totalIncome");
 
     return Card(
       child: Column(
@@ -500,7 +500,7 @@ class _BillItemIndexState extends State<BillItemIndex> {
           ListTile(
             title: Text('日期: $date'),
             trailing: Text(
-              '支出 ¥$totalExpand 收入 ¥$totalIncome',
+              '支出 ¥$totalExpend 收入 ¥$totalIncome',
             ),
             tileColor: Colors.lightGreen,
             dense: true,
@@ -574,7 +574,7 @@ class _BillItemIndexState extends State<BillItemIndex> {
           if (list.isNotEmpty) {
             children = <Widget>[
               Text(
-                  "支出 ¥${list[0].expandTotalValue}  收入 ¥${list[0].incomeTotalValue}"),
+                  "支出 ¥${list[0].expendTotalValue}  收入 ¥${list[0].incomeTotalValue}"),
             ];
           } else {
             children = <Widget>[

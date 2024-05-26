@@ -164,13 +164,13 @@ class BillGroup {
 /// 月度年度统计
 class BillPeriodCount {
   String period;
-  double expandTotalValue;
+  double expendTotalValue;
   double incomeTotalValue;
   double ratio;
 
   BillPeriodCount({
     required this.period,
-    required this.expandTotalValue,
+    required this.expendTotalValue,
     required this.incomeTotalValue,
     required this.ratio,
   });
@@ -178,7 +178,7 @@ class BillPeriodCount {
   Map<String, dynamic> toMap() {
     return {
       'period': period,
-      'expand_total_value': expandTotalValue,
+      'expend_total_value': expendTotalValue,
       'income_total_value': incomeTotalValue,
       'ratio': ratio,
     };
@@ -187,7 +187,7 @@ class BillPeriodCount {
   factory BillPeriodCount.fromMap(Map<String, dynamic> map) {
     return BillPeriodCount(
       period: map['period'] as String,
-      expandTotalValue: map['expand_total_value'] as double,
+      expendTotalValue: map['expend_total_value'] as double,
       incomeTotalValue: map['income_total_value'] as double,
       ratio: map['ratio'] != null ? map['ratio'] as double : 0,
     );
@@ -196,7 +196,7 @@ class BillPeriodCount {
   @override
   String toString() {
     return '''
-    BillPeriodCount{period: $period, expandTotalValue: $expandTotalValue, incomeTotalValue: $incomeTotalValue, ratio: $ratio;}
+    BillPeriodCount{period: $period, expendTotalValue: $expendTotalValue, incomeTotalValue: $incomeTotalValue, ratio: $ratio;}
     ''';
   }
 }

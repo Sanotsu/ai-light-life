@@ -97,6 +97,8 @@ class BriefAccountingApp extends StatelessWidget {
             Locale('zh', 'CH'),
             Locale('en', 'US'),
           ],
+          // 初始化的locale
+          locale: const Locale('zh', 'CH'),
 
           /// 默认的主题
           theme: ThemeData(
