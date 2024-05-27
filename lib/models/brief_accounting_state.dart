@@ -48,6 +48,19 @@ class BillItem {
     };
   }
 
+  // 主要是账单条目表单初始化值得时候，需要转类型
+  Map<String, dynamic> toStringMap() {
+    return {
+      'bill_item_id': billItemId,
+      'item_type': itemType == 0 ? '收入' : '支出',
+      'date': DateTime.tryParse(date) ?? DateTime.now(),
+      'category': category,
+      'item': item,
+      'value': value.toStringAsFixed(2),
+      'gmt_modified': gmtModified,
+    };
+  }
+
   factory BillItem.fromMap(Map<String, dynamic> map) {
     return BillItem(
       billItemId: map['bill_item_id'] as String,

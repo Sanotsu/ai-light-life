@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'bill_item_list/index.dart';
+import 'bill_item_modify/index.dart';
 import 'bill_report/index.dart';
 
 /// 主页面
@@ -106,7 +107,22 @@ class _HomePageState extends State<HomePage> {
         floatingActionButton: FloatingActionButton(
           //悬浮按钮
           child: const Icon(Icons.add),
-          onPressed: () {},
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const BillEditPage(),
+              ),
+            ).then((value) {
+              // 不管是否新增成功，这里都重新加载；
+              // 因为没有清空查询条件，所以新增的食物关键字不包含查询条件中，不会显示
+              if (value != null) {
+                setState(() {
+                  print("新增billitem的返回值---$value");
+                });
+              }
+            });
+          },
         ),
         floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       ),

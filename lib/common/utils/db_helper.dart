@@ -160,6 +160,8 @@ class DBHelper {
     for (var item in billItems) {
       batch.insert(BriefAccountingDdl.tableNameOfBillItem, item.toMap());
     }
+
+    print("新增账单条目了$billItems");
     return await batch.commit();
   }
 
@@ -236,11 +238,11 @@ class DBHelper {
       whereArgs.add("%$itemKeyword%");
     }
 
-    if (startDate != null) {
+    if (startDate != null && startDate != "") {
       where.add(" date >= ? ");
       whereArgs.add(startDate);
     }
-    if (endDate != null) {
+    if (endDate != null && endDate != "") {
       where.add(" date <= ? ");
       whereArgs.add(endDate);
     }

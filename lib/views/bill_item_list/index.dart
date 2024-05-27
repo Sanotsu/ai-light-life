@@ -15,6 +15,7 @@ import '../../common/components/tool_widget.dart';
 import '../../common/constants.dart';
 import '../../common/utils/db_helper.dart';
 import '../../models/brief_accounting_state.dart';
+import '../bill_item_modify/index.dart';
 import 'mock_data/index.dart';
 
 /// 2024-05-25
@@ -121,10 +122,10 @@ class _BillItemIndexState extends State<BillItemIndex> {
     });
 
     CusDataResult temp = await _dbHelper.queryBillItemList(
-      // 按月查询，自动补上起止日期？？？
-      startDate: "$selectedMonth-01",
-      endDate: "$selectedMonth-31",
+      // 如果有关键字了，是不是不应该限制起止了？？？
       itemKeyword: query,
+      startDate: query != "" ? "" : "$selectedMonth-01",
+      endDate: query != "" ? "" : "$selectedMonth-31",
       page: 1,
       pageSize: 0,
     );
@@ -151,6 +152,7 @@ class _BillItemIndexState extends State<BillItemIndex> {
   Future<List<BillPeriodCount>?> _loadBillCountData() async {
     try {
       return await _dbHelper.queryBillCountList(
+        // 如果有关键字了，是不是不应该限制起止了？？？
         startDate: "$selectedMonth-01",
         endDate: "$selectedMonth-31",
       );
@@ -498,9 +500,20 @@ class _BillItemIndexState extends State<BillItemIndex> {
       child: Column(
         children: [
           ListTile(
-            title: Text('日期: $date'),
+            title: Text(
+              date,
+              style: TextStyle(
+                color: Theme.of(context).primaryColor,
+                fontWeight: FontWeight.bold,
+                fontSize: 15.sp,
+              ),
+            ),
             trailing: Text(
               '支出 ¥$totalExpend 收入 ¥$totalIncome',
+              style: TextStyle(
+                color: Theme.of(context).primaryColor,
+                fontSize: 13.sp,
+              ),
             ),
             tileColor: Colors.lightGreen,
             dense: true,
@@ -512,18 +525,7 @@ class _BillItemIndexState extends State<BillItemIndex> {
             children: ListTile.divideTiles(
               context: context,
               tiles: itemsForDate.map((item) {
-                return ListTile(
-                  title: Text(item.item),
-                  trailing: Text(
-                    '${item.itemType == 0 ? '+' : '-'}${item.value.toStringAsFixed(2)}',
-                    style: TextStyle(
-                      fontSize: 10.sp,
-                      fontWeight: FontWeight.bold,
-                      color: item.itemType != 0 ? Colors.black : Colors.green,
-                    ),
-                  ),
-                  // 可以添加其他信息，如时间戳等
-                );
+                return buildItemListTile(item);
               }).toList(),
             ).toList(),
           ),
@@ -600,6 +602,177 @@ class _BillItemIndexState extends State<BillItemIndex> {
           ),
         );
       },
+    );
+  }
+
+// 账单列表子条目的list
+  GestureDetector buildItemListTile(BillItem item) {
+    return GestureDetector(
+      // 暂定长按删除弹窗、双击跳到修改
+      // ListTile 没有双击事件，所以包裹一个手势
+      onDoubleTap: () {
+        print('ListTile $item was double tapped!');
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => BillEditPage(billItem: item),
+          ),
+        ).then((value) {
+          // 不管是否新增成功，这里都重新加载；
+          // 因为没有清空查询条件，所以新增的食物关键字不包含查询条件中，不会显示
+          if (value != null) {
+            setState(() {
+              print("长按修改billitem的返回值---$value");
+            });
+          }
+        });
+      },
+
+      onLongPress: () {
+        showDialog(
+          context: context,
+          builder: (context) {
+            return AlertDialog(
+              title: const Text("删除提示"),
+              content: Text(
+                "确定删除选中的条目:\n ${item.itemType != 0 ? '支出' : '收入'}　${item.item} ${item.value}",
+                style: TextStyle(fontSize: 15.sp),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () async {
+                    await _dbHelper.deleteBillItemById(item.billItemId);
+                    if (!mounted) return;
+                    Navigator.of(context).pop(true);
+                  },
+                  child: const Text("确定"),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                  child: const Text("取消"),
+                ),
+              ],
+            );
+          },
+        ).then((value) {
+          // 成功删除就重新查询
+          if (value != null && value) {
+            setState(() {
+              _handleSearch();
+            });
+          }
+        });
+      },
+      child: ListTile(
+        title: RichText(
+          text: TextSpan(
+            children: [
+              TextSpan(
+                text: item.item,
+                style: TextStyle(
+                  color: Theme.of(context).primaryColor,
+                  fontSize: 15.sp,
+                ),
+              ),
+              if (item.category != null)
+                TextSpan(
+                  text: "\n${item.category}",
+                  style: TextStyle(
+                    color: Colors.blue,
+                    fontSize: 12.sp,
+                  ),
+                ),
+            ],
+          ),
+        ),
+        trailing: Text(
+          '${item.itemType == 0 ? '+' : '-'}${item.value.toStringAsFixed(2)}',
+          style: TextStyle(
+            fontSize: 16.sp,
+            fontWeight: FontWeight.bold,
+            color: item.itemType != 0 ? Colors.black : Colors.green,
+          ),
+        ),
+        // 2024-05-27 还是不要单个事件做多个操作了
+        // 暂定长按删除弹窗、双击跳到修改
+        // onLongPress: () {
+        //   print("长按了条目---------$item");
+        //   showDialog(
+        //     context: context,
+        //     builder: (context) {
+        //       return AlertDialog(
+        //         title: const Text("异动说明"),
+        //         content: Column(
+        //           mainAxisSize: MainAxisSize.min,
+        //           crossAxisAlignment: CrossAxisAlignment.center,
+        //           mainAxisAlignment: MainAxisAlignment.center,
+        //           children: [
+        //             Text(
+        //               "请选择账单条目的处理方式:\n",
+        //               style: TextStyle(fontSize: 15.sp),
+        //             ),
+        //             Row(
+        //               mainAxisAlignment:
+        //                   MainAxisAlignment.spaceBetween,
+        //               children: [
+        //                 TextButton(
+        //                   onPressed: () {
+        //                     Navigator.of(context).pop("delete");
+        //                   },
+        //                   child: const Text("删除"),
+        //                 ),
+        //                 TextButton(
+        //                   onPressed: () {
+        //                     Navigator.of(context).pop("modify");
+        //                   },
+        //                   child: const Text("修改"),
+        //                 ),
+        //                 ElevatedButton(
+        //                   onPressed: () {
+        //                     Navigator.of(context).pop("cancel");
+        //                   },
+        //                   child: const Text("取消"),
+        //                 ),
+        //               ],
+        //             ),
+        //           ],
+        //         ),
+        //         // actions: [
+        //         //   TextButton(
+        //         //     onPressed: () {
+        //         //       Navigator.pop(context);
+        //         //     },
+        //         //     child: const Text("取消"),
+        //         //   ),
+        //         // ],
+        //       );
+        //     },
+        //   ).then((value) {
+        //     if (value == "modify") {
+        //       Navigator.push(
+        //         context,
+        //         MaterialPageRoute(
+        //           builder: (context) => BillEditPage(billItem: item),
+        //         ),
+        //       ).then((value) {
+        //         // 不管是否新增成功，这里都重新加载；
+        //         // 因为没有清空查询条件，所以新增的食物关键字不包含查询条件中，不会显示
+        //         if (value != null) {
+        //           setState(() {
+        //             print("长按修改billitem的返回值---$value");
+        //           });
+        //         }
+        //       });
+        //     } else if (value == "delete") {
+        //       print("点击了删除--------------");
+        //     } else {
+        //       print("点击了----其他--------------");
+        //     }
+        //   });
+        // },
+      ),
     );
   }
 }

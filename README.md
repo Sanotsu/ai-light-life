@@ -74,3 +74,35 @@ CREATE TABLE "bill_item_list" (
 - 报表页面：几个预设的简单图表
 - 导入/导出：因为是 app 内置的 sqlite 中，所以导出备份比较重要
   - 方便导入导出，都 json 格式好了，不要什么 excel、pdf 之类的了，不好处理。
+
+### 依赖版本
+
+2024-05-27 使用最新 flutter 版本：
+
+```sh
+$ flutter --version
+Flutter 3.22.1 • channel stable • https://github.com/flutter/flutter.git
+Framework • revision a14f74ff3a (4 天前) • 2024-05-22 11:08:21 -0500
+Engine • revision 55eae6864b
+Tools • Dart 3.4.1 • DevTools 2.34.3
+```
+
+主要的工具库:
+
+```yaml
+sqflite: ^2.3.3+1 # sqlite数据库工具库
+path_provider: ^2.1.3 # 获取主机平台文件系统上的常用位置
+path: ^1.9.0 # 基于字符串的路径操作库
+flutter_easyloading: ^3.0.5 #  loading/toast 小部件
+flutter_screenutil: ^5.9.1 # 适配屏幕和字体大小的插件
+intl: ^0.19.0 # 国际化/本地化处理库
+flutter_localizations:
+  sdk: flutter
+collection: ^1.18.0 # 集合相关的适用工具库
+bottom_picker: ^2.7.0 # 简洁，但不支持仅年月
+month_picker_dialog: ^3.0.0 # 支持仅年月，但是是弹窗，和原始组件类似
+syncfusion_flutter_charts: ^25.2.5 # 图表库
+flutter_form_builder: ^9.3.0 # 表单组件
+form_builder_validators: ^10.0.1 # 表单验证
+uuid: ^4.4.0 # uuid
+```

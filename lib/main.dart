@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
+import 'package:form_builder_validators/form_builder_validators.dart';
 
 import 'views/home_page.dart';
 
@@ -92,10 +93,13 @@ class BriefAccountingApp extends StatelessWidget {
             GlobalMaterialLocalizations.delegate,
             GlobalWidgetsLocalizations.delegate,
             GlobalCupertinoLocalizations.delegate,
+            // form builder表单验证的多国语言
+            FormBuilderLocalizations.delegate,
           ],
           supportedLocales: const [
             Locale('zh', 'CH'),
             Locale('en', 'US'),
+            ...FormBuilderLocalizations.supportedLocales,
           ],
           // 初始化的locale
           locale: const Locale('zh', 'CH'),
