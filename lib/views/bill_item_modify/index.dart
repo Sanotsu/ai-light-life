@@ -1,5 +1,3 @@
-// ignore_for_file: avoid_print
-
 import 'package:flutter/material.dart';
 import 'package:flutter_form_builder/flutter_form_builder.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -11,6 +9,7 @@ import '../../common/components/tool_widget.dart';
 import '../../common/constants.dart';
 import '../../common/utils/db_helper.dart';
 import '../../models/brief_accounting_state.dart';
+import '../home_page.dart';
 
 ///
 /// 新增账单条目的简单布局：
@@ -19,7 +18,7 @@ import '../../models/brief_accounting_state.dart';
 /// 选择大分类 category
 /// 输入细项 item
 /// 输入金额 value
-/// 指定日期 datetime picker，默认当前，但也可以是添加以前的流水
+/// 指定日期 datetime picker，默认当前，但也可以是添加以前的流水项目
 ///
 class BillEditPage extends StatefulWidget {
   // 列表页面长按修改的时候可能会传账单条目
@@ -46,9 +45,7 @@ class _BillEditPageState extends State<BillEditPage> {
   void _onChanged(dynamic val) => debugPrint(val.toString());
 
   // 这些选项都是FormBuilderChipOption类型
-
   String selectedCategoryType = "支出";
-
   var categoryList = [
     // 饮食
     "三餐", "外卖", "零食", "夜宵", "烟酒", "饮料",
@@ -61,7 +58,6 @@ class _BillEditPageState extends State<BillEditPage> {
     // 生活
     "理发", "还款",
   ];
-
   var incomeCategoryList = [
     // 饮食
     "工资", "炒股", "基金", "摆摊", "投资", "代练",
@@ -89,7 +85,8 @@ class _BillEditPageState extends State<BillEditPage> {
         .toList();
   }
 
-  _saveBillItem() async {
+  /// 保存账单条目到数据库
+  saveBillItem() async {
     if (_formKey.currentState!.saveAndValidate()) {
       if (isLoading) return;
       setState(() {
@@ -108,8 +105,6 @@ class _BillEditPageState extends State<BillEditPage> {
         gmtModified: DateFormat(constDatetimeFormat).format(DateTime.now()),
       );
 
-      print("temp['date']--${temp['date']} $tempItem");
-
       try {
         // 没传是新增
         if (widget.billItem == null) {
@@ -125,15 +120,16 @@ class _BillEditPageState extends State<BillEditPage> {
           isLoading = false;
         });
 
-        // 新增或修改成功了，跳转到账单列表页面去
+        // 新增或修改成功了，跳转到主页面去(homepage默认是账单列表)
         // 因为可能是修改(从账单列表来的)或者新增(从新增按钮来的)，来源不一样，所以这里不是返回而是替换
-        Navigator.pop(context, true);
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const HomePage()),
+        );
       } catch (e) {
         // 将错误信息展示给用户
         if (!mounted) return;
-
         commonExceptionDialog(context, "异常警告", e.toString());
-
         setState(() {
           isLoading = false;
         });
@@ -146,25 +142,22 @@ class _BillEditPageState extends State<BillEditPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('新增账单'),
+        title: Text("${widget.billItem != null ? '修改' : '新增'}账单项目"),
         actions: [
           ElevatedButton(
             onPressed: () async {
               if (_formKey.currentState!.saveAndValidate()) {
-                // 获取表单数据
-                Map<String, dynamic> values = _formKey.currentState!.value;
                 // 处理表单数据，如保存到数据库等
-                print(values);
-                _saveBillItem();
+                saveBillItem();
               }
             },
-            child: const Text('提交'),
+            child: const Text('保存'),
           ),
         ],
       ),
       body: SingleChildScrollView(
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: EdgeInsets.all(16.sp),
           child: FormBuilder(
             key: _formKey,
             child: Column(
@@ -187,6 +180,9 @@ class _BillEditPageState extends State<BillEditPage> {
                       });
                     }
                   },
+                  validator: FormBuilderValidators.compose([
+                    FormBuilderValidators.required(),
+                  ]),
                 ),
                 FormBuilderDateTimePicker(
                   name: 'date',
@@ -208,6 +204,9 @@ class _BillEditPageState extends State<BillEditPage> {
                   keyboardType: TextInputType.datetime,
                   initialTime: const TimeOfDay(hour: 8, minute: 0),
                   locale: Localizations.localeOf(context),
+                  validator: FormBuilderValidators.compose([
+                    FormBuilderValidators.required(),
+                  ]),
                 ),
                 FormBuilderChoiceChip<String>(
                   decoration: const InputDecoration(
@@ -231,6 +230,9 @@ class _BillEditPageState extends State<BillEditPage> {
                   // spacing: 10.sp,
                   options: _categoryChipOptions(),
                   onChanged: _onChanged,
+                  validator: FormBuilderValidators.compose([
+                    FormBuilderValidators.required(),
+                  ]),
                 ),
                 FormBuilderTextField(
                   name: 'item',
@@ -280,7 +282,7 @@ class _BillEditPageState extends State<BillEditPage> {
                   keyboardType: TextInputType.number,
                   textInputAction: TextInputAction.done,
                 ),
-                const SizedBox(height: 20),
+                SizedBox(height: 20.sp),
               ],
             ),
           ),

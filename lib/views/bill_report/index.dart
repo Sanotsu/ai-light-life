@@ -540,13 +540,17 @@ class _BillReportIndexState extends State<BillReportIndex>
                   // 获取当前区域
                   Locale locale = Localizations.localeOf(context);
                   // 获取月份标签，转为日期格式，再转为符合区域格式的日期年月字符串
-                  var newLabel = DateFormat.yM(locale.toString()).format(
-                    DateTime.tryParse(isMonth
-                            ? "${details.text}-01"
-                            : "${details.text}-01-01") ??
-                        DateTime.now(),
-                  );
-
+                  var newLabel = "";
+                  if (isMonth) {
+                    newLabel = DateFormat.yM(locale.toString()).format(
+                      DateTime.tryParse("${details.text}-01") ?? DateTime.now(),
+                    );
+                  } else {
+                    newLabel = DateFormat.y(locale.toString()).format(
+                      DateTime.tryParse("${details.text}-01-01") ??
+                          DateTime.now(),
+                    );
+                  }
                   return ChartAxisLabel(newLabel, newStyle);
                 },
               ),
@@ -570,7 +574,9 @@ class _BillReportIndexState extends State<BillReportIndex>
                           : data.incomeTotalValue,
                   width: 0.6, // 柱的宽度
                   spacing: 0.4, // 柱之间的间隔
-                  name: '支出',
+                  name: isMonth
+                      ? (isMonthExpendClick ? '支出' : '收入')
+                      : (isYearExpendClick ? '支出' : '收入'),
                   color: const Color.fromRGBO(8, 142, 255, 1),
                   // 根据索引设置不同的颜色，高亮第三个柱子（索引为2，因为索引从0开始）
                   pointColorMapper: (BillPeriodCount value, int index) {
@@ -655,7 +661,7 @@ class _BillReportIndexState extends State<BillReportIndex>
         Padding(
           padding: EdgeInsets.only(left: 20.sp, top: 5.sp, bottom: 10.sp),
           child: Text(
-            billType == "month"
+            isMonth
                 ? "${isMonthExpendClick ? '支出' : '收入'}排行"
                 : "${isYearExpendClick ? '支出' : '收入'}排行前十",
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16.sp),
@@ -685,7 +691,6 @@ class _BillReportIndexState extends State<BillReportIndex>
                   Icon(Icons.shopping_cart, color: Colors.orange[300]!),
                   SizedBox(width: 5.sp),
                   Expanded(
-                    flex: 3,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -697,7 +702,7 @@ class _BillReportIndexState extends State<BillReportIndex>
                           style: TextStyle(fontSize: 14.sp),
                         ),
                         Text(
-                          "消费日期:${i.date}__${i.gmtModified ?? ''}",
+                          "${i.date}__${i.gmtModified ?? ''}",
                           softWrap: true,
                           overflow: TextOverflow.ellipsis,
                           maxLines: 1,
@@ -706,10 +711,15 @@ class _BillReportIndexState extends State<BillReportIndex>
                       ],
                     ),
                   ),
-                  Expanded(
+                  // 金额这里固定最大99999.99吧
+                  SizedBox(
+                    width: 90.sp,
                     child: Text(
                       "￥${i.value}",
                       style: TextStyle(fontSize: 15.sp),
+                      softWrap: true,
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
                       textAlign: TextAlign.end,
                     ),
                   ),

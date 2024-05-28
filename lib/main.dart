@@ -97,12 +97,12 @@ class BriefAccountingApp extends StatelessWidget {
             FormBuilderLocalizations.delegate,
           ],
           supportedLocales: const [
-            Locale('zh', 'CH'),
+            Locale('zh', 'CN'),
             Locale('en', 'US'),
             ...FormBuilderLocalizations.supportedLocales,
           ],
           // 初始化的locale
-          locale: const Locale('zh', 'CH'),
+          locale: const Locale('zh', 'CN'),
 
           /// 默认的主题
           theme: ThemeData(

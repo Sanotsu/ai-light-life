@@ -1,9 +1,6 @@
 // ignore_for_file: avoid_print
 import 'dart:ui' as ui;
 
-import 'package:bottom_picker/bottom_picker.dart';
-import 'package:bottom_picker/resources/arrays.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
@@ -18,25 +15,24 @@ import '../../models/brief_accounting_state.dart';
 import '../bill_item_modify/index.dart';
 import 'mock_data/index.dart';
 
-/// 2024-05-25
-/// 首页的账单列表显示暂时不按照微信那样可以滚动加载更多和滑动了。
-/// 简单一点，就只支持按月查看，而不是将查询的结果分组了。
-/// 上方点击月份可以弹窗选择其他月份，旁边两个按钮， 切换到上一个月下一个月
-/// 【即当前listview中只显示当月的数据】
-///     如果想看2023-12-14 ~ 2024-01-13的跨月数据在一个listview，不行。
-///   ？？？因为目前的简单设计，没法在滚动处知道listview中已经存在的月份数据，
-/// 所以无法实时更新当前的选中月份，导致每次拖动到顶或者底查询新的数据时，条件有误。
-///
-/// 比如先查2023-04的，往下拉一直更新到当前月为2023-08,此时已有 2023-04到-08的数据，当前月为2023-08
-///   现在拉到底，查询上一个月的，此时被选中的月份是2023-08,再一次查询的是2023-07的数据，
-///   但listview原本底部显示的是2023-04的数据。所以此时又查询了一次2023-07的数据，
-///   用于显示的billItems列表数据就有重复了。
-///     --- 这个问题可以再有一个变量存已经查询过的月份列表(或者两个date变量存已查询的最大最小日期)，
-///         如果此时的当前月在这个范围内，就再更新被选中的月份为已经查询的最新+1或者最旧-1 月份
-///         又因为手动切换月份本来就要清0重新查询，所有滚动时更新一个最大日期和最小日期即可
-/// 此外，在已有的200023-04 ~ 08 之前滚动，无法定位当前的月份是哪一个月
-///     --- ？？？暂时无解
-///
+/// 2024-05-28
+/// 账单列表，按月查看
+///   默认显示当前月的所有账单项次，并额外显示每天的总计的支出和收入；
+///   点击选中年月日期，可切换到其他月份；选中的月份所在行有当月总计的支出和收入。
+///   在显示选中月日期的清单时，如果有的话，可以上拉加载上一个月的项次数据，下拉加载后一个月的项次数据；
+///     如果当前加载的账单项次不止一个月的数据，则在滚动时大概估算到当前展示的是哪一个月的项次，来更新显示的选中日期；
+///     实现逻辑：
+///         主要是绘制好每月项次列表后，保留每个月占用的总高度，存入数组；
+///         根据滚动控制器得到当前已经加载的高度，和保留每个月总高度的对象列表进行比较；
+///         如果“上一个的累加高度 <=  已加载的高度 < 当前的累加高度”，则当前月就是要展示的月份
+///     两点注意：
+///         1 存每月列表组件高度的数组存的是月份排序后的累加高度：
+///            [{'2024-03': 240}, // 3月份组件总高度 240
+///             {'2024-02': 490}, // 4月份组件总高度 490-240=250
+///             {'2024-01': 630}, // 5月份组件总高度 630-490=140
+///             {'2023-12': 670}, // ...
+///             // ... 更多的月份数据];
+///         2 滚动控制器总加载的高度和实际组件逐个计算的高度不一致，原因不明？？？
 class BillItemIndex extends StatefulWidget {
   const BillItemIndex({super.key});
 
@@ -46,18 +42,18 @@ class BillItemIndex extends StatefulWidget {
 
 class _BillItemIndexState extends State<BillItemIndex> {
   final DBHelper _dbHelper = DBHelper();
+  // 账单项次的列表滚动控制器
+  ScrollController scrollController = ScrollController();
 
+  // 是否查询账单项次中
+  bool isLoading = false;
   // 单纯的账单条目列表
   List<BillItem> billItems = [];
   // 按日分组后的账单条目对象(key是日期，value是条目列表)
   Map<String, List<BillItem>> billItemGroupByDayMap = {};
 
-  bool isLoading = false;
-  ScrollController scrollController = ScrollController();
-  double _previousScrollPosition = 0.0;
-  String _scrollDirection = 'Idle';
-
-  // 2024-05-27 因为有分组统计等内容，所以关键字查询条目的展示要和默认的区分开来
+  // 2024-05-27 因为默认查询有额外的分组统计等操作，
+  // 所以关键字查询条目的展示要和默认的区分开来
   bool isQuery = false;
   // 关键字输入框控制器
   TextEditingController searchController = TextEditingController();
@@ -67,6 +63,7 @@ class _BillItemIndexState extends State<BillItemIndex> {
     minDate: DateTime.now(),
     maxDate: DateTime.now(),
   );
+
   // 被选中的月份(yyyy-MM格式，作为查询条件或者反格式化为Datetime时，手动补上day)
   String selectedMonth = DateFormat(constMonthFormat).format(DateTime.now());
 
@@ -74,12 +71,13 @@ class _BillItemIndexState extends State<BillItemIndex> {
   DateTime minQueryedDate = DateTime.now();
   DateTime maxQueryedDate = DateTime.now();
 
-  // 滚动方向，往上拉是up，往下拉时down，默认为none
+  // 用户滑动的滚动方向，往上拉是up，往下拉时down，默认为none
+  // 往上拉到头时获取更多数据就是取前一个月的，往下拉到头获取更多数据就是后一个月的
   String scollDirection = "none";
 
   // 用一个map来保存每个月份的条目数据组件的总高度
-  // 后续用列表已滚动的高度-每个月的组件总高度，得到了负值，则前一个就是当前月份
-  List<Map<String, double>> monthlyWidgetHeightMap = [];
+  // 如果加载了多个月份的数据，可以用列表已滚动的高度和每个月的组件总高度进行对比，得到当前月份
+  List<Map<String, double>> monthlyWidgetHeights = [];
 
   @override
   void initState() {
@@ -91,25 +89,10 @@ class _BillItemIndexState extends State<BillItemIndex> {
 
     print("初始化时的最大最小查询日期-------------$maxQueryedDate $minQueryedDate");
 
-    _loadBillItemData();
-
-    _loadDateRange();
+    getBillPeriod();
+    loadBillItemsByMonth();
 
     scrollController.addListener(_scrollListener);
-    // 侦听滚动方向
-    scrollController.addListener(() {
-      double currentScrollPosition = scrollController.position.pixels;
-      if (currentScrollPosition > _previousScrollPosition) {
-        setState(() {
-          _scrollDirection = 'down';
-        });
-      } else if (currentScrollPosition < _previousScrollPosition) {
-        setState(() {
-          _scrollDirection = 'up';
-        });
-      }
-      _previousScrollPosition = currentScrollPosition;
-    });
   }
 
   @override
@@ -120,20 +103,19 @@ class _BillItemIndexState extends State<BillItemIndex> {
     super.dispose();
   }
 
-  _loadDateRange() async {
+  /// 获取数据库中账单记录的日期起迄范围
+  getBillPeriod() async {
     var tempPeriod = await _dbHelper.queryDateRangeList();
     setState(() {
       billPeriod = tempPeriod;
     });
   }
 
-  /// 2024-05-23 这里的加载更多不应该和之前默认查询10条，加载完上滑时加载更多。
-  /// 最简单的，获取系统当月的所有账单条目查询出来(这样每日、月度统计就是正确的)，
+  /// 查询指定月份账单项次列表
+  /// 获取系统当月的所有账单条目查询出来(这样每日、月度统计就是正确的)，
   /// 下滑显示完当月数据化，加载上一个月的所有数据出来
-  /// 即默认情况下，一个月一个月地加载
-  /// 【也正是基于统计的原因，是否保留关键字筛选？？？】
   /// 2024-05-27 这个查询不带关键字，有专门带关键字的查询函数
-  Future<void> _loadBillItemData() async {
+  Future<void> loadBillItemsByMonth() async {
     if (isLoading) return;
 
     setState(() {
@@ -150,8 +132,6 @@ class _BillItemIndexState extends State<BillItemIndex> {
     var newData = temp.data as List<BillItem>;
 
     setState(() {
-      // 2024-05-24 暂时每个月切换后不保留之前查询的数据，只显示当月的
-      // billItems.clear();
       // 2024-05-24 这里不能直接添加，还需要排序，不然上拉后下拉日期新的列表在日期旧的列表后面
       if (scollDirection == "down") {
         billItems.insertAll(0, newData);
@@ -159,18 +139,18 @@ class _BillItemIndexState extends State<BillItemIndex> {
         billItems.addAll(newData);
       }
 
-      print("==============================================");
-      computeMonthWidgetHeights();
+      // 加载完所有项次列表之后，要计算每个月项次组件的总高度，用于后续计算滑动所在的月份
+      _computeMonthWidgetHeights();
 
+      // 按照每天进行项次分组，方便后续计算每日的总支出/收入
       billItemGroupByDayMap = groupBy(billItems, (item) => item.date);
-      // 2024-05-25 已经查询过的月份数据放入列表，避免重复查询
+
       isLoading = false;
     });
   }
 
-  // 查询月度统计
-  // ？？？年度统计再看列表详情的话比较奇怪，和微信类似，多个年度统计tab，换个页面查询统计
-  Future<List<BillPeriodCount>?> _loadBillCountData() async {
+  // 查询选中月份的总支出/收入信息
+  Future<List<BillPeriodCount>?> loadBillCountByMonth() async {
     try {
       return await _dbHelper.queryBillCountList(
         startDate: "$selectedMonth-01",
@@ -182,40 +162,23 @@ class _BillItemIndexState extends State<BillItemIndex> {
     }
   }
 
-  /// 2024-05-28 下面两个都能根据已经滚动的高度和每个月份所在列表子组件的总高度的map，获得当前月份
-  // 假设列表项高度是固定的，并且monthCumulativeHeights是累积高度
-  // String getCurrentMonth(double scrollPosition) {
-  //   for (int i = 0; i < monthlyWidgetHeightMap.length - 1; i++) {
-  //     print(
-  //         "上一个${monthlyWidgetHeightMap[i].values.first},下一个${monthlyWidgetHeightMap[i + 1].values.first} 当前key ${monthlyWidgetHeightMap[i].keys.first}");
-  //     if (scrollPosition < monthlyWidgetHeightMap[0].values.first) {
-  //       return monthlyWidgetHeightMap[0].keys.first;
-  //     }
-  //     if (scrollPosition >= monthlyWidgetHeightMap[i].values.first &&
-  //         scrollPosition < monthlyWidgetHeightMap[i + 1].values.first) {
-  //       // 滚动位置位于当前月份和下一个月份之间，返回当前月份
-  //       return monthlyWidgetHeightMap[i + 1].keys.first; // 假设monthHeights包含月份信息
-  //     }
-  //   }
-  //   // 如果滚动位置超过所有月份的高度，返回最后一个月份
-  //   return monthlyWidgetHeightMap.last.keys.first;
-  // }
-
-  String getCurrentMonth(double scrollPosition) {
+  /// 2024-05-28 根据已经滚动的高度和每个月份所在列表子组件的总高度的map，获得当前月份
+  // 假设列表项高度是固定的，并且 monthlyWidgetHeights 是每月列表的累积高度
+  String _getCurrentMonth(double scrollPosition) {
     // 初始化一个变量来存储上一个月份的累积高度
     double prevCumulativeHeight = 0;
 
     // 遍历月份累积高度列表
-    for (int i = 0; i < monthlyWidgetHeightMap.length; i++) {
+    for (int i = 0; i < monthlyWidgetHeights.length; i++) {
       // 当前月份的累积高度
-      double currentCumulativeHeight = monthlyWidgetHeightMap[i].values.first;
+      double currentCumulativeHeight = monthlyWidgetHeights[i].values.first;
 
       // 检查滚动位置是否在当前月份和前一个月份之间
       // 注意：当i == 0时，prevCumulativeHeight为0，这对应于列表的顶部
       if (scrollPosition >= prevCumulativeHeight &&
           scrollPosition < currentCumulativeHeight) {
         // 滚动位置位于当前月份内，返回当前月份
-        return monthlyWidgetHeightMap[i].keys.first;
+        return monthlyWidgetHeights[i].keys.first;
       }
 
       // 更新上一个月份的累积高度为当前月份的累积高度
@@ -224,49 +187,38 @@ class _BillItemIndexState extends State<BillItemIndex> {
 
     // 如果滚动位置超过所有月份的高度，返回最后一个月份
     // 注意：这通常不会发生，除非滚动位置在列表底部之外，但这里作为一个安全网
-    return monthlyWidgetHeightMap.last.keys.first;
+    return monthlyWidgetHeights.last.keys.first;
   }
 
-  // 滑动到底部或者底部加载更多
-  // ？？？还有个小问题，就是当前月份的记录没有堆满页面时，上拉或者下拉不会加载更多
-  // 这里应该使用手势等其他方式来触发
-  // 还有问题，已经加载了很多个月份的数据，在切换不同月份的列表时，当前选中的月份数据不会变化。？？？
-  // 往上拉往下拉之后，重复几次，数据就重复了？？？
-  // 2024-05-28
-  // 加载更多ok了；多拉几次数据重复问题解决了；
-  // 加载了多个月份数据滚动列表时更新当前选中月份大概解决了(月份子组件的累加高度计算总是不对？？？)
+  /// listview 滚动的侦听器，有以下功能：
+  ///   1、上拉滚动到当月数据项次结束，则加载上一个月的数据；同理下拉到头加载下一个月的数据；
+  ///   2、如果列表中有多个月份的数据，根据每个月份组件的累计高度和已加载的列表高度比较，得到当前显示的列表所在的月份。
   void _scrollListener() {
     if (isLoading) return;
 
+    // 最大滚动范围(注意，这个 maxScrollExtent 的值在滚动过程中是变化的)
     final maxScrollExtent = scrollController.position.maxScrollExtent;
+    // 已经滚动的高度
     final currentPosition = scrollController.position.pixels;
+    // 已经滚动的高度(这两个是一样的？？？应该只是方向一致时)
+    final offset = scrollController.offset;
+    // 是否在顶部(最小滚动位置)
     final atEdge = scrollController.position.atEdge;
+    // 是否超出滚动范围
     final outOfRange = scrollController.position.outOfRange;
 
-    // print("这里滚动列表的总长度maxScrollExtent $maxScrollExtent");
-    print("这里已经加载的长度currentPosition $currentPosition");
-    // print(
-    //     "这里按照日期分组的数量 billItemGroupByDayMap.entries ${billItemGroupByDayMap.entries.length}");
-    // print("这里查询条目的的数量 billItems.length ${billItems.length}");
-    // print("这里查询条目的的数量 currentPosition/61 ${currentPosition / 61}");
+    // print("offset---$offset,currentPosition-$currentPosition");
 
-    /// =====================================================
-    /// 注意，这个 maxScrollExtent 的值是变化的
-    /// 我本打算把每个月份的高度存起来，已滚动的高度值-每个月份的高度值，得到是哪一个月了
-    // 需要减去的总值
-
-    String currentMonth = getCurrentMonth(currentPosition);
-    print("滚动方向$_scrollDirection  当前月份$currentMonth");
+    // 根据已经滚动的高度和提前存好账单列表组件的累积高度计算出当前展示的项次是哪个月份的
+    String currentMonth = _getCurrentMonth(currentPosition);
+    // 如果有多个月份的数据在滚动时，估算显示当前月份，并更新显示
     setState(() {
       selectedMonth = currentMonth;
     });
 
-    // 注意，滚动到底部和顶部时，需要获取上一个月或下一个月的账单条目；
+    /// 滚动到顶部，加载下一个月数据
     // 但是已经达到了账单记录的最大日期和最小日期月份，则不再加载了。
     if (atEdge && currentPosition == 0) {
-      // 滚动到顶部
-      print("到顶部了 ${DateTime(2023, 2, 31)} ${DateTime.tryParse("2023-2-31")}");
-
       // 如果要查询的下一个月在已查询的最大月份之前，则更新下一个月为已查询最大月
       // 比如一直往上拉，已有202304-202308的数据，因为往上拉，此时被选中的月份是2023-04。
       // 现在往下拉到顶，应该查询2022309的数据，因为选中的是2023-04,不做任何处理的话查询的实际是202305的值，这不对。
@@ -278,29 +230,24 @@ class _BillItemIndexState extends State<BillItemIndex> {
       );
 
       String nextMonth = DateFormat(constMonthFormat).format(nextMonthDate);
-      // 如果当前月份的下一月的1号已经账单中最大日期了，到顶了也不再加载
+      // 如果当前月份的下一月的1号已经账单中最大日期了，就算到顶了也没有数据可加载乐
       if (nextMonthDate.isAfter(billPeriod.maxDate)) {
-        print("滚动到顶部，但已经到了账单【最新】的月份了，没有更【新】的数据可查了");
         setState(() {
           selectedMonth = DateFormat(constMonthFormat).format(maxQueryedDate);
         });
         return;
       }
 
-      print("到顶部了，当前选中的日期$selectedMonth 下个月$nextMonth  ");
-
+      // 正常下拉加载更新的数据，要更新当前选中值和最大查询日期
       setState(() {
-        // 查询了更新的数据，要更新当前选中值和最大查询日期
         selectedMonth = nextMonth;
         maxQueryedDate = nextMonthDate;
         scollDirection = "down";
-        _loadBillItemData();
+        loadBillItemsByMonth();
       });
-    } else if (atEdge &&
-        !outOfRange &&
-        scrollController.offset >= maxScrollExtent) {
-      // 滚动到底部，查询下一个月的
-      // 参看往上拉的逻辑说明
+    } else if (atEdge && !outOfRange && offset >= maxScrollExtent) {
+      /// 滚动到底部，查询下一个月的数据(看往上拉的逻辑说明)
+
       DateTime lastMonthDate = DateTime(
         minQueryedDate.year,
         minQueryedDate.month - 1,
@@ -308,27 +255,27 @@ class _BillItemIndexState extends State<BillItemIndex> {
       );
       String lastMonth = DateFormat(constMonthFormat).format(lastMonthDate);
 
-      // 如果当前月份的1号已经账单中最大日期了，到顶了也不再加载
-      // ???这里的比较其实有问题，2023-02-01 > 2023-02-12 时成立的
+      // 如果当前月份已经账单中最大日期了，到顶了也不再加载
       if (lastMonthDate.isBefore(billPeriod.minDate)) {
-        print("滚动到底部，但已经到了账单【最旧】的月份了，没有更【旧】的数据可查了");
         setState(() {
           selectedMonth = DateFormat(constMonthFormat).format(minQueryedDate);
         });
         return;
       }
 
-      print("到底了，当前选中的日期$selectedMonth   上个月$lastMonth ");
+      // 上拉还有旧数据可查就继续查询
       setState(() {
         selectedMonth = lastMonth;
         minQueryedDate = lastMonthDate;
         scollDirection = "up";
-        _loadBillItemData();
+        loadBillItemsByMonth();
       });
     }
   }
 
-  void _handleSearch() {
+  // 查询指定月份的账单项次数据
+  // 在切换了当前月份等情况下回用到
+  void handleSearch() {
     setState(() {
       billItems.clear();
       scollDirection == "none";
@@ -336,16 +283,15 @@ class _BillItemIndexState extends State<BillItemIndex> {
     // 在当前上下文中查找最近的 FocusScope 并使其失去焦点，从而收起键盘。
     FocusScope.of(context).unfocus();
 
-    _loadBillItemData();
+    loadBillItemsByMonth();
   }
 
   // 关键字查询和带统计值得查询不一样，专门函数区分，避免异动之前的逻辑
   // 带关键字查询的就没有滚动加载更多了，注意查询结果特别大的时候，可能会有性能问题？？？
-  void _handleKeywordSearch({pageSize = 0}) async {
+  void handleKeywordSearch({pageSize = 0}) async {
     // 在当前上下文中查找最近的 FocusScope 并使其失去焦点，从而收起键盘。
+    // 如果要在init等地方使用，不能加这个，因为那时候还没有context
     FocusScope.of(context).unfocus();
-
-    print("进入了_loadBillItemData-------------query${searchController.text}");
 
     if (isLoading) return;
 
@@ -367,26 +313,25 @@ class _BillItemIndexState extends State<BillItemIndex> {
     var newData = temp.data as List<BillItem>;
 
     setState(() {
-      // 关键字查询结果，直接添加，没有其他顺序
+      // 关键字查询结果，直接添加，没有其他顺序，
       billItems.addAll(newData);
-
+      // 因为和带统计的账单项次复用构建列表组件，所以这个分组还是要有
       billItemGroupByDayMap = groupBy(billItems, (item) => item.date);
-      // 2024-05-25 已经查询过的月份数据放入列表，避免重复查询
       isLoading = false;
     });
   }
 
   /*
   // 2024-05-27 当前带统计的每月子组件的结构如下，要计算其总高度
-  Card(
+  Card(   // 边框有 8 
     child: Column(
       children: [
-        ListTile(), // 48
-        Divider(),  // 16
+        ListTile(dense: true), // 48
+        // Divider(),  // 16
         Column(
           children: [
-            GestureDetector(child:  ListTile()), // 56
-            GestureDetector(child:  ListTile()),
+            GestureDetector(child: ListTile()), // 64 固定有title和subtitle
+            GestureDetector(child: ListTile()), // 64
             ...
   ])]));
   不过累加的值和实际的值对不上。
@@ -394,9 +339,9 @@ class _BillItemIndexState extends State<BillItemIndex> {
   计算的高度：15*(48+16+8[card的边框])+56*42=3432
   实际ListView滚动的总高度：3030
   */
-  computeMonthWidgetHeights() {
+  _computeMonthWidgetHeights() {
 // 每次都要重新计算，避免累加
-    monthlyWidgetHeightMap.clear();
+    monthlyWidgetHeights.clear();
 
     // 按照月份分组
     var temp = groupBy(billItems, (item) => item.date.substring(0, 7));
@@ -415,21 +360,22 @@ class _BillItemIndexState extends State<BillItemIndex> {
           groupBy(tempMonthItems, (item) => item.date).entries.length;
 
       // 当前月份的组件总高度
-      monthHegth +=
-          tempMonthItems.length * 56.0 + extraItemsLength * (48 + 16 + 8);
-      // 实际测试，第一个月份计算结果差402,后面的就正常了，原因不明？？？
+      monthHegth += tempMonthItems.length * 64.0 + extraItemsLength * (48 + 8);
+      // 实际测试，滚动的值比计算的值要小一些：
+      //    第1、2个月份计算结果差402，第3个月差388，第4、5、6个月346，第7个月差332，第8个月318……
+      //    没有继续下去，原因不明？？？暂时第一个月少算402,后面的几十个像素基本对得上。
       if (i == 0) {
         monthHegth -= 402;
       }
 
-      print(
-          "$tempMonth---原数量${tempMonthItems.length}- 额外数量 $extraItemsLength 累加高度$monthHegth");
+      // print(
+      //     "$tempMonth---原数量${tempMonthItems.length}- 额外数量 $extraItemsLength 累加高度$monthHegth");
 
       // 注意，这里存的是每个月的累加高度
-      monthlyWidgetHeightMap.add({tempMonth: monthHegth});
+      monthlyWidgetHeights.add({tempMonth: monthHegth});
     }
 
-    print("每月组件的高度----$monthlyWidgetHeightMap");
+    // print("每月组件的高度----$monthlyWidgetHeights");
   }
 
   @override
@@ -440,6 +386,7 @@ class _BillItemIndexState extends State<BillItemIndex> {
       // 这里也可以不用appbar？？？
       appBar: AppBar(
         title: const Text("账单列表"),
+        backgroundColor: Colors.lightGreen,
         actions: [
           TextButton(
             onPressed: () async {
@@ -454,7 +401,7 @@ class _BillItemIndexState extends State<BillItemIndex> {
               setState(() {
                 isLoading = false;
               });
-              _loadBillItemData();
+              loadBillItemsByMonth();
             },
             child: const Text("Mock"),
           ),
@@ -465,66 +412,66 @@ class _BillItemIndexState extends State<BillItemIndex> {
         child: Column(
           children: [
             /// test 已查询的月度范围
-            Container(
-              height: 50.sp,
-              color: Colors.amberAccent,
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(4.sp, 0, 4, 0),
-                child: Row(
-                  children: [
-                    const Expanded(
-                      flex: 3,
-                      child: Text("已经显示的数据范围"),
-                    ),
-                    Expanded(
-                      flex: 3,
-                      // 不是关键字查询时展示范围为滚动查询的范围，是关键字查询时就是账单起止范围
-                      child: Text(
-                        !isQuery
-                            ? "${DateFormat(constMonthFormat).format(minQueryedDate)} ~ ${DateFormat(constMonthFormat).format(maxQueryedDate)}"
-                            : "${DateFormat(constMonthFormat).format(billPeriod.minDate)} ~ ${DateFormat(constMonthFormat).format(billPeriod.maxDate)}",
-                      ),
-                    ),
-                    // 2024-05-27 点击按钮切换是否显示关键字查询区块
-                    Expanded(
-                      flex: 1,
-                      child: IconButton(
-                        onPressed: () {
-                          setState(() {
-                            isQuery = !isQuery;
-                            // 如果点击之后是展开或者收起查询区域，都要重置已经输入的关键字
-                            searchController.text = "";
-                            // 如果是收起查询区域，则要重新展示当前月的列表及统计数据
-                            if (!isQuery) {
-                              _handleSearch();
-                            } else {
-                              // 如果是进入了关键字查询，默认展示10条
-                              // 没有这个查询，切到关键字查询时显示的是之前带统计的已查询的所有列表
-                              // _handleKeywordSearch(pageSize: 10);
-                            }
-                          });
-                        },
-                        icon: Icon(
-                          isQuery ? Icons.clear : Icons.search,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            buildQueryRangeRow(),
 
-            /// 按月显示收支列表详情的月度切换按钮和月度收支总计的行
-            /// 本页面不要appbar的话，这范围要给点富裕的高度
-            /// 2024-05-27 展开关键字查询时，隐藏当月的统计
+            /// 2024-05-27 展开关键字查询时，隐藏当月的统计行
             if (!isQuery) buildMonthCountRow(),
 
-            /// 条目关键字搜索行
+            /// 当选中了关键字查询，才展示条目关键字搜索行
             if (isQuery) buildSearchRow(),
 
-            /// 构建收支条目列表
-            isQuery ? buildQueryBillItemList() : buildBillItemList(),
-            // buildBillItemList(),
+            /// 构建账单条目列表(关键字查询和默认统计查询都用这个，内部有区分)
+            buildBillItemList(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 显示已加载的账单项次范围，或者查询时显示可查询的范围
+  buildQueryRangeRow() {
+    String locale = Localizations.localeOf(context).toString();
+    return Container(
+      height: 50.sp,
+      // color: Colors.amberAccent,
+      color: Colors.lightGreen,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(15.sp, 0, 4, 0),
+        child: Row(
+          children: [
+            Expanded(flex: 3, child: Text(isQuery ? "可查询的数据范围" : "已加载的数据范围")),
+            Expanded(
+              flex: 4,
+              // 不是关键字查询时展示范围为滚动查询的范围，是关键字查询时就是账单起止范围
+              child: Text(
+                !isQuery
+                    ? "${DateFormat.yM(locale).format(minQueryedDate)} ~ ${DateFormat.yM(locale).format(maxQueryedDate)}"
+                    : "${DateFormat.yM(locale).format(billPeriod.minDate)} ~ ${DateFormat.yM(locale).format(billPeriod.maxDate)}",
+                style: TextStyle(fontSize: 13.sp, fontWeight: FontWeight.bold),
+              ),
+            ),
+            // 2024-05-27 点击按钮切换是否显示关键字查询区块
+            SizedBox(
+              width: 60.sp,
+              child: IconButton(
+                onPressed: () {
+                  setState(() {
+                    isQuery = !isQuery;
+                    // 如果点击之后是展开或者收起查询区域，都要重置已经输入的关键字
+                    searchController.text = "";
+                    // 如果是收起查询区域，则要重新展示当前月的列表及统计数据
+                    if (!isQuery) {
+                      handleSearch();
+                    } else {
+                      // 如果是进入了关键字查询，默认展示10条
+                      // 没有这个查询，切到关键字查询时显示的是之前带统计的已查询的所有列表
+                      // _handleKeywordSearch(pageSize: 10);
+                    }
+                  });
+                },
+                icon: Icon(isQuery ? Icons.clear : Icons.search),
+              ),
+            ),
           ],
         ),
       ),
@@ -535,68 +482,104 @@ class _BillItemIndexState extends State<BillItemIndex> {
   buildMonthCountRow() {
     return Container(
       height: 50.sp,
-      color: Colors.amber, // 显示占位用
+      // color: Colors.amber, // 显示占位用
+      color: Colors.grey[400], // 显示占位用
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Expanded(
-            flex: 1,
-            child: SizedBox(
-              width: 100.sp,
-              // 按钮带标签默认icon在前面，所以使用方向组件改变方向
-              // 又因为ui和intl都有TextDirection类，所以显示什么ui的导入
-              child: Directionality(
-                textDirection: ui.TextDirection.rtl,
-                child: TextButton.icon(
-                  onPressed: () {
-                    // openDatePicker(context);
-
-                    showMonthPicker(
-                      context: context,
-                      firstDate: billPeriod.minDate,
-                      lastDate: billPeriod.maxDate,
-                      initialDate: DateTime.tryParse("$selectedMonth-01"),
-                      // 一定要先选择年
-                      yearFirst: true,
-                      // customWidth: 1.sw,
-                      // 不缩放默认title会溢出
-                      textScaleFactor: 0.9, // 但这个比例不同设备怎么控制？？？
-                      // 不显示标头，只能滚动选择
-                      // hideHeaderRow: true,
-                    ).then((date) {
-                      if (date != null) {
-                        setState(() {
-                          print(date);
-                          selectedMonth =
-                              DateFormat(constMonthFormat).format(date);
-                          maxQueryedDate =
-                              DateTime.tryParse("$selectedMonth-01") ??
-                                  DateTime.now();
-                          minQueryedDate =
-                              DateTime.tryParse("$selectedMonth-01") ??
-                                  DateTime.now();
-                          _handleSearch();
-                        });
-                      }
-                    });
-                  },
-                  icon: const Icon(Icons.arrow_drop_down),
-                  label: Text(
-                    selectedMonth,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          Expanded(
-            flex: 2,
-            child: _buildBillCountTile(),
-          ),
+          Expanded(flex: 2, child: _buildCurrentMonthButton()),
+          Expanded(flex: 3, child: _buildCurrentMonthCountTile()),
         ],
       ),
+    );
+  }
+
+  // 可切换的被选中的月份按钮
+  _buildCurrentMonthButton() {
+    return SizedBox(
+      width: 100.sp,
+      // 按钮带标签默认icon在前面，所以使用方向组件改变方向
+      // 又因为ui和intl都有TextDirection类，所以显示什么ui的导入
+      child: Directionality(
+        textDirection: ui.TextDirection.rtl,
+        child: TextButton.icon(
+          onPressed: () {
+            showMonthPicker(
+              context: context,
+              firstDate: billPeriod.minDate,
+              lastDate: billPeriod.maxDate,
+              initialDate: DateTime.tryParse("$selectedMonth-01"),
+              // 一定要先选择年
+              yearFirst: true,
+              // customWidth: 1.sw,
+              // 不缩放默认title会溢出
+              textScaleFactor: 0.9, // 但这个比例不同设备怎么控制？？？
+              // 不显示标头，只能滚动选择
+              // hideHeaderRow: true,
+            ).then((date) {
+              if (date != null) {
+                setState(() {
+                  print(date);
+                  selectedMonth = DateFormat(constMonthFormat).format(date);
+                  maxQueryedDate =
+                      DateTime.tryParse("$selectedMonth-01") ?? DateTime.now();
+                  minQueryedDate =
+                      DateTime.tryParse("$selectedMonth-01") ?? DateTime.now();
+                  handleSearch();
+                });
+              }
+            });
+          },
+          icon: const Icon(Icons.arrow_drop_down),
+          label: Text(
+            selectedMonth,
+            style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.bold),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // 这里是月度账单下拉后查询的总计结果，理论上只存在1条，不会为空。
+  _buildCurrentMonthCountTile() {
+    return FutureBuilder<List<BillPeriodCount>?>(
+      future: loadBillCountByMonth(),
+      builder: (BuildContext context,
+          AsyncSnapshot<List<BillPeriodCount>?> snapshot) {
+        List<Widget> children;
+        // 有数据
+        if (snapshot.hasData) {
+          var list = snapshot.data!;
+          if (list.isNotEmpty) {
+            children = <Widget>[
+              Text(
+                "支出 ¥${list[0].expendTotalValue}  收入 ¥${list[0].incomeTotalValue}",
+                style: TextStyle(fontSize: 12.sp),
+                textAlign: TextAlign.end,
+              ),
+            ];
+          } else {
+            children = <Widget>[const Text("该月份无账单")];
+          }
+        } else if (snapshot.hasError) {
+          // 有错误
+          children = <Widget>[
+            const Icon(Icons.error_outline, color: Colors.red, size: 30),
+          ];
+        } else {
+          // 加载中
+          children = const <Widget>[
+            SizedBox(width: 30, height: 30, child: CircularProgressIndicator()),
+          ];
+        }
+
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: children,
+          ),
+        );
+      },
     );
   }
 
@@ -604,13 +587,14 @@ class _BillItemIndexState extends State<BillItemIndex> {
   buildSearchRow() {
     return Container(
       height: 50.sp,
-      color: Colors.amberAccent,
+      // color: Colors.amberAccent,
+      color: Colors.grey[400], // 显示占位用
       child: Padding(
         padding: EdgeInsets.fromLTRB(4.sp, 0, 4, 0),
         child: Row(
           children: [
             Expanded(
-              flex: 2,
+              flex: 3,
               child: TextField(
                 controller: searchController,
                 decoration: const InputDecoration(
@@ -628,7 +612,7 @@ class _BillItemIndexState extends State<BillItemIndex> {
             Expanded(
               flex: 1,
               child: TextButton(
-                onPressed: _handleKeywordSearch,
+                onPressed: handleKeywordSearch,
                 child: const Text("搜索"),
               ),
             )
@@ -638,11 +622,7 @@ class _BillItemIndexState extends State<BillItemIndex> {
     );
   }
 
-  /// 构建收支条目列表
-  /// 注意：其实这里每日的分组统计也是有瑕疵的。
-  /// 比如因为一次性查询10条，某一天的消费有11条，或者从第9条开始到第13条结束，
-  /// 那么在没有继续滚动到完全加载，每日累积值是错误的。
-  /// 也是基于此，不从billitemlist中分组统计月度、年度数据
+  /// 构建收支条目列表(都是完整月份的列表加在一起的)
   buildBillItemList() {
     return Expanded(
       child: ListView.builder(
@@ -659,34 +639,14 @@ class _BillItemIndexState extends State<BillItemIndex> {
     );
   }
 
+  // 构建账单项次条目组件(Card中有手势包裹的Tile或者Row)
   _buildBillItemCard(int index) {
     // 获取当前分组的日期和账单项列表
     var entry = billItemGroupByDayMap.entries.elementAt(index);
     String date = entry.key;
     List<BillItem> itemsForDate = entry.value;
 
-    // // 计算每天的总花费
-    // var totalExpend = itemsForDate.fold(0.0, (sum, item) {
-    //   if (item.itemType != 0) {
-    //     // 如果是支出，则累加支出
-    //     return sum + item.value;
-    //   } else {
-    //     // 没有支出则不累加
-    //     return sum;
-    //   }
-    // });
-
-    // var totalIncome = itemsForDate.fold(0.0, (sum, item) {
-    //   // 如果当日有收入，累积收入
-    //   if (item.itemType == 0) {
-    //     return sum + item.value;
-    //   } else {
-    //     // 没有收入则不累加
-    //     return sum;
-    //   }
-    // });
-
-    // 上面的其实更简单的一次遍历即可
+    // 计算每天的总支出/收入
     double totalExpend = 0.0;
     double totalIncome = 0.0;
     for (var item in itemsForDate) {
@@ -697,20 +657,11 @@ class _BillItemIndexState extends State<BillItemIndex> {
       }
     }
 
-    // print("total expend--$totalExpend income $totalIncome");
-
     return Card(
       child: Column(
         children: [
           ListTile(
-            title: Text(
-              date,
-              style: TextStyle(
-                color: Theme.of(context).primaryColor,
-                fontWeight: FontWeight.bold,
-                fontSize: 15.sp,
-              ),
-            ),
+            title: Text(date, style: TextStyle(fontSize: 15.sp)),
             trailing: isQuery
                 ? null
                 : Text(
@@ -720,18 +671,21 @@ class _BillItemIndexState extends State<BillItemIndex> {
                       fontSize: 13.sp,
                     ),
                   ),
-            tileColor: Colors.lightGreen,
-            // dense: true,
+            // tileColor: Colors.lightGreen,
+            tileColor: Colors.grey[300],
+            dense: true,
             // 可以添加副标题或尾随图标等
           ),
-          const Divider(), // 可选的分隔线
+          // const Divider(), // 可选的分隔线
           // 为每个BillItem创建一个Tile
           Column(
             children: ListTile.divideTiles(
               context: context,
-              tiles: itemsForDate.map((item) {
-                return buildItemListTile(item);
-              }).toList(),
+              tiles: itemsForDate
+                  .map(
+                    (item) => _buildItemGestureDetector(item),
+                  )
+                  .toList(),
             ).toList(),
           ),
         ],
@@ -739,100 +693,11 @@ class _BillItemIndexState extends State<BillItemIndex> {
     );
   }
 
-  /// 关键字查询的账单列表不用分组处理了，直接简单列表展示即可
-  buildQueryBillItemList() {
-    return Expanded(
-      child: ListView.builder(
-        itemCount: billItems.length,
-        itemBuilder: (context, index) {
-          if (index == billItems.length) {
-            return buildLoader(isLoading);
-          } else {
-            return buildItemListTile(billItems[index]);
-          }
-        },
-      ),
-    );
-  }
-
-  // 这个下方滚动选择日期比较好，但是不能仅年月
-  openDatePicker(BuildContext context) {
-    BottomPicker.date(
-      pickerTitle: const Text(
-        '',
-        style: TextStyle(
-          fontWeight: FontWeight.bold,
-          fontSize: 15,
-          color: Colors.blue,
-        ),
-      ),
-      dateOrder: DatePickerDateOrder.ymd,
-      initialDateTime: DateTime.now(),
-      maxDateTime: DateTime(1998),
-      minDateTime: DateTime(1980),
-      pickerTextStyle: const TextStyle(
-        color: Colors.blue,
-        fontWeight: FontWeight.bold,
-        fontSize: 16,
-      ),
-      onChange: (index) {
-        print(index);
-      },
-      onSubmit: (index) {
-        print(index);
-      },
-      bottomPickerTheme: BottomPickerTheme.plumPlate,
-    ).show(context);
-  }
-
-  // 这里是月度账单下拉后查询的总计结果，理论上只存在1条，不会为空。
-  _buildBillCountTile() {
-    return FutureBuilder<List<BillPeriodCount>?>(
-      future: _loadBillCountData(),
-      builder: (BuildContext context,
-          AsyncSnapshot<List<BillPeriodCount>?> snapshot) {
-        List<Widget> children;
-        if (snapshot.hasData) {
-          var list = snapshot.data!;
-          if (list.isNotEmpty) {
-            children = <Widget>[
-              Text(
-                  "支出 ¥${list[0].expendTotalValue}  收入 ¥${list[0].incomeTotalValue}"),
-            ];
-          } else {
-            children = <Widget>[
-              const Text("该月份无账单"),
-            ];
-          }
-          // 有数据
-        } else if (snapshot.hasError) {
-          // 有错误
-          children = <Widget>[
-            const Icon(Icons.error_outline, color: Colors.red, size: 30),
-          ];
-        } else {
-          // 加载中
-          children = const <Widget>[
-            SizedBox(width: 30, height: 30, child: CircularProgressIndicator()),
-          ];
-        }
-        return Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: children,
-          ),
-        );
-      },
-    );
-  }
-
-// 账单列表子条目的list
-  GestureDetector buildItemListTile(BillItem item) {
+  GestureDetector _buildItemGestureDetector(BillItem item) {
     return GestureDetector(
       // 暂定长按删除弹窗、双击跳到修改
       // ListTile 没有双击事件，所以包裹一个手势
       onDoubleTap: () {
-        print('ListTile $item was double tapped!');
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -848,7 +713,6 @@ class _BillItemIndexState extends State<BillItemIndex> {
           }
         });
       },
-
       onLongPress: () {
         // 不管如何，关闭弹窗后都失去焦点收起键盘
         FocusScope.of(context).unfocus();
@@ -887,168 +751,113 @@ class _BillItemIndexState extends State<BillItemIndex> {
             setState(() {
               // 这里不区分带统计和不带统计的是因为，如果是关键字查询删除之后，重新查询关键字为空，则默认查询所有数据。
               // 如果数据较多就比较大，保留之前带统计的查询就不会太大，而且顺序也是没问题的。
-              _handleSearch();
+              handleSearch();
             });
           }
         });
       },
-      child: isQuery
-          ? Card(
-              child: Padding(
-                // 设置内边距
-                padding: EdgeInsets.fromLTRB(10.sp, 5.sp, 10.sp, 5.sp),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      flex: 3,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            item.item,
-                            softWrap: true,
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 1,
+      child: _buildItem(item, type: "tile"),
+    );
+  }
+
+  _buildItem(BillItem item, {String type = 'tile'}) {
+    if (type == 'tile') {
+      return ListTile(
+        dense: true,
+        // 和之前使用RichText效果类似(子标题固定空字符串而不是null，是为了计算组件高度时能统一，否则高度不一致)
+        title: Text(item.item, style: TextStyle(fontSize: 15.sp)),
+        subtitle: Text(item.category ?? '<未分类>'),
+        trailing: Text(
+          '${item.itemType == 0 ? '+' : '-'}${item.value.toStringAsFixed(2)}',
+          style: TextStyle(
+            fontSize: 15.sp,
+            fontWeight: FontWeight.bold,
+            color: item.itemType != 0 ? Colors.black : Colors.green,
+          ),
+        ),
+      );
+    }
+
+    // 如果觉得默认的tile不够紧凑，可以试一下自定义的其他组件
+    return Padding(
+      // 设置内边距
+      padding: EdgeInsets.fromLTRB(10.sp, 5.sp, 10.sp, 5.sp),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(
+            flex: 3,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                RichText(
+                  text: TextSpan(
+                    children: [
+                      // 为了分类占的宽度一致才用的，只是显示的话可不必
+                      WidgetSpan(
+                        alignment: PlaceholderAlignment.baseline,
+                        baseline: TextBaseline.alphabetic,
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(minWidth: 60.sp),
+                          child: Text(
+                            "<${item.category ?? '未分类'}>",
                             style: TextStyle(
+                              color: Theme.of(context).primaryColor,
                               fontSize: 12.sp,
-                              fontWeight: FontWeight.bold,
                             ),
                           ),
-                          if (item.category != null)
-                            Text(
-                              item.category ?? '',
-                              style: TextStyle(fontSize: 12.sp),
-                            ),
-                          Text(
-                            "${item.date}___created:${item.gmtModified ?? ''}",
-                            softWrap: true,
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 1,
-                            style: TextStyle(fontSize: 10.sp),
-                          )
-                        ],
-                      ),
-                    ),
-                    Expanded(
-                      child: Text(
-                        "￥${item.value}",
-                        style: TextStyle(fontSize: 15.sp),
-                        textAlign: TextAlign.end,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            )
-          : ListTile(
-              title: RichText(
-                text: TextSpan(
-                  children: [
-                    TextSpan(
-                      text: item.item,
-                      style: TextStyle(
-                        color: Theme.of(context).primaryColor,
-                        fontSize: 15.sp,
-                      ),
-                    ),
-                    if (item.category != null)
-                      TextSpan(
-                        text: "\n${item.category}",
-                        style: TextStyle(
-                          color: Colors.blue,
-                          fontSize: 12.sp,
                         ),
                       ),
-                  ],
+                      // TextSpan(
+                      //   text: "<${item.category ?? '未分类'}>  ",
+                      //   style: TextStyle(
+                      //     color: Theme.of(context).primaryColor,
+                      //     fontSize: 12.sp,
+                      //   ),
+                      // ),
+                      TextSpan(
+                        text: item.item,
+                        style: TextStyle(color: Colors.blue, fontSize: 15.sp),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              trailing: Text(
-                '${item.itemType == 0 ? '+' : '-'}${item.value.toStringAsFixed(2)}',
-                style: TextStyle(
-                  fontSize: 16.sp,
-                  fontWeight: FontWeight.bold,
-                  color: item.itemType != 0 ? Colors.black : Colors.green,
-                ),
-              ),
-              // 2024-05-27 还是不要单个事件做多个操作了
-              // 暂定长按删除弹窗、双击跳到修改
-              // onLongPress: () {
-              //   print("长按了条目---------$item");
-              //   showDialog(
-              //     context: context,
-              //     builder: (context) {
-              //       return AlertDialog(
-              //         title: const Text("异动说明"),
-              //         content: Column(
-              //           mainAxisSize: MainAxisSize.min,
-              //           crossAxisAlignment: CrossAxisAlignment.center,
-              //           mainAxisAlignment: MainAxisAlignment.center,
-              //           children: [
-              //             Text(
-              //               "请选择账单条目的处理方式:\n",
-              //               style: TextStyle(fontSize: 15.sp),
-              //             ),
-              //             Row(
-              //               mainAxisAlignment:
-              //                   MainAxisAlignment.spaceBetween,
-              //               children: [
-              //                 TextButton(
-              //                   onPressed: () {
-              //                     Navigator.of(context).pop("delete");
-              //                   },
-              //                   child: const Text("删除"),
-              //                 ),
-              //                 TextButton(
-              //                   onPressed: () {
-              //                     Navigator.of(context).pop("modify");
-              //                   },
-              //                   child: const Text("修改"),
-              //                 ),
-              //                 ElevatedButton(
-              //                   onPressed: () {
-              //                     Navigator.of(context).pop("cancel");
-              //                   },
-              //                   child: const Text("取消"),
-              //                 ),
-              //               ],
-              //             ),
-              //           ],
-              //         ),
-              //         // actions: [
-              //         //   TextButton(
-              //         //     onPressed: () {
-              //         //       Navigator.pop(context);
-              //         //     },
-              //         //     child: const Text("取消"),
-              //         //   ),
-              //         // ],
-              //       );
-              //     },
-              //   ).then((value) {
-              //     if (value == "modify") {
-              //       Navigator.push(
-              //         context,
-              //         MaterialPageRoute(
-              //           builder: (context) => BillEditPage(billItem: item),
-              //         ),
-              //       ).then((value) {
-              //         // 不管是否新增成功，这里都重新加载；
-              //         // 因为没有清空查询条件，所以新增的食物关键字不包含查询条件中，不会显示
-              //         if (value != null) {
-              //           setState(() {
-              //             print("长按修改billitem的返回值---$value");
-              //           });
-              //         }
-              //       });
-              //     } else if (value == "delete") {
-              //       print("点击了删除--------------");
-              //     } else {
-              //       print("点击了----其他--------------");
-              //     }
-              //   });
-              // },
+
+                /// 另外的分类和条目展示
+                // Text(
+                //   item.item,
+                //   softWrap: true,
+                //   overflow: TextOverflow.ellipsis,
+                //   maxLines: 1,
+                //   style: TextStyle(
+                //     fontSize: 12.sp,
+                //     fontWeight: FontWeight.bold,
+                //   ),
+                // ),
+                // Text(
+                //   item.category ?? '<未分类>',
+                //   style: TextStyle(fontSize: 12.sp),
+                // ),
+                /// 如果没有按日期分组的话，就可以单独列日期行
+                // Text(
+                //   "${item.date}___created:${item.gmtModified ?? ''}",
+                //   softWrap: true,
+                //   overflow: TextOverflow.ellipsis,
+                //   maxLines: 1,
+                //   style: TextStyle(fontSize: 10.sp),
+                // )
+              ],
             ),
+          ),
+          Expanded(
+            child: Text(
+              "￥${item.value}",
+              style: TextStyle(fontSize: 15.sp),
+              textAlign: TextAlign.end,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
