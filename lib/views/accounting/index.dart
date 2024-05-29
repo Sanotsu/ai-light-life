@@ -12,8 +12,8 @@ import '../../common/components/tool_widget.dart';
 import '../../common/constants.dart';
 import '../../common/utils/db_helper.dart';
 import '../../models/brief_accounting_state.dart';
-import '../bill_item_modify/index.dart';
-import '../bill_report/index.dart';
+import 'bill_item_modify/index.dart';
+import 'bill_report/index.dart';
 import 'mock_data/index.dart';
 import 'widgets/bottom_sheet_option_picker.dart';
 
@@ -396,7 +396,7 @@ class _BillItemIndexState extends State<BillItemIndex> {
     // print("每月组件的高度----$monthlyWidgetHeights");
   }
 
-  void _showBottomSheet() {
+  void showBottomSheet() {
     showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true, // 如果选项很多，启用滚动控制
@@ -431,6 +431,27 @@ class _BillItemIndexState extends State<BillItemIndex> {
         // leading: const Icon(Icons.arrow_back),
         backgroundColor: Colors.lightGreen,
         actions: [
+          TextButton(
+            onPressed: () async {
+              setState(() {
+                billItems.clear();
+                scollDirection == "none";
+                isLoading = true;
+              });
+
+              await loadUserFromAssets();
+
+              setState(() {
+                isLoading = false;
+              });
+              loadBillItemsByMonth();
+            },
+            child: const Text("Mock"),
+          ),
+          // ElevatedButton(
+          //   onPressed: showBottomSheet,
+          //   child: const Text('demo'),
+          // ),
           IconButton(
             onPressed: () {
               Navigator.push(
@@ -449,27 +470,6 @@ class _BillItemIndexState extends State<BillItemIndex> {
               });
             },
             icon: const Icon(Icons.add),
-          ),
-          TextButton(
-            onPressed: () async {
-              setState(() {
-                billItems.clear();
-                scollDirection == "none";
-                isLoading = true;
-              });
-
-              await loadUserFromAssets();
-
-              setState(() {
-                isLoading = false;
-              });
-              loadBillItemsByMonth();
-            },
-            child: const Text("Mock"),
-          ),
-          ElevatedButton(
-            onPressed: _showBottomSheet,
-            child: const Text('demo'),
           ),
           TextButton.icon(
             onPressed: () {

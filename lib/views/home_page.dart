@@ -3,8 +3,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'bill_item_list/index.dart';
-import 'bill_report/index.dart';
+import 'accounting/index.dart';
+import 'agi_llm_sample/index.dart';
 
 /// 主页面
 
@@ -16,11 +16,11 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  int _selectedIndex = 0;
+  int _selectedIndex = 1;
 
   static const List<Widget> _widgetOptions = <Widget>[
     BillItemIndex(),
-    BillReportIndex(),
+    AgiLlmSample(),
   ];
 
   void _onItemTapped(int index) {
@@ -95,11 +95,11 @@ class _HomePageState extends State<HomePage> {
           items: const <BottomNavigationBarItem>[
             BottomNavigationBarItem(
               icon: Icon(Icons.receipt),
-              label: "账单",
+              label: "账单管理",
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.bar_chart),
-              label: "图表",
+              icon: Icon(Icons.chat),
+              label: "智能对话",
             ),
           ],
           currentIndex: _selectedIndex,
