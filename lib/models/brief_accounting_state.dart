@@ -79,7 +79,7 @@ class BillItem {
   // 从 JSON 映射中创建 User 实例的工厂方法
   factory BillItem.fromJson(Map<String, dynamic> json) {
     return BillItem(
-      billItemId: json['bill_item_id'] as String,
+      billItemId: json['bill_item_id'].toString(),
       itemType: json['item_type'] as int,
       date: json['date'] as String,
       category: json['category'] as String?,

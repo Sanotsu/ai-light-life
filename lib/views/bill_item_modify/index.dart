@@ -9,7 +9,6 @@ import '../../common/components/tool_widget.dart';
 import '../../common/constants.dart';
 import '../../common/utils/db_helper.dart';
 import '../../models/brief_accounting_state.dart';
-import '../home_page.dart';
 
 ///
 /// 新增账单条目的简单布局：
@@ -120,12 +119,29 @@ class _BillEditPageState extends State<BillEditPage> {
           isLoading = false;
         });
 
+        /// 这两个个跳转都有问题，打开app时账单列表页面appbar没有返回箭头，从这里跳过去后就会有了。
+        ///   Flutter 会根据上下文自动添加一个返回按钮，因为通常当页面不是堆栈中的根页面时，用户期望能够返回到上一个页面。
+        ///   即使设置了leading:null也没有效果
+        ///
         // 新增或修改成功了，跳转到主页面去(homepage默认是账单列表)
         // 因为可能是修改(从账单列表来的)或者新增(从新增按钮来的)，来源不一样，所以这里不是返回而是替换
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const HomePage()),
-        );
+        // Navigator.pushAndRemoveUntil(
+        //   context,
+        //   MaterialPageRoute(builder: (context) => const HomePage()),
+        //   ModalRoute.withName('/'),
+        // );
+
+        // Navigator.pushReplacement(
+        //   context,
+        //   MaterialPageRoute(builder: (context) => const HomePage()),
+        // );
+
+        /// 这个跳转虽然没有appbar没有箭头了，但数据不会重新加载
+        /// 因为pop和popUntil这些操作只是从导航堆栈中移除页面，而不会重新创建它们。
+        // Navigator.of(context).popUntil((route) => route.isFirst);
+
+        // 2024-05-29 新增新增账单放到账单列表页面去了，所以修改和新增返回就是到账单列表页面去
+        Navigator.of(context).pop(true);
       } catch (e) {
         // 将错误信息展示给用户
         if (!mounted) return;
@@ -164,49 +180,123 @@ class _BillEditPageState extends State<BillEditPage> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                FormBuilderChoiceChip<String>(
-                  name: 'item_type',
-                  initialValue: '支出',
-                  // 可让选项居中
-                  alignment: WrapAlignment.center,
-                  options: const [
-                    FormBuilderChipOption(value: '支出'),
-                    FormBuilderChipOption(value: '收入'),
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 1,
+                      child: FormBuilderChoiceChip<String>(
+                        name: 'item_type',
+                        initialValue: '支出',
+                        // 可让选项居中
+                        alignment: WrapAlignment.center,
+                        // 选项标签的一些大小修改配置
+                        labelStyle: TextStyle(fontSize: 10.sp),
+                        labelPadding: EdgeInsets.all(1.sp),
+                        options: const [
+                          FormBuilderChipOption(value: '支出'),
+                          FormBuilderChipOption(value: '收入'),
+                        ],
+                        decoration: const InputDecoration(
+                          // 取消下划线
+                          border: InputBorder.none,
+                        ),
+                        onChanged: (String? val) {
+                          if (val != null) {
+                            setState(() {
+                              selectedCategoryType = val;
+                            });
+                          }
+                        },
+                        validator: FormBuilderValidators.compose([
+                          FormBuilderValidators.required(),
+                        ]),
+                      ),
+                    ),
+                    Expanded(
+                      flex: 2,
+                      child: FormBuilderDateTimePicker(
+                        name: 'date',
+                        initialEntryMode: DatePickerEntryMode.calendar,
+                        initialValue: DateTime.now(),
+                        inputType: InputType.both,
+                        decoration: const InputDecoration(
+                          // labelText: '时间',
+                          // // 取消下划线
+                          // border: InputBorder.none,
+                          // 设置透明底色
+                          filled: true,
+                          fillColor: Colors.transparent,
+                          suffixIcon: Icon(Icons.arrow_drop_down),
+                          // // 后置图标点击清空
+                          // suffixIcon: IconButton(
+                          //   icon: Icon(Icons.close, size: 20.sp),
+                          //   onPressed: () {
+                          //     _formKey.currentState!.fields['date']
+                          //         ?.didChange(null);
+                          //   },
+                          // ),
+                        ),
+                        keyboardType: TextInputType.datetime,
+                        initialTime: const TimeOfDay(hour: 8, minute: 0),
+                        locale: Localizations.localeOf(context),
+                        validator: FormBuilderValidators.compose([
+                          FormBuilderValidators.required(),
+                        ]),
+                      ),
+                    ),
                   ],
-                  onChanged: (String? val) {
-                    if (val != null) {
-                      setState(() {
-                        selectedCategoryType = val;
-                      });
-                    }
+                ),
+                FormBuilderTextField(
+                  autovalidateMode: AutovalidateMode.always,
+                  name: 'value',
+                  decoration: InputDecoration(
+                    labelText: '金额',
+                    // 设置透明底色
+                    filled: true,
+                    fillColor: Colors.transparent,
+                    prefixIcon: Text(
+                      '\u{00A5}', // 人民币符号的unicode编码
+                      style: TextStyle(fontSize: 36.sp, color: Colors.black),
+                    ),
+                    suffixIcon: _amountHasError
+                        ? const Icon(Icons.error, color: Colors.red)
+                        : const Icon(Icons.check, color: Colors.green),
+                  ),
+                  onChanged: (val) {
+                    setState(() {
+                      // 如果金额输入不符合规范，尾部图标会实时切换
+                      _amountHasError = !(_formKey.currentState?.fields['value']
+                              ?.validate() ??
+                          false);
+                    });
+                  },
+                  validator: FormBuilderValidators.compose([
+                    FormBuilderValidators.required(),
+                    FormBuilderValidators.numeric(),
+                  ]),
+                  keyboardType: TextInputType.number,
+                  textInputAction: TextInputAction.done,
+                ),
+                FormBuilderTextField(
+                  name: 'item',
+                  decoration: const InputDecoration(
+                    labelText: '项目',
+                    // 设置透明底色
+                    filled: true,
+                    fillColor: Colors.transparent,
+                  ),
+                  onChanged: (val) {
+                    setState(() {});
                   },
                   validator: FormBuilderValidators.compose([
                     FormBuilderValidators.required(),
                   ]),
-                ),
-                FormBuilderDateTimePicker(
-                  name: 'date',
-                  initialEntryMode: DatePickerEntryMode.calendar,
-                  initialValue: DateTime.now(),
-                  inputType: InputType.both,
-                  decoration: InputDecoration(
-                    labelText: '时间',
-                    // 设置透明底色
-                    filled: true,
-                    fillColor: Colors.transparent,
-                    suffixIcon: IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () {
-                        _formKey.currentState!.fields['date']?.didChange(null);
-                      },
-                    ),
-                  ),
-                  keyboardType: TextInputType.datetime,
-                  initialTime: const TimeOfDay(hour: 8, minute: 0),
-                  locale: Localizations.localeOf(context),
-                  validator: FormBuilderValidators.compose([
-                    FormBuilderValidators.required(),
-                  ]),
+                  // initialValue: '12',
+                  // 2023-12-21 enableSuggestions 设为 true后键盘类型为text就正常了。
+                  // 2024-05-27 9.3.0 版本了还没修
+                  enableSuggestions: true,
+                  keyboardType: TextInputType.text,
+                  textInputAction: TextInputAction.next,
                 ),
                 FormBuilderChoiceChip<String>(
                   decoration: const InputDecoration(
@@ -234,55 +324,6 @@ class _BillEditPageState extends State<BillEditPage> {
                     FormBuilderValidators.required(),
                   ]),
                 ),
-                FormBuilderTextField(
-                  name: 'item',
-                  decoration: const InputDecoration(
-                    labelText: '项目',
-                    // 设置透明底色
-                    filled: true,
-                    fillColor: Colors.transparent,
-                  ),
-                  onChanged: (val) {
-                    setState(() {});
-                  },
-                  validator: FormBuilderValidators.compose([
-                    FormBuilderValidators.required(),
-                  ]),
-                  // initialValue: '12',
-                  // 2023-12-21 enableSuggestions 设为 true后键盘类型为text就正常了。
-                  // 2024-05-27 9.3.0 版本了还没修
-                  enableSuggestions: true,
-                  keyboardType: TextInputType.text,
-                  textInputAction: TextInputAction.next,
-                ),
-                FormBuilderTextField(
-                  // autovalidateMode: AutovalidateMode.always,
-                  name: 'value',
-                  decoration: InputDecoration(
-                    labelText: '金额',
-                    // 设置透明底色
-                    filled: true,
-                    fillColor: Colors.transparent,
-                    suffixIcon: _amountHasError
-                        ? const Icon(Icons.error, color: Colors.red)
-                        : const Icon(Icons.check, color: Colors.green),
-                  ),
-                  onChanged: (val) {
-                    setState(() {
-                      // 如果金额输入不符合规范，尾部图标会实时切换
-                      _amountHasError = !(_formKey.currentState?.fields['value']
-                              ?.validate() ??
-                          false);
-                    });
-                  },
-                  validator: FormBuilderValidators.compose([
-                    FormBuilderValidators.required(),
-                    FormBuilderValidators.numeric(),
-                  ]),
-                  keyboardType: TextInputType.number,
-                  textInputAction: TextInputAction.done,
-                ),
-                SizedBox(height: 20.sp),
               ],
             ),
           ),

@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'bill_item_list/index.dart';
-import 'bill_item_modify/index.dart';
 import 'bill_report/index.dart';
 
 /// 主页面
@@ -40,7 +39,7 @@ class _HomePageState extends State<HomePage> {
         if (didPop) {
           return;
         }
-        final NavigatorState navigator = Navigator.of(context);
+        // final NavigatorState navigator = Navigator.of(context);
         // 如果确认弹窗点击确认返回true，否则返回false
         final bool? shouldPop = await showDialog(
           context: context,
@@ -67,12 +66,15 @@ class _HomePageState extends State<HomePage> {
         ); // 只有当对话框返回true 才 pop(返回上一层)
         if (shouldPop ?? false) {
           // 如果还有可以关闭的导航，则继续pop
-          if (navigator.canPop()) {
-            navigator.pop();
-          } else {
-            // 如果已经到头来，则关闭应用程序
-            SystemNavigator.pop();
-          }
+          // if (navigator.canPop()) {
+          //   navigator.pop();
+          // } else {
+          //   // 如果已经到头来，则关闭应用程序
+          //   SystemNavigator.pop();
+          // }
+
+          // 2024-05-29 已经到首页了，直接退出
+          SystemNavigator.pop();
         }
       },
       child: Scaffold(
@@ -92,39 +94,17 @@ class _HomePageState extends State<HomePage> {
           type: BottomNavigationBarType.fixed,
           items: const <BottomNavigationBarItem>[
             BottomNavigationBarItem(
-              icon: Icon(Icons.fitness_center),
+              icon: Icon(Icons.receipt),
               label: "账单",
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.restaurant),
+              icon: Icon(Icons.bar_chart),
               label: "图表",
             ),
           ],
           currentIndex: _selectedIndex,
           onTap: _onItemTapped,
         ),
-        // 底部居中的悬浮按钮
-        floatingActionButton: FloatingActionButton(
-          //悬浮按钮
-          child: const Icon(Icons.add),
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const BillEditPage(),
-              ),
-            ).then((value) {
-              // 不管是否新增成功，这里都重新加载；
-              // 因为没有清空查询条件，所以新增的食物关键字不包含查询条件中，不会显示
-              if (value != null) {
-                setState(() {
-                  print("新增billitem的返回值---$value");
-                });
-              }
-            });
-          },
-        ),
-        floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       ),
     );
   }

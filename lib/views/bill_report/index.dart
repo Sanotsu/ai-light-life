@@ -256,11 +256,11 @@ class _BillReportIndexState extends State<BillReportIndex>
         resizeToAvoidBottomInset: false,
         appBar: AppBar(
           backgroundColor: Colors.lightGreen,
-          // title: const Text('TabBar Sample'),
+          title: const Text('账单统计'),
           // AppBar的preferredSize默认是固定的（对于标准AppBar来说是kToolbarHeight,56）
           // 如果不显示title，可以适当减小
-          toolbarHeight: kToolbarHeight - 36,
-          title: null,
+          // toolbarHeight: kToolbarHeight - 36,
+          // title: null,
           bottom: TabBar(
             // overlayColor: WidgetStateProperty.all(Colors.lightGreen),
             controller: _tabController,
@@ -533,7 +533,7 @@ class _BillReportIndexState extends State<BillReportIndex>
                 axisLabelFormatter: (AxisLabelRenderDetails details) {
                   // 默认的标签样式继续用，简单修改字体大小即可
                   TextStyle newStyle = details.textStyle.copyWith(
-                    fontSize: isMonth ? 9.sp : 12.sp,
+                    fontSize: isMonth ? 8.sp : 12.sp,
                   );
 
                   /// 格式化x轴标签日期文字(中文年月太长了)

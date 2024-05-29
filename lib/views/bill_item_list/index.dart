@@ -13,7 +13,9 @@ import '../../common/constants.dart';
 import '../../common/utils/db_helper.dart';
 import '../../models/brief_accounting_state.dart';
 import '../bill_item_modify/index.dart';
+import '../bill_report/index.dart';
 import 'mock_data/index.dart';
+import 'widgets/bottom_sheet_option_picker.dart';
 
 /// 2024-05-28
 /// 账单列表，按月查看
@@ -78,6 +80,22 @@ class _BillItemIndexState extends State<BillItemIndex> {
   // 用一个map来保存每个月份的条目数据组件的总高度
   // 如果加载了多个月份的数据，可以用列表已滚动的高度和每个月的组件总高度进行对比，得到当前月份
   List<Map<String, double>> monthlyWidgetHeights = [];
+
+  var categoryList = [
+    // 饮食
+    "三餐", "外卖", "零食", "夜宵", "烟酒", "饮料",
+    // 购物
+    "购物", "买菜", "日用", "水果", "买花", "服装",
+    // 娱乐
+    "娱乐", "电影", "旅行", "运动", "纪念", "充值",
+    // 住、行
+    "交通", "住房", "房租", "房贷",
+    // 生活
+    "理发", "还款",
+  ];
+
+  // 选中查询的类型，默认是全部，可切换到“支出|收入|全部”
+  String selectedType = "全部账单";
 
   @override
   void initState() {
@@ -378,6 +396,29 @@ class _BillItemIndexState extends State<BillItemIndex> {
     // print("每月组件的高度----$monthlyWidgetHeights");
   }
 
+  void _showBottomSheet() {
+    showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true, // 如果选项很多，启用滚动控制
+      builder: (BuildContext context) {
+        return BottomSheetOptionPicker(
+          options: categoryList,
+          onConfirm: (selectedOption) {
+            Navigator.pop(context, selectedOption);
+          },
+        );
+      },
+    ).then((value) {
+      print('Selected: $value');
+      // 在这里处理选中的值
+      if (value != null) {
+        setState(() {
+          selectedType = value;
+        });
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -386,8 +427,29 @@ class _BillItemIndexState extends State<BillItemIndex> {
       // 这里也可以不用appbar？？？
       appBar: AppBar(
         title: const Text("账单列表"),
+        // 明确说明不要返回箭头，避免其他地方使用push之后会自动带上返回箭头
+        // leading: const Icon(Icons.arrow_back),
         backgroundColor: Colors.lightGreen,
         actions: [
+          IconButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const BillEditPage(),
+                ),
+              ).then((value) {
+                // 如果有新增成功，则重新查询当前月份数据
+                print("新增billitem的返回值---$value");
+                if (value != null && value) {
+                  setState(() {
+                    handleSearch();
+                  });
+                }
+              });
+            },
+            icon: const Icon(Icons.add),
+          ),
           TextButton(
             onPressed: () async {
               setState(() {
@@ -404,6 +466,23 @@ class _BillItemIndexState extends State<BillItemIndex> {
               loadBillItemsByMonth();
             },
             child: const Text("Mock"),
+          ),
+          ElevatedButton(
+            onPressed: _showBottomSheet,
+            child: const Text('demo'),
+          ),
+          TextButton.icon(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const BillReportIndex(),
+                ),
+              );
+            },
+            label: const Text('统计'),
+            icon: Icon(Icons.arrow_forward_ios, size: 12.sp),
+            iconAlignment: IconAlignment.end,
           ),
         ],
       ),
@@ -445,8 +524,8 @@ class _BillItemIndexState extends State<BillItemIndex> {
               // 不是关键字查询时展示范围为滚动查询的范围，是关键字查询时就是账单起止范围
               child: Text(
                 !isQuery
-                    ? "${DateFormat.yM(locale).format(minQueryedDate)} ~ ${DateFormat.yM(locale).format(maxQueryedDate)}"
-                    : "${DateFormat.yM(locale).format(billPeriod.minDate)} ~ ${DateFormat.yM(locale).format(billPeriod.maxDate)}",
+                    ? "${DateFormat.yM(locale).format(minQueryedDate)}~${DateFormat.yM(locale).format(maxQueryedDate)}"
+                    : "${DateFormat.yM(locale).format(billPeriod.minDate)}~${DateFormat.yM(locale).format(billPeriod.maxDate)}",
                 style: TextStyle(fontSize: 13.sp, fontWeight: FontWeight.bold),
               ),
             ),
@@ -634,7 +713,8 @@ class _BillItemIndexState extends State<BillItemIndex> {
             return _buildBillItemCard(index);
           }
         },
-        controller: scrollController,
+        // 因为列表是复用的，所有关键字查询展示时不要启用滚动控制器
+        controller: isQuery ? null : scrollController,
       ),
     );
   }
@@ -665,7 +745,7 @@ class _BillItemIndexState extends State<BillItemIndex> {
             trailing: isQuery
                 ? null
                 : Text(
-                    '支出 ¥$totalExpend 收入 ¥$totalIncome',
+                    '支出 ¥${totalExpend.toStringAsFixed(2)} 收入 ¥${totalIncome.toStringAsFixed(2)}',
                     style: TextStyle(
                       color: Theme.of(context).primaryColor,
                       fontSize: 13.sp,
@@ -704,11 +784,11 @@ class _BillItemIndexState extends State<BillItemIndex> {
             builder: (context) => BillEditPage(billItem: item),
           ),
         ).then((value) {
-          // 不管是否新增成功，这里都重新加载；
-          // 因为没有清空查询条件，所以新增的食物关键字不包含查询条件中，不会显示
-          if (value != null) {
+          // 如果有修改成功，则重新查询当前月份数据
+          print("x修改------billitem的返回值---$value");
+          if (value != null && value) {
             setState(() {
-              print("长按修改billitem的返回值---$value");
+              handleSearch();
             });
           }
         });
@@ -721,11 +801,30 @@ class _BillItemIndexState extends State<BillItemIndex> {
           builder: (context) {
             return AlertDialog(
               title: const Text("删除提示"),
-              content: Text(
-                "确定删除选中的条目:\n ${item.itemType != 0 ? '支出' : '收入'}　${item.item} ${item.value}",
-                style: TextStyle(fontSize: 15.sp),
+              content: SizedBox(
+                height: 100.sp,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      "确定删除选中的条目:\n    ${item.date}",
+                      style: TextStyle(fontSize: 15.sp),
+                    ),
+                    Text(
+                      "\t\t\t\t${item.itemType != 0 ? '支出' : '收入'}: ${item.category ?? ''} ${item.item} ${item.value}",
+                      style: TextStyle(fontSize: 12.sp),
+                    )
+                  ],
+                ),
               ),
               actions: [
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                  child: const Text("取消"),
+                ),
                 TextButton(
                   onPressed: () async {
                     await _dbHelper.deleteBillItemById(item.billItemId);
@@ -735,12 +834,6 @@ class _BillItemIndexState extends State<BillItemIndex> {
                     }
                   },
                   child: const Text("确定"),
-                ),
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
-                  child: const Text("取消"),
                 ),
               ],
             );
@@ -851,7 +944,7 @@ class _BillItemIndexState extends State<BillItemIndex> {
           ),
           Expanded(
             child: Text(
-              "￥${item.value}",
+              "￥${item.value.toStringAsFixed(2)}",
               style: TextStyle(fontSize: 15.sp),
               textAlign: TextAlign.end,
             ),
