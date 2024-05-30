@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
+import '../../apis/tencent_apis.dart';
 import 'chat_screen.dart';
 
 class AgiLlmSample extends StatefulWidget {
@@ -28,7 +29,8 @@ class _AgiLlmSampleState extends State<AgiLlmSample> {
             child: Text(
               """这里是一些免费的大模型。\n来体验一下新的AGI时代浪潮吧。
             \n作为你的智能伙伴，\n我既能写文案、想点子，\n又能陪你聊天、答疑解惑。
-            \n想知道我还能做什么？\n选择下面任意模块，快来试一试！""",
+            \n想知道我还能做什么？\n选择下面任意模块，快来试一试！
+            \n文本翻译、FAQ、百科问答、情感分析、\n阅读理解、内容创作、代码编写""",
             ),
           ),
           // 输入框和发送按钮
@@ -44,15 +46,23 @@ class _AgiLlmSampleState extends State<AgiLlmSample> {
               childAspectRatio: 16 / 9,
               children: <Widget>[
                 InkWell(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const ChatScreen(),
-                      ),
-                    ).then((value) {
-                      print("chatscreen的返回---$value");
-                    });
+                  onTap: () async {
+                    // getAccessToken();
+                    // var a = await getErnieSpeedResponse();
+                    //  print(a.result);
+
+                    var a = await getHunyuanLiteResponse();
+
+                    print(a.choices);
+
+                    // Navigator.push(
+                    //   context,
+                    //   MaterialPageRoute(
+                    //     builder: (context) => const ChatScreen(),
+                    //   ),
+                    // ).then((value) {
+                    //   print("chatscreen的返回---$value");
+                    // });
                   },
                   child: Container(
                     padding: const EdgeInsets.all(8),

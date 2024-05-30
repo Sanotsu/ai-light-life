@@ -90,7 +90,7 @@ class BillItem {
     );
   }
 
-  // 将 User 实例转换为 JSON 映射的方法（可选）
+  // 将实例转换为 JSON 映射的方法（可选）
   Map<String, dynamic> toJson() {
     return {
       'bill_item_id': billItemId,

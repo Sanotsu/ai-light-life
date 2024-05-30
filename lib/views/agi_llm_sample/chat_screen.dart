@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:uuid/uuid.dart';
 
+import '../../models/llm_chat_state.dart';
 import 'widgets/message_item.dart';
 
 class ChatScreen extends StatefulWidget {
@@ -14,21 +16,21 @@ class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _textController = TextEditingController();
 
   // 假设的对话数据
-  List<Message> messages = [
-    Message(
-      avatarUrl: 'https://example.com/user-avatar.png',
+  List<ChatMessage> messages = [
+    ChatMessage(
+      messageId: const Uuid().v4(),
       text: 'Hello! This is a normal message.',
       isFromUser: true,
       dateTime: DateTime(2023, 12, 14, 12, 23, 34),
     ),
-    Message(
-      avatarUrl: 'https://example.com/bot-avatar.png',
+    ChatMessage(
+      messageId: const Uuid().v4(),
       text: '```python\nprint("Hello from a code block!")\n```',
       isFromUser: false,
       dateTime: DateTime(2023, 12, 14, 12, 26, 40),
     ),
-    Message(
-      avatarUrl: 'https://example.com/bot-avatar.png',
+    ChatMessage(
+      messageId: const Uuid().v4(),
       text: """
 在Flutter中实现一个对话页面，用户输入一个问题，后台返回一个答案，同时在后台回答问题时用户不能继续输入是可以做到的。
 可以通过使用Flutter的TextEditingController来控制用户是否可以输入以及获取输入的内容，同时通过网络请求或其他方式从后台获取答案。
@@ -38,8 +40,8 @@ class _ChatScreenState extends State<ChatScreen> {
       isFromUser: true,
       dateTime: DateTime(2023, 12, 14, 12, 26, 40),
     ),
-    Message(
-      avatarUrl: 'https://example.com/bot-avatar.png',
+    ChatMessage(
+      messageId: const Uuid().v4(),
       text: """```python\nimport 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -67,8 +69,8 @@ class MyApp extends StatelessWidget {
     FocusScope.of(context).unfocus();
 
     // 发送消息的逻辑，这里只是简单地将消息添加到列表中
-    var temp = Message(
-      avatarUrl: 'https://example.com/bot-avatar.png',
+    var temp = ChatMessage(
+      messageId: const Uuid().v4(),
       text: _textController.text,
       isFromUser: true,
       dateTime: DateTime.now(),

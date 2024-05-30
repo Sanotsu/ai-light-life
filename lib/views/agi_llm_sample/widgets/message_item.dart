@@ -1,22 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
-class Message {
-  final String avatarUrl; // 头像URL
-  final String text; // 文本内容
-  final DateTime dateTime; // 时间
-  final bool isFromUser; // 是否来自用户
-
-  Message({
-    required this.avatarUrl,
-    required this.text,
-    required this.isFromUser,
-    required this.dateTime,
-  });
-}
+import '../../../models/llm_chat_state.dart';
 
 class MessageItem extends StatelessWidget {
-  final Message message;
+  final ChatMessage message;
 
   const MessageItem({super.key, required this.message});
 
