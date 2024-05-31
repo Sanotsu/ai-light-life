@@ -27,16 +27,19 @@ class _IntelligentChatScreenState extends State<IntelligentChatScreen> {
 // 默认使用的大模型，可以自行切换。
 // 预计希望在同一次对话时，即便切换了模型，也会带上上下文。
 // 那就要注意数量了，8K的限制
-  var defaultLlm = ErnieLLM.Speed128K.name;
+  late ErnieLLM? defaultLlm;
 
   // 如果是混元大模型，只有1个模型接口可选，就不用构建下拉选择了
-  // 只有时百度的文心大模型，才能构建多个可选的模型
+  // 只有时百度的千帆大模型，才能构建多个可选的模型
   bool isErnie = false;
 
   // AI是否在思考中(如果是，则不允许再次发送)
   bool isBotThinking = false;
 
-  // 等待AI响应时的占位的消息，在构建查询的list时要删除
+  // 用户输入的内容（当不是AI在思考、且输入框有非空文字时才可以点击发送按钮）
+  String userInput = "";
+
+  // 等待AI响应时的占位的消息，在构建真实对话的list时要删除
   var placeholderMessage = ChatMessage(
     messageId: "placeholderMessage",
     text: "奋力思考中……",
@@ -48,26 +51,29 @@ class _IntelligentChatScreenState extends State<IntelligentChatScreen> {
   // 默认进入对话页面应该就是啥都没有，然后根据这空来显示预设对话
   List<ChatMessage> messages = [];
 
+  // 进入对话页面简单预设的一些问题
   List defaultQuestions = [
-    "你是一位小学语文老师。请设计一份教案，内容需要包含2-3个互动游戏，以帮助学生更好地理解和欣赏辛弃疾《西江月·夜行黄沙道中》这首词。",
+    "你是一位产品文案。请设计一份PPT大纲，介绍你们公司新推出的防晒霜，要求言简意赅并且具有创意。",
     "你是一位10w+爆款文章的编辑。请结合赛博玄学主题，如电子木鱼、机甲佛祖、星座、塔罗牌、人形锦鲤、工位装修等，用俏皮有网感的语言撰写一篇公众号文章。",
-    "考公需要准备哪些资料，去哪里找",
-    "现在你是一名具备丰富专业知识及教学经验的大学教授，你会对我给出的问题进行详细且专业的解答，注意你需要提供一些浅显易懂的示例帮助我进行理解。下面我给出的第一个问题是：怎样可以提高光电转换效率",
+    "假如你是一对热恋情侣中的男生。现在你女朋友到生理期了，你应该为她做些什么？",
+    "使用python3编写一个快速排序算法。",
   ];
 
   @override
   void initState() {
     isErnie = widget.llmType.toLowerCase() != "hunyuan";
 
+    // 千帆大模型有多个免费的模型所以才需要默认设一个；
+    // 混元大模型时不会用到这个栏位，就没有初始化给默认值
     if (isErnie) {
-      defaultLlm = ErnieLLM.Speed128K.name;
-    } else {
-      defaultLlm = 'hunyuan';
+      defaultLlm = ErnieLLM.Speed8K;
     }
 
     super.initState();
   }
 
+  // 这个发送消息实际是将对话文本添加到对话列表中
+  // 但是在用户发送消息之后，需要等到AI响应，成功响应之后将响应加入对话中
   void _sendMessage(String text, {bool isFromUser = true}) {
     // 发送消息的逻辑，这里只是简单地将消息添加到列表中
     var temp = ChatMessage(
@@ -96,8 +102,6 @@ class _IntelligentChatScreenState extends State<IntelligentChatScreen> {
         // 一定注意要记得AI响应后要删除此占位的消息
         messages.add(placeholderMessage);
 
-        print('defaultLlm.===============)$defaultLlm');
-
         // 不是腾讯，就是百度
         if (isErnie) {
           getErnieResponse();
@@ -108,65 +112,76 @@ class _IntelligentChatScreenState extends State<IntelligentChatScreen> {
     });
   }
 
+  // 获取调用千帆大模型API的响应
   getErnieResponse() async {
     // 将已有的消息处理成Ernie支出的消息列表格式(构建查询条件时要删除占位的消息)
-    List<ErnieMessage> msgs =
-        messages.where((e) => e.isPlaceholder != true).map((e) {
-      return ErnieMessage(
-        content: e.text,
-        role: e.isFromUser ? "user" : "assistant",
-      );
-    }).toList();
+    List<ErnieMessage> msgs = messages
+        .where((e) => e.isPlaceholder != true)
+        .map((e) => ErnieMessage(
+              content: e.text,
+              role: e.isFromUser ? "user" : "assistant",
+            ))
+        .toList();
 
-    print("++++++++++++++++++++++++++++");
-    print(msgs);
+    // 注意：一定确保使用千帆大模型时，有默认的模型
+    var temp = await getErnieSpeedResponse(msgs, llmName: defaultLlm!);
 
-    var temp = await getErnieSpeedResponse(
-      msgs,
-      llmName: stringToErnieLlm(defaultLlm),
-    );
-
-    // 得到回复后要删除占位的消息
+    // 得到回复后要删除表示加载中的占位消息
     setState(() {
       messages.removeWhere((e) => e.isPlaceholder == true);
     });
 
     // 得到AI回复之后，添加到列表中，也注明不是用户提问
-    _sendMessage(temp.result ?? "暂无法回答", isFromUser: false);
+    var tempText = "当前使用人数角度，千帆AI未响应，请稍候重试。";
+    if (temp.errorCode != null) {
+      tempText =
+          "千帆API接口报错: {Code: ${temp.errorCode}, Msg: ${temp.errorMsg}}，请切换其他模型试试。";
+    } else if (temp.result != null) {
+      tempText = temp.result!;
+    }
+    _sendMessage(tempText, isFromUser: false);
   }
 
+  // 获取调用混元大模型API的响应
   getHunyuanResponse() async {
     // 将已有的消息处理成Ernie支出的消息列表格式(构建查询条件时要删除占位的消息)
-    List<HunyuanMessage> msgs =
-        messages.where((e) => e.isPlaceholder != true).map((e) {
-      return HunyuanMessage(
-        content: e.text,
-        role: e.isFromUser ? "user" : "assistant",
-      );
-    }).toList();
-
-    print("++++++++++++++++++++++++++++");
-    print(msgs);
+    List<HunyuanMessage> msgs = messages
+        .where((e) => e.isPlaceholder != true)
+        .map((e) => HunyuanMessage(
+              content: e.text,
+              role: e.isFromUser ? "user" : "assistant",
+            ))
+        .toList();
 
     var temp = await getHunyuanLiteResponse(msgs);
 
-    // 得到回复后要删除占位的消息
+    // 得到回复后要删除表示加载中的占位消息
     setState(() {
       messages.removeWhere((e) => e.isPlaceholder == true);
     });
 
     // 得到AI回复之后，添加到列表中，也注明不是用户提问
-    _sendMessage(
-      temp.choices?.first.message.content ?? "混元暂无法回答",
-      isFromUser: false,
-    );
+    // ？？？2024-05-31 混元响应的消息文本时一个List<Choice>?，
+    // 暂时推测非流式响应时，只有第一个值能取到正常消息
+    var tempText = "当前使用人数角度，混元AI未响应，请稍候重试。";
+    if (temp.errorMsg != null) {
+      tempText =
+          "混元API接口报错: {Code: ${temp.errorMsg!.code}, Msg: ${temp.errorMsg!.message}}，请切换其他模型试试。";
+    } else if (temp.choices != null && temp.choices!.isNotEmpty) {
+      tempText = temp.choices!.first.message.content;
+    }
+    _sendMessage(tempText, isFromUser: false);
   }
+
+  /// 2024-05-31 暂时不根据token的返回来说了，临时直接显示整个对话不超过8千字
+  bool isMessageTooLong() =>
+      messages.fold(0, (sum, msg) => sum + msg.text.length) > 8000;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Chat Demo'),
+        title: const Text('AI Chat'),
         actions: [
           const TextButton(
             onPressed: null,
@@ -174,32 +189,38 @@ class _IntelligentChatScreenState extends State<IntelligentChatScreen> {
           ),
           if (isErnie)
             DropdownButton<ErnieLLM>(
-              value: stringToErnieLlm(defaultLlm),
+              value: defaultLlm,
+              isDense: true,
               items: ErnieLLM.values
-                  .map<DropdownMenuItem<ErnieLLM>>((ErnieLLM value) {
-                return DropdownMenuItem<ErnieLLM>(
-                  value: value,
-                  child: Text(value.name),
-                );
-              }).toList(),
+                  .map<DropdownMenuItem<ErnieLLM>>(
+                    (ErnieLLM value) => DropdownMenuItem<ErnieLLM>(
+                      value: value,
+                      alignment: AlignmentDirectional.center,
+                      child: Text(
+                        value.name,
+                        style: TextStyle(fontSize: 12.sp),
+                      ),
+                    ),
+                  )
+                  .toList(),
               onChanged: (ErnieLLM? newValue) {
                 setState(() {
-                  defaultLlm = newValue!.name;
-                  // 你可以在这里添加逻辑来处理选中的年月，比如解析为DateTime对象等
+                  defaultLlm = newValue!;
                 });
               },
-              hint: const Text('选择年月'),
             ),
         ],
       ),
       body: Column(
         mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // 如果是空，显示预设的问题
+          if (messages.isEmpty) const Text("你可以试着问我："),
           if (messages.isEmpty)
             Expanded(
+              flex: 2,
               child: ListView.builder(
-                // reverse: true, // 反转列表，使新消息出现在底部
                 itemCount: defaultQuestions.length,
                 itemBuilder: (context, index) {
                   // 构建MessageItem
@@ -226,8 +247,9 @@ class _IntelligentChatScreenState extends State<IntelligentChatScreen> {
               itemCount: messages.length,
               itemBuilder: (context, index) {
                 // 构建MessageItem
-                return MessageItem(
-                  message: messages[index],
+                return Padding(
+                  padding: EdgeInsets.all(5.sp),
+                  child: MessageItem(message: messages[index]),
                 );
               },
             ),
@@ -235,29 +257,65 @@ class _IntelligentChatScreenState extends State<IntelligentChatScreen> {
           // 输入框和发送按钮
           const Divider(),
           Padding(
-            padding: const EdgeInsets.all(8.0),
+            padding: EdgeInsets.all(5.sp),
             child: Row(
               children: [
                 Expanded(
                   child: TextField(
                     controller: _textController,
-                    decoration:
-                        const InputDecoration(hintText: 'Enter your message'),
+                    decoration: const InputDecoration(
+                      hintText: '可以向我提任何问题哦 ٩(๑❛ᴗ❛๑)۶',
+                      border: OutlineInputBorder(), // 添加边框
+                    ),
+                    maxLines: 5,
+                    minLines: 1,
+                    onChanged: (String? text) {
+                      if (text != null) {
+                        setState(() {
+                          userInput = text.trim();
+                        });
+                      }
+                    },
                   ),
                 ),
-                TextButton(
-                  onPressed: isBotThinking
+                IconButton(
+                  // 如果AI正在响应，或者输入框没有任何文字，不让点击发送
+                  onPressed: isBotThinking || userInput.isEmpty
                       ? null
                       : () {
-                          // 在当前上下文中查找最近的 FocusScope 并使其失去焦点，从而收起键盘。
-                          FocusScope.of(context).unfocus();
+                          if (!isMessageTooLong()) {
+                            // 在当前上下文中查找最近的 FocusScope 并使其失去焦点，从而收起键盘。
+                            FocusScope.of(context).unfocus();
 
-                          _sendMessage(
-                            _textController.text,
-                            isFromUser: true,
-                          );
+                            _sendMessage(userInput, isFromUser: true);
+
+                            // 发送完要清空记录用户输的入变量
+                            setState(() {
+                              userInput = "";
+                            });
+                          } else {
+                            showDialog(
+                              context: context,
+                              builder: (BuildContext context) {
+                                return AlertDialog(
+                                  title: const Text('对话过长'),
+                                  content: const Text(
+                                    '注意，由于免费API的使用压力，单个聊天对话的总长度不能超过8000字，请新开对话，谢谢。',
+                                  ),
+                                  actions: <Widget>[
+                                    TextButton(
+                                      onPressed: () {
+                                        Navigator.of(context).pop();
+                                      },
+                                      child: const Text('确定'),
+                                    ),
+                                  ],
+                                );
+                              },
+                            );
+                          }
                         },
-                  child: Text('Send $isBotThinking'),
+                  icon: const Icon(Icons.send),
                 ),
               ],
             ),

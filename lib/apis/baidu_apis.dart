@@ -38,7 +38,7 @@ final Map<ErnieLLM, String> llmStrings = {
 };
 
 // 定义一个函数来从枚举值获取字符串表示
-String? ernieLlmsToString(ErnieLLM llmName) {
+String? ernieLlmToString(ErnieLLM llmName) {
   // 取不到也返回null
   return llmStrings[llmName];
 }
@@ -51,7 +51,7 @@ ErnieLLM stringToErnieLlm(String value) {
     }
   }
   // 如果找不到匹配的枚举值，则设置默认值
-  return ErnieLLM.Speed128K;
+  return ErnieLLM.Speed8K;
 }
 
 // token请求地址
@@ -87,7 +87,7 @@ Future<String> getAccessToken() async {
 Future<BaiduErnieResponseBody> getErnieSpeedResponse(
   List<ErnieMessage> messages, {
   // 百度免费的ernie-speed和ernie-lite 接口使用上是一致的，就是模型名称不一样
-  ErnieLLM llmName = ErnieLLM.Speed128K,
+  ErnieLLM llmName = ErnieLLM.Speed8K,
 }) async {
   // 每次请求都要实时获取最小的token
   String token = await getAccessToken();
@@ -95,7 +95,7 @@ Future<BaiduErnieResponseBody> getErnieSpeedResponse(
   var body = BaiduErnieRequestBody(messages: messages);
 
   var nameStr =
-      ernieLlmsToString(llmName) ?? ernieLlmsToString(ErnieLLM.Speed128K)!;
+      ernieLlmToString(llmName) ?? ernieLlmToString(ErnieLLM.Speed8K)!;
 
   var respData = await HttpUtils.post(
     path: "$baiduErnieUrl$nameStr?access_token=$token",

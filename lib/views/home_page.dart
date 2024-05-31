@@ -98,7 +98,7 @@ class _HomePageState extends State<HomePage> {
               label: "账单管理",
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.chat),
+              icon: Icon(Icons.bolt),
               label: "智能对话",
             ),
           ],

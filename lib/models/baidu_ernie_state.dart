@@ -99,7 +99,8 @@ class ErnieMessage {
     required this.content,
   });
 
-  factory ErnieMessage.fromRawJson(String str) => ErnieMessage.fromJson(json.decode(str));
+  factory ErnieMessage.fromRawJson(String str) =>
+      ErnieMessage.fromJson(json.decode(str));
 
   String toRawJson() => json.encode(toJson());
 
@@ -117,6 +118,29 @@ class ErnieMessage {
 /// 百度ernie大模型的响应体
 // To parse this JSON data, do
 //     final baiduErnieResponseBody = baiduErnieResponseBodyFromJson(jsonString);
+
+/*
+报错时的响应：
+{
+    "error_code": 336006,
+    "error_msg": "the length of messages must be an odd number",
+    "id": "as-a4t1dspppa"
+}
+正常返回的响应：
+{
+    "id": "as-i65ueukk6z",
+    "object": "chat.completion",
+    "created": 1717132624,
+    "result": "是的，中国的国土总面积约为960万平方公里，其中包括陆地和海洋两部分。陆地部分主要由山地、高原、平原、盆地和丘陵等地貌构成，而海洋部分包括渤海、黄海、东海、南海以及台湾海峡等海域。中国的国土总面积是世界上第三大国家，人口众多，拥有丰富的自然资源和文化遗产。",
+    "is_truncated": false,
+    "need_clear_history": false,
+    "usage": {
+        "prompt_tokens": 10,
+        "completion_tokens": 65,
+        "total_tokens": 75
+    }
+}
+*/
 
 BaiduErnieResponseBody baiduErnieResponseBodyFromJson(String str) =>
     BaiduErnieResponseBody.fromJson(json.decode(str));
@@ -150,6 +174,11 @@ class BaiduErnieResponseBody {
   // 当need_clear_history为true时，此字段会告知第几轮对话有敏感信息，如果是当前问题，ban_round=-1
   int? banRound;
 
+  /// 2024-05-31 未正常响应，也带上错误信息(正常响应就没这俩栏位)
+  // 错误码和错误消息
+  int? errorCode;
+  String? errorMsg;
+
   BaiduErnieResponseBody({
     this.id,
     this.object,
@@ -161,6 +190,8 @@ class BaiduErnieResponseBody {
     this.sentenceId,
     this.isEnd,
     this.banRound,
+    this.errorCode,
+    this.errorMsg,
   });
 
   // 同步模式下，响应参数为以上字段的完整json包。
@@ -177,6 +208,8 @@ class BaiduErnieResponseBody {
         sentenceId: json["sentence_id"],
         isEnd: json["is_end"],
         banRound: json["ban_round"],
+        errorCode: json["error_code"],
+        errorMsg: json["error_msg"],
       );
 
   Map<String, dynamic> toJson() => {
@@ -190,6 +223,8 @@ class BaiduErnieResponseBody {
         "sentence_id": sentenceId,
         "is_end": isEnd,
         "ban_round": banRound,
+        "error_code": errorCode,
+        "error_msg": errorMsg,
       };
 }
 
@@ -217,36 +252,5 @@ class Usage {
         "prompt_tokens": promptTokens,
         "completion_tokens": completionTokens,
         "total_tokens": totalTokens,
-      };
-}
-
-/// 百度ernie大模型的响应的报错体
-// To parse this JSON data, do
-//     final baiduErnieError = baiduErnieErrorFromJson(jsonString);
-
-BaiduErnieError baiduErnieErrorFromJson(String str) =>
-    BaiduErnieError.fromJson(json.decode(str));
-
-String baiduErnieErrorToJson(BaiduErnieError data) =>
-    json.encode(data.toJson());
-
-class BaiduErnieError {
-  int? errorCode;
-  String? errorMsg;
-
-  BaiduErnieError({
-    this.errorCode,
-    this.errorMsg,
-  });
-
-  factory BaiduErnieError.fromJson(Map<String, dynamic> json) =>
-      BaiduErnieError(
-        errorCode: json["error_code"],
-        errorMsg: json["error_msg"],
-      );
-
-  Map<String, dynamic> toJson() => {
-        "error_code": errorCode,
-        "error_msg": errorMsg,
       };
 }
