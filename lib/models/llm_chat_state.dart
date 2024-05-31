@@ -6,6 +6,7 @@ class ChatMessage {
   final DateTime dateTime; // 时间
   final bool isFromUser; // 是否来自用户
   final String? avatarUrl; // 头像URL
+  final bool? isPlaceholder; // 是否是等待响应时的占位消息
 
   ChatMessage({
     required this.messageId,
@@ -13,6 +14,7 @@ class ChatMessage {
     required this.dateTime,
     required this.isFromUser,
     this.avatarUrl,
+    this.isPlaceholder,
   });
 
   Map<String, dynamic> toMap() {
@@ -22,6 +24,7 @@ class ChatMessage {
       'date_time': dateTime,
       'is_from_user': isFromUser,
       'avatar_url': avatarUrl,
+      'is_placeholder': isPlaceholder,
     };
   }
 
@@ -32,6 +35,7 @@ class ChatMessage {
       dateTime: DateTime.tryParse(map['date_time']) ?? DateTime.now(),
       isFromUser: map['is_from_user'] as bool,
       avatarUrl: map['avatar_url'] as String?,
+      isPlaceholder: map['is_placeholder'] as bool?,
     );
   }
 
@@ -40,7 +44,8 @@ class ChatMessage {
     return '''
     ChatMessage{
      messageId$messageId, text: $text, 
-     dateTime: $dateTime, isFromUser: $isFromUser, avatarUrl: $avatarUrl, 
+     dateTime: $dateTime, isFromUser: $isFromUser, 
+     avatarUrl: $avatarUrl, isPlaceholder:$isPlaceholder
     }
     ''';
   }

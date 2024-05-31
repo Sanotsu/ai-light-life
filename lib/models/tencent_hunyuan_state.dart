@@ -2,17 +2,17 @@ import 'dart:convert';
 
 /// 腾讯hunyuan-lite大模型的消息的接口
 // 稍微有点不一样，混元时首字母大写的key，ernie是全小写的下划线
-class Message {
+class HunyuanMessage {
   // system(如存在必须是对话第一个)、user、assistant
   String role;
   String content;
 
-  Message({
+  HunyuanMessage({
     required this.role,
     required this.content,
   });
 
-  factory Message.fromJson(Map<String, dynamic> json) => Message(
+  factory HunyuanMessage.fromJson(Map<String, dynamic> json) => HunyuanMessage(
         role: json["Role"],
         content: json["Content"],
       );
@@ -62,7 +62,7 @@ class TencentHunYuanRequestBody {
   //  Role 的顺序示例：[system（可选） user assistant user assistant user …]。
   // 3. Messages 中 Content 总长度不能超过模型输入长度上限（可参考 产品概述 文档），
   //  超过则会截断最前面的内容，只保留尾部内容。
-  List<Message> messages;
+  List<HunyuanMessage> messages;
   // 流式调用开关。
   //   说明：
   // 1. 未传值时默认为非流式调用（false）。
@@ -119,8 +119,8 @@ class TencentHunYuanRequestBody {
         // action: json["Action"] ?? "ChatCompletions",
         // version: json["Version"] ?? "2023-09-01",
         model: json["Model"] ?? "hunyuan-lite",
-        messages: List<Message>.from(
-          json["Messages"].map((x) => Message.fromJson(x)),
+        messages: List<HunyuanMessage>.from(
+          json["Messages"].map((x) => HunyuanMessage.fromJson(x)),
         ),
         stream: json["Stream"] ?? false,
         streamModeration: json["StreamModeration"] ?? false,
@@ -246,7 +246,7 @@ class TencentHunYuanResponseBody {
 }
 
 class Choice {
-  Message message;
+  HunyuanMessage message;
   String finishReason;
 
   Choice({
@@ -255,7 +255,7 @@ class Choice {
   });
 
   factory Choice.fromJson(Map<String, dynamic> json) => Choice(
-        message: Message.fromJson(json["Message"]),
+        message: HunyuanMessage.fromJson(json["Message"]),
         finishReason: json["FinishReason"],
       );
 

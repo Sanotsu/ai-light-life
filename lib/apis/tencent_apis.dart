@@ -13,15 +13,10 @@ import 'tencet_hunyuan_signature_v3.dart';
 const tencentHunyuanLiteUrl = "https://hunyuan.tencentcloudapi.com/";
 
 /// 获取指定设备类型(产品)包含的功能列表
-Future<TencentHunYuanResponseBody> getHunyuanLiteResponse({
-  List<Message>? messages,
-}) async {
-  var bodyJson = {
-    "Messages": [
-      {"Role": "user", "Content": "python3快排算法"}
-    ]
-  };
-  var body = TencentHunYuanRequestBody.fromJson(bodyJson);
+Future<TencentHunYuanResponseBody> getHunyuanLiteResponse(
+  List<HunyuanMessage> messages,
+) async {
+  var body = TencentHunYuanRequestBody(messages: messages);
 
   var respData = await HttpUtils.post(
     path: tencentHunyuanLiteUrl,
@@ -30,7 +25,7 @@ Future<TencentHunYuanResponseBody> getHunyuanLiteResponse({
       tencentHunYuanRequestBodyToJsonString(body),
     ),
     // 可能是因为头的content type设定，这里直接传类实例即可，传toJson也可
-    data: body.toJson(),
+    data: body,
   );
 
   print("===============$respData");

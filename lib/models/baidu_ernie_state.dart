@@ -17,7 +17,7 @@ class BaiduErnieRequestBody {
   // （2）最后一个message为当前请求的信息，前面的message为历史对话信息
   // （3）必须为奇数个成员，成员中message的role必须依次为user、assistant
   // （4）message中的content总长度和system字段总内容不能超过516096个字符，且不能超过126976 tokens
-  List<Message> messages;
+  List<ErnieMessage> messages;
   // 是否以流式接口的形式返回数据，默认false
   // 流式就是一个问题的回答是截成一小段一小段响应返回的，在response的处理中也要一段段拼在一起才是该问题的整体
   bool? stream;
@@ -59,8 +59,8 @@ class BaiduErnieRequestBody {
 
   factory BaiduErnieRequestBody.fromJson(Map<String, dynamic> json) =>
       BaiduErnieRequestBody(
-        messages: List<Message>.from(
-          json["messages"].map((x) => Message.fromJson(x)),
+        messages: List<ErnieMessage>.from(
+          json["messages"].map((x) => ErnieMessage.fromJson(x)),
         ),
         stream: json["stream"],
         temperature: json["temperature"]?.toDouble(),
@@ -90,20 +90,20 @@ class BaiduErnieRequestBody {
 }
 
 // 百度ernie的消息参数
-class Message {
+class ErnieMessage {
   String role;
   String content;
 
-  Message({
+  ErnieMessage({
     required this.role,
     required this.content,
   });
 
-  factory Message.fromRawJson(String str) => Message.fromJson(json.decode(str));
+  factory ErnieMessage.fromRawJson(String str) => ErnieMessage.fromJson(json.decode(str));
 
   String toRawJson() => json.encode(toJson());
 
-  factory Message.fromJson(Map<String, dynamic> json) => Message(
+  factory ErnieMessage.fromJson(Map<String, dynamic> json) => ErnieMessage(
         role: json["role"],
         content: json["content"],
       );
