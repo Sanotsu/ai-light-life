@@ -20,6 +20,21 @@ class BriefAccountingDdl {
     );
     """;
 
+  /// 2024-06-1 新增AI对话留存
+  // 账单条目表
+  static const tableNameOfChatHistory = 'ba_chat_history';
+
+  static const String ddlForChatHistory = """
+    CREATE TABLE $tableNameOfChatHistory (
+      uuid        TEXT    NOT NULL,
+      title       TEXT    NOT NULL,
+      messages    TEXT    NOT NULL,
+      llm_name    TEXT    NOT NULL,
+      gmt_create	TEXT    NOT NULL,
+      PRIMARY KEY("uuid")
+    );
+    """;
+
   /// ---------------------- 下面的暂时简化为上面，如果后续真的记录非常多，再考虑拆分为支出和收入两部分
 
   // 创建的表名加上数据库明缩写前缀，避免出现关键字问题

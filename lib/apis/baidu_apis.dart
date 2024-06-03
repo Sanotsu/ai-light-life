@@ -13,6 +13,7 @@ import '_self_keys.dart';
 ///-------------------------------------------------
 /// 列举支持的百度大模型，已经用于拼接url的字符串
 /// 2024-05-31 从文档上来看，下面是免费的：
+///  https://cloud.baidu.com/doc/WENXINWORKSHOP/s/wlwg8f1i3
 ///  https://console.bce.baidu.com/qianfan/ais/console/onlineService?tab=preset
 /// 限制：RPM=300,TPM=300000
 ///   RPM（Requests Per Minute）：每分钟处理请求数。

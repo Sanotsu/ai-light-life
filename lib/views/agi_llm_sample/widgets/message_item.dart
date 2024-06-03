@@ -61,7 +61,11 @@ class MessageItem extends StatelessWidget {
                         message.text,
                         style: const TextStyle(color: Colors.black),
                       ),
-                      const CircularProgressIndicator(),
+                      SizedBox(
+                        height: 20.sp,
+                        width: 20.sp,
+                        child: const CircularProgressIndicator(),
+                      ),
                     ],
                   ),
                 ),

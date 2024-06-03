@@ -2,6 +2,10 @@
 
 极度简单的支出流水账记录……
 
+2024-05-30 添加了一个基于免费的大模型 AI 对话，应用名不好说了
+
+- 中文：AI 聊天和极简记账(智能对话和记账)；英文 Cost and AI Chat
+
 ## Getting Started
 
 虽然名字是记账，但实际上就是一些流水账(laundry list)
@@ -104,7 +108,12 @@ month_picker_dialog: ^3.0.0 # 支持仅年月，但是是弹窗，和原始组�
 syncfusion_flutter_charts: ^25.2.5 # 图表库
 flutter_form_builder: ^9.3.0 # 表单组件
 form_builder_validators: ^10.0.1 # 表单验证
-uuid: ^4.4.0 # uuid
+uuid: ^4.4.0 # uuid生成器
+flutter_markdown: ^0.7.1 # 使用md格式显示大模型的响应
+dio: ^5.4.3+1 # http client
+pretty_dio_logger: ^1.3.1 # Dio 拦截器，它以漂亮、易于阅读的格式记录网络调用。
+connectivity_plus: ^6.0.3 # 用于发现可以使用的网络连接类型
+crypto: ^3.0.3 # Dart 的一组加密哈希函数。
 ```
 
 ### 开发记录
@@ -129,6 +138,8 @@ uuid: ^4.4.0 # uuid
 - 2024-05-31
   - feat:基本可以正常使用大模型进行对话了。
   - fix:优化了 AI 对话框的显示细节，完善了一些其他功能细节。
+- 2024-06-03
+  - feat:添加了保存 AI 对话记录到本地数据库，可重新读取并继续提问。
 
 ### todo
 
@@ -139,6 +150,7 @@ uuid: ^4.4.0 # uuid
   - 大模型 API 返回报错的处理
   - 根据模型切换显示对话的长度
   - 保存对话
+    - 2024-06-03 基本可以
   - 单个对话过长的新建对话
   - 问答可复制
   - 某个问题访问 API 出错了，可以点击重试按钮快速重试

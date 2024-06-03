@@ -9,6 +9,7 @@ import 'package:sqflite/sqflite.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../models/brief_accounting_state.dart';
+import '../../models/llm_chat_state.dart';
 import 'ddl_brief_accounting.dart';
 
 class DBHelper {
@@ -58,6 +59,7 @@ class DBHelper {
       // txn.execute(BriefAccountingDdl.ddlForExpend);
       // txn.execute(BriefAccountingDdl.ddlForIncome);
       txn.execute(BriefAccountingDdl.ddlForBillItem);
+      txn.execute(BriefAccountingDdl.ddlForChatHistory);
     });
   }
 
@@ -495,4 +497,67 @@ class DBHelper {
     var rows = await (await database).rawQuery(sql);
     return rows.map((row) => BillPeriodCount.fromMap(row)).toList();
   }
+
+  ///***********************************************/
+  /// AI chat 的相关操作
+  ///
+
+  // 查询所有对话记录
+  Future<List<ChatSession>> queryChatList({
+    String? uuid,
+    String? keyword,
+  }) async {
+    Database db = await database;
+
+    print("对话历史记录查询参数：");
+    print("uuid $uuid");
+    print("keyword $keyword");
+
+    final where = <String>[];
+    final whereArgs = <dynamic>[];
+
+    if (uuid != null) {
+      where.add('uuid = ?');
+      whereArgs.add(uuid);
+    }
+
+    if (keyword != null) {
+      where.add('title LIKE ?');
+      whereArgs.add("%$keyword%");
+    }
+
+    final rows = await db.query(
+      BriefAccountingDdl.tableNameOfChatHistory,
+      where: where.isNotEmpty ? where.join(' AND ') : null,
+      whereArgs: whereArgs.isNotEmpty ? whereArgs : null,
+      orderBy: "gmt_create DESC",
+    );
+
+    return rows.map((row) => ChatSession.fromMap(row)).toList();
+  }
+
+  // 删除单条
+  Future<int> deleteChatById(String uuid) async => (await database).delete(
+        BriefAccountingDdl.tableNameOfChatHistory,
+        where: "uuid=?",
+        whereArgs: [uuid],
+      );
+
+  // 新增(只有单个的时候就一个值的数组，理论上不会批量插入)
+  Future<List<Object?>> insertChatList(List<ChatSession> chats) async {
+    var batch = (await database).batch();
+    for (var item in chats) {
+      batch.insert(BriefAccountingDdl.tableNameOfChatHistory, item.toMap());
+    }
+    return await batch.commit();
+  }
+
+  // 修改单条(只让修改标题其实)
+  Future<int> updateChatSession(ChatSession item) async =>
+      (await database).update(
+        BriefAccountingDdl.tableNameOfChatHistory,
+        item.toMap(),
+        where: 'uuid = ?',
+        whereArgs: [item.uuid],
+      );
 }

@@ -16,11 +16,11 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  int _selectedIndex = 1;
+  int _selectedIndex = 0;
 
   static const List<Widget> _widgetOptions = <Widget>[
-    BillItemIndex(),
     AgiLlmSample(),
+    BillItemIndex(),
   ];
 
   void _onItemTapped(int index) {
@@ -94,12 +94,12 @@ class _HomePageState extends State<HomePage> {
           type: BottomNavigationBarType.fixed,
           items: const <BottomNavigationBarItem>[
             BottomNavigationBarItem(
-              icon: Icon(Icons.receipt),
-              label: "账单管理",
-            ),
-            BottomNavigationBarItem(
               icon: Icon(Icons.bolt),
               label: "智能对话",
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.receipt),
+              label: "极简记账",
             ),
           ],
           currentIndex: _selectedIndex,

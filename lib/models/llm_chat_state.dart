@@ -1,3 +1,8 @@
+import 'dart:convert';
+
+import 'package:free_brief_accounting/common/constants.dart';
+import 'package:intl/intl.dart';
+
 /// 人机对话的每一条消息的结果
 /// 对话页面就是包含一系列时间顺序排序后的对话消息的list
 class ChatMessage {
@@ -28,24 +33,51 @@ class ChatMessage {
     };
   }
 
+// fromMap 一般是数据库读取时用到
+// fromJson 一般是从接口或者其他文本转换时用到
+//    2024-06-03 使用parse而不是tryParse就可能会因为格式不对抛出异常
+//    但是存入数据不对就是逻辑实现哪里出了问题。使用后者默认值也不知道该使用哪个。
   factory ChatMessage.fromMap(Map<String, dynamic> map) {
     return ChatMessage(
       messageId: map['message_id'] as String,
       text: map['text'] as String,
-      dateTime: DateTime.tryParse(map['date_time']) ?? DateTime.now(),
-      isFromUser: map['is_from_user'] as bool,
+      dateTime: DateTime.parse(map['date_time']),
+      isFromUser: bool.parse(map['is_from_user']),
       avatarUrl: map['avatar_url'] as String?,
-      isPlaceholder: map['is_placeholder'] as bool?,
+      isPlaceholder: bool.tryParse(map['is_placeholder']),
     );
   }
 
+  factory ChatMessage.fromJson(Map<String, dynamic> json) => ChatMessage(
+        messageId: json["message_id"],
+        text: json["text"],
+        dateTime: DateTime.parse(json["date_time"]),
+        isFromUser: bool.parse(json["is_from_user"]),
+        avatarUrl: json["avatar_url"],
+        isPlaceholder: bool.tryParse(json["is_placeholder"]),
+      );
+
+  Map<String, dynamic> toJson() => {
+        "message_id": messageId,
+        "text": text,
+        "date_time": dateTime,
+        "is_from_user": isFromUser,
+        "avatar_url": avatarUrl,
+        "is_placeholder": isPlaceholder,
+      };
+
   @override
   String toString() {
+    // 2024-06-03 这个对话会被作为string存入数据库，然后再被读取转型为ChatMessage。
+    // 所以需要是个完整的json字符串，一般fromMap时可以处理
     return '''
-    ChatMessage{
-     messageId$messageId, text: $text, 
-     dateTime: $dateTime, isFromUser: $isFromUser, 
-     avatarUrl: $avatarUrl, isPlaceholder:$isPlaceholder
+    {
+     "message_id": "$messageId", 
+     "text": ${jsonEncode(text)}, 
+     "date_time": "$dateTime", 
+     "is_from_user": "$isFromUser", 
+     "avatar_url": "$avatarUrl", 
+     "is_placeholder":"$isPlaceholder"
     }
     ''';
   }
@@ -55,27 +87,62 @@ class ChatMessage {
 // 一次对话记录需要一个标题，首次创建的时间，然后包含很多的对话消息
 class ChatSession {
   final String uuid;
-  final String title;
+  // 因为该栏位需要可修改，就不能为final了
+  String title;
   final DateTime gmtCreate;
-  final List<ChatMessage> messages;
-  final String? llmName; // 使用的大模型名称需要记一下吗？
+  // 因为该栏位需要可修改，就不能为final了
+  List<ChatMessage> messages;
+  // 2024-06-01 大模型名称也要记一下，说不定后续要存API的原始返回内容复用
+  final String llmName; // 使用的大模型名称需要记一下吗？
 
   ChatSession({
     required this.uuid,
     required this.title,
     required this.gmtCreate,
     required this.messages,
-    this.llmName,
+    required this.llmName,
   });
+
+  factory ChatSession.fromMap(Map<String, dynamic> map) {
+    return ChatSession(
+      uuid: map['uuid'] as String,
+      title: map['title'] as String,
+      gmtCreate: DateTime.tryParse(map['gmt_create']) ?? DateTime.now(),
+      messages: (jsonDecode(map['messages'] as String) as List<dynamic>)
+          .map((messageMap) =>
+              ChatMessage.fromMap(messageMap as Map<String, dynamic>))
+          .toList(),
+      llmName: map['llm_name'] as String,
+    );
+  }
 
   Map<String, dynamic> toMap() {
     return {
       'uuid': uuid,
       'title': title,
-      'gmt_create': gmtCreate,
-      'messages': messages,
+      'gmt_create': DateFormat(constDatetimeFormat).format(gmtCreate),
+      'messages': messages.toString(),
+      'llm_name': llmName,
     };
   }
+
+  factory ChatSession.fromJson(Map<String, dynamic> json) => ChatSession(
+        uuid: json["uuid"],
+        messages: List<ChatMessage>.from(
+          json["messages"].map((x) => ChatMessage.fromJson(x)),
+        ),
+        title: json["title"],
+        gmtCreate: json["gmt_create"],
+        llmName: json["llm_name"],
+      );
+
+  Map<String, dynamic> toJson() => {
+        "uuid": uuid,
+        "messages": List<dynamic>.from(messages.map((x) => x.toJson())),
+        "title": title,
+        "gmt_create": gmtCreate,
+        "llm_name": llmName,
+      };
 
   @override
   String toString() {
@@ -85,6 +152,7 @@ class ChatSession {
       "title": $title,
       "gmtCreate": $gmtCreate,
       "messages": $messages
+      "llmName": $llmName
     }
     ''';
   }

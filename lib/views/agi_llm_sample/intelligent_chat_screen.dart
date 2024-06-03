@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../apis/baidu_apis.dart';
 import '../../apis/tencent_apis.dart';
+import '../../common/utils/db_helper.dart';
 import '../../models/llm_chat_state.dart';
 import '../../models/tencent_hunyuan_state.dart';
 import 'widgets/message_item.dart';
@@ -14,7 +15,14 @@ import 'widgets/message_item.dart';
 class IntelligentChatScreen extends StatefulWidget {
   // 混元还是erine(不同的公司，而且后者可以有好多个模型进行切换，前者就一个)
   final String llmType;
-  const IntelligentChatScreen({super.key, required this.llmType});
+  // 2024-06-01 点击最近的历史记录对话，可以加载到新的对话页面
+  // 那么需要一个标识获取该历史对话的内容
+  final String? chatSessionId;
+  const IntelligentChatScreen({
+    super.key,
+    required this.llmType,
+    this.chatSessionId,
+  });
 
   @override
   State createState() => _IntelligentChatScreenState();
@@ -23,6 +31,7 @@ class IntelligentChatScreen extends StatefulWidget {
 class _IntelligentChatScreenState extends State<IntelligentChatScreen> {
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _textController = TextEditingController();
+  final DBHelper _dbHelper = DBHelper();
 
 // 默认使用的大模型，可以自行切换。
 // 预计希望在同一次对话时，即便切换了模型，也会带上上下文。
@@ -42,7 +51,7 @@ class _IntelligentChatScreenState extends State<IntelligentChatScreen> {
   // 等待AI响应时的占位的消息，在构建真实对话的list时要删除
   var placeholderMessage = ChatMessage(
     messageId: "placeholderMessage",
-    text: "奋力思考中……",
+    text: "努力思考中 ",
     isFromUser: false,
     dateTime: DateTime.now(),
     isPlaceholder: true,
@@ -51,12 +60,19 @@ class _IntelligentChatScreenState extends State<IntelligentChatScreen> {
   // 默认进入对话页面应该就是啥都没有，然后根据这空来显示预设对话
   List<ChatMessage> messages = [];
 
+  // 2024-06-01 当前的对话记录(用于存入数据库或者从数据库中查询某个历史对话)
+  ChatSession? chatSession;
+
+  // 要修改某个对话的名称
+  final TextEditingController _titleController = TextEditingController();
+
   // 进入对话页面简单预设的一些问题
   List defaultQuestions = [
     "你是一位产品文案。请设计一份PPT大纲，介绍你们公司新推出的防晒霜，要求言简意赅并且具有创意。",
     "你是一位10w+爆款文章的编辑。请结合赛博玄学主题，如电子木鱼、机甲佛祖、星座、塔罗牌、人形锦鲤、工位装修等，用俏皮有网感的语言撰写一篇公众号文章。",
     "假如你是一对热恋情侣中的男生。现在你女朋友到生理期了，你应该为她做些什么？",
     "使用python3编写一个快速排序算法。",
+    "假如你是我异地恋的女朋友，一年没能见几次面。现在是早上，我们要简单地相互问候。",
   ];
 
   @override
@@ -69,7 +85,27 @@ class _IntelligentChatScreenState extends State<IntelligentChatScreen> {
       defaultLlm = ErnieLLM.Speed8K;
     }
 
+    // 2024-06-01 为了通用，就在外面传入对话记录编号
+    if (widget.chatSessionId != null) {
+      getChatInfo(widget.chatSessionId!);
+    }
+
     super.initState();
+  }
+
+  // 获取对话列表
+  getChatInfo(String chatId) async {
+    print("调用了getChatInfo----------");
+    var list = await _dbHelper.queryChatList(uuid: chatId);
+
+    if (list.isNotEmpty && list.isNotEmpty) {
+      setState(() {
+        chatSession = list.first;
+
+        // 查到了db中的历史记录，则需要替换成当前的(父页面没选择历史对话进来就是空，则都不会有这个函数)
+        messages = chatSession!.messages;
+      });
+    }
   }
 
   // 这个发送消息实际是将对话文本添加到对话列表中
@@ -88,6 +124,11 @@ class _IntelligentChatScreenState extends State<IntelligentChatScreen> {
       isBotThinking = isFromUser;
 
       messages.add(temp);
+
+      // 2024-06-01 注意，在每次添加了对话之后，都把整个对话列表存入对话历史中去
+      // 当然，要在占位消息之前
+      saveToDb();
+
       _textController.clear();
       // 滚动到ListView的底部
       _scrollController.animateTo(
@@ -110,6 +151,42 @@ class _IntelligentChatScreenState extends State<IntelligentChatScreen> {
         }
       }
     });
+  }
+
+  saveToDb() async {
+    print("处理插入前message的长度${messages.length}");
+    // 如果插入时只有一条，那就是用户首次输入，截取部分内容和生成对话记录的uuid
+
+    if (messages.isNotEmpty && messages.length == 1) {
+      // 如果没有对话记录(即上层没有传入，且当前时用户第一次输入文字还没有创建对话记录)，则新建对话记录
+      chatSession ??= ChatSession(
+        uuid: const Uuid().v4(),
+        title: messages.first.text.length > 20
+            ? messages.first.text.substring(0, 20)
+            : messages.first.text,
+        gmtCreate: DateTime.now(),
+        messages: messages,
+        // 2024-06-01 暂时没用到
+        llmName: widget.llmType,
+      );
+
+      print("这是输入了第一天消息，生成了初始化的对话$chatSession");
+
+      print("进入了插入$chatSession");
+      await _dbHelper.insertChatList([chatSession!]);
+
+      // 如果已经有多个对话了，理论上该对话已经存入db了，只需要修改该对话的实际对话内容即可
+    } else if (messages.length > 1) {
+      chatSession!.messages = messages;
+
+      print("进入了修改----$chatSession");
+
+      await _dbHelper.updateChatSession(chatSession!);
+    }
+
+    // 其他没有对话记录、没有消息列表的情况，就不做任何处理了
+
+    print("++++++++++++++++++++++++++++++");
   }
 
   // 获取调用千帆大模型API的响应
@@ -168,7 +245,12 @@ class _IntelligentChatScreenState extends State<IntelligentChatScreen> {
       tempText =
           "混元API接口报错: {Code: ${temp.errorMsg!.code}, Msg: ${temp.errorMsg!.message}}，请切换其他模型试试。";
     } else if (temp.choices != null && temp.choices!.isNotEmpty) {
-      tempText = temp.choices!.first.message.content;
+      // 2024-06-03 有时候Chices里面还有note信息
+      var tempContent = temp.choices!.first.message.content;
+      tempText = tempContent;
+      if (!tempContent.contains("以上内容为AI生成，不代表开发者立场，请勿删除或修改本标记")) {
+        tempText = "$tempContent\n\n\n\n**${temp.note}**";
+      }
     }
     _sendMessage(tempText, isFromUser: false);
   }
@@ -177,20 +259,94 @@ class _IntelligentChatScreenState extends State<IntelligentChatScreen> {
   bool isMessageTooLong() =>
       messages.fold(0, (sum, msg) => sum + msg.text.length) > 8000;
 
+  /// 修改自动生成对话的标题
+  updateChatTile() {
+    setState(() {
+      _titleController.text = chatSession!.title;
+    });
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text("修改对话记录标题:", style: TextStyle(fontSize: 18.sp)),
+          content: TextField(
+            controller: _titleController,
+            maxLines: 2,
+            // autofocus: true,
+            // onChanged: (v) {
+            //   print("onChange: $v");
+            // },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(false);
+              },
+              child: const Text("取消"),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(true);
+              },
+              child: const Text("确定"),
+            ),
+          ],
+        );
+      },
+    ).then((value) async {
+      if (value == true) {
+        var temp = chatSession!;
+        temp.title = _titleController.text.trim();
+        // 修改对话的标题
+        _dbHelper.updateChatSession(temp);
+
+        // 修改后更新标题
+        setState(() {
+          chatSession = temp;
+        });
+
+        // // 修改成功后重新查询更新(理论上不用重新查询应该也没问题)
+        // var b = await _dbHelper.queryChatList(uuid: chatSession!.uuid);
+        // setState(() {
+        //   chatSession = b.first;
+        // });
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('AI Chat'),
-        actions: [
-          const TextButton(
-            onPressed: null,
-            child: Text("切换模型"),
+        title: GestureDetector(
+          onTap: () {
+            print("修改标题？？");
+            if (chatSession != null) {
+              updateChatTile();
+            }
+          },
+          child: Text(
+            '${(chatSession != null) ? chatSession?.title : '<暂未建立对话>'}',
+            maxLines: 2,
+            style: TextStyle(
+              fontSize: 15.sp,
+              color: Theme.of(context).primaryColor,
+            ),
           ),
+        ),
+        actions: [
+          // TextButton(
+          //   onPressed: () {
+          //     // _dbHelper.deleteDB();
+          //     _dbHelper.showTableNameList();
+          //   },
+          //   child: const Text("切换模型"),
+          // ),
           if (isErnie)
             DropdownButton<ErnieLLM>(
               value: defaultLlm,
               isDense: true,
+              alignment: AlignmentDirectional.centerEnd,
               items: ErnieLLM.values
                   .map<DropdownMenuItem<ErnieLLM>>(
                     (ErnieLLM value) => DropdownMenuItem<ErnieLLM>(
@@ -198,7 +354,7 @@ class _IntelligentChatScreenState extends State<IntelligentChatScreen> {
                       alignment: AlignmentDirectional.center,
                       child: Text(
                         value.name,
-                        style: TextStyle(fontSize: 12.sp),
+                        style: TextStyle(fontSize: 10.sp),
                       ),
                     ),
                   )
@@ -216,7 +372,7 @@ class _IntelligentChatScreenState extends State<IntelligentChatScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // 如果是空，显示预设的问题
-          if (messages.isEmpty) const Text("你可以试着问我："),
+          if (messages.isEmpty) const Text("你可以试着问我(对话总长度建议不超过8000字)："),
           if (messages.isEmpty)
             Expanded(
               flex: 2,

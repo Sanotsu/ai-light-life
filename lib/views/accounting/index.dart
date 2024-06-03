@@ -426,7 +426,7 @@ class _BillItemIndexState extends State<BillItemIndex> {
       resizeToAvoidBottomInset: false,
       // 这里也可以不用appbar？？？
       appBar: AppBar(
-        title: const Text("账单列表"),
+        title: const Text("极简记账"),
         // 明确说明不要返回箭头，避免其他地方使用push之后会自动带上返回箭头
         // leading: const Icon(Icons.arrow_back),
         backgroundColor: Colors.lightGreen,
