@@ -1,6 +1,6 @@
 // ignore_for_file: avoid_print
-import 'dart:ui' as ui;
 
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:intl/intl.dart';
@@ -11,6 +11,20 @@ import '../../../common/components/tool_widget.dart';
 import '../../../common/constants.dart';
 import '../../../common/utils/db_helper.dart';
 import '../../../models/brief_accounting_state.dart';
+
+/// 绘制图表时，用于展示数据需要的结构
+class ChartData {
+  // 构建实例时注意位置参数的位置
+  ChartData(this.x, this.y, [this.text, this.color]);
+  // 分类
+  final String x;
+  // 分类对应的值
+  final double y;
+  // 分类标签显示的文本
+  final String? text;
+  // 该值用的颜色
+  final Color? color;
+}
 
 class BillReportIndex extends StatefulWidget {
   const BillReportIndex({super.key});
@@ -314,6 +328,7 @@ class _BillReportIndexState extends State<BillReportIndex>
                     children: [
                       buildCountRow(billType),
                       buildBarChart(billType),
+                      buildPieChart(billType),
                       buildRankingTop(billType),
                     ],
                   ),
@@ -336,78 +351,82 @@ class _BillReportIndexState extends State<BillReportIndex>
             flex: 2,
             child: SizedBox(
               width: 100.sp,
-              // 按钮带标签默认icon在前面，所以使用方向组件改变方向
-              // 又因为ui和intl都有TextDirection类，所以显示什么ui的导入
-              child: Directionality(
-                textDirection: ui.TextDirection.rtl,
-                child: TextButton.icon(
-                  onPressed: () {
-                    isMonth
-                        ? showMonthPicker(
-                            context: context,
-                            firstDate: billPeriod.minDate,
-                            lastDate: billPeriod.maxDate,
-                            initialDate: DateTime.tryParse("$selectedMonth-01"),
-                            // 一定要先选择年
-                            yearFirst: true,
-                            // customWidth: 1.sw,
-                            // 不缩放默认title会溢出
-                            textScaleFactor: 0.9, // 但这个比例不同设备怎么控制？？？
-                            // 不显示标头，只能滚动选择
-                            // hideHeaderRow: true,
-                          ).then((date) {
-                            if (date != null) {
-                              setState(() {
-                                print(date);
-                                selectedMonth =
-                                    DateFormat(constMonthFormat).format(date);
-                                handleSelectedMonthChange();
-                              });
-                            }
-                          })
-                        : showDialog(
-                            context: context,
-                            builder: (BuildContext context) {
-                              return AlertDialog(
-                                title: const Text("选择年份"),
-                                content: SizedBox(
-                                  // 需要显示弹窗正文的大小(直接设宽度没什么用，但高度有效)
-                                  height: 300.sp,
-                                  child: YearPicker(
-                                    firstDate: billPeriod.minDate,
-                                    lastDate: billPeriod.maxDate,
-                                    selectedDate: DateTime.tryParse(
-                                        "$selectedYear-01-01"),
-                                    onChanged: (DateTime dateTime) {
-                                      // 选中年份之后关闭弹窗，并开始查询年度数据
-                                      Navigator.pop(context);
-                                      setState(() {
-                                        selectedYear = dateTime.year.toString();
-                                        handleSelectedYearChange();
-                                      });
-                                    },
-                                  ),
+              child: TextButton.icon(
+                // 按钮带标签默认icon在前面
+                iconAlignment: IconAlignment.end,
+                onPressed: () {
+                  isMonth
+                      ? showMonthPicker(
+                          context: context,
+                          firstDate: billPeriod.minDate,
+                          lastDate: billPeriod.maxDate,
+                          initialDate: DateTime.tryParse("$selectedMonth-01"),
+                          // 一定要先选择年
+                          yearFirst: true,
+                          // customWidth: 1.sw,
+                          // 不缩放默认title会溢出
+                          textScaleFactor: 0.9, // 但这个比例不同设备怎么控制？？？
+                          // 不显示标头，只能滚动选择
+                          // hideHeaderRow: true,
+                        ).then((date) {
+                          if (date != null) {
+                            setState(() {
+                              print(date);
+                              selectedMonth =
+                                  DateFormat(constMonthFormat).format(date);
+                              handleSelectedMonthChange();
+                            });
+                          }
+                        })
+                      : showDialog(
+                          context: context,
+                          builder: (BuildContext context) {
+                            return AlertDialog(
+                              title: const Text("选择年份"),
+                              content: SizedBox(
+                                // 需要显示弹窗正文的大小(直接设宽度没什么用，但高度有效)
+                                height: 300.sp,
+                                child: YearPicker(
+                                  firstDate: billPeriod.minDate,
+                                  lastDate: billPeriod.maxDate,
+                                  selectedDate:
+                                      DateTime.tryParse("$selectedYear-01-01"),
+                                  onChanged: (DateTime dateTime) {
+                                    // 选中年份之后关闭弹窗，并开始查询年度数据
+                                    Navigator.pop(context);
+                                    setState(() {
+                                      selectedYear = dateTime.year.toString();
+                                      handleSelectedYearChange();
+                                    });
+                                  },
                                 ),
-                              );
-                            },
-                          );
-                  },
-                  icon: const Icon(
-                    Icons.keyboard_arrow_down,
-                    color: Colors.white,
-                  ),
-                  label: Text(
-                    isMonth ? selectedMonth : selectedYear,
-                    style: TextStyle(fontSize: 15.sp, color: Colors.white),
-                  ),
+                              ),
+                            );
+                          },
+                        );
+                },
+                icon: const Icon(
+                  Icons.keyboard_arrow_down,
+                  color: Colors.white,
+                ),
+                label: Text(
+                  isMonth ? selectedMonth : selectedYear,
+                  style: TextStyle(fontSize: 15.sp, color: Colors.white),
                 ),
               ),
             ),
           ),
           SizedBox(
-            width: 80.sp,
-            height: 24.sp,
+            width: 50.sp,
+            height: 20.sp,
             child: ElevatedButton(
+              // 取掉按钮内边距，或者改到自己想要的大小
+              style: ElevatedButton.styleFrom(
+                // minimumSize: Size.zero,
+                padding: EdgeInsets.symmetric(horizontal: 5.sp),
+                // tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                // backgroundColor: Colors.lightGreen,
+              ),
               onPressed: isMonth
                   ? (isMonthExpendClick
                       ? null
@@ -429,9 +448,16 @@ class _BillReportIndexState extends State<BillReportIndex>
           ),
           SizedBox(width: 10.sp),
           SizedBox(
-            width: 80.sp,
-            height: 24.sp,
+            width: 50.sp,
+            height: 20.sp,
             child: ElevatedButton(
+              // 取掉按钮内边距，或者改到自己想要的大小
+              style: ElevatedButton.styleFrom(
+                // minimumSize: Size.zero,
+                padding: EdgeInsets.symmetric(horizontal: 5.sp),
+                // tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                // backgroundColor: Colors.lightGreen,
+              ),
               onPressed: isMonth
                   ? (!isMonthExpendClick
                       ? null
@@ -625,6 +651,140 @@ class _BillReportIndexState extends State<BillReportIndex>
     );
   }
 
+  buildPieChart(String billType) {
+    // 不是月度，就是年度
+    bool isMonth = billType == "month";
+
+    // 获取支出/收入饼图数据
+    getCateCounts(List<BillItem> items, bool isExpend) {
+      // 先过滤是统计支出还是收入
+      var tempList = items.where((e) => e.itemType == (isExpend ? 1 : 0));
+      // 总的收入或者支出(分类求占比时的分母)
+      double total = tempList.fold(0, (sum, item) => sum + item.value);
+
+      // 再按照分类分组
+      var groupByCate = groupBy(tempList, (item) => item.category);
+      // 构建饼图需要的数据结构
+      final List<ChartData> chartData = [];
+      // 最后分组计算累加值
+      for (var entry in groupByCate.entries) {
+        // 存在null值就用未分类代替
+        String cate = entry.key ?? "未分类";
+        // 分类后的列表
+        List<BillItem> itemsForCate = entry.value;
+        // 计算分类后的累加值
+        double cateTotal = itemsForCate.fold(
+          0,
+          (sum, item) => sum + item.value,
+        );
+
+        // 添加到图表数据列表中
+        chartData.add(ChartData(
+          cate,
+          double.parse(cateTotal.toStringAsFixed(2)),
+          "$cate:${((cateTotal / total) * 100).toStringAsFixed(2)}%",
+        ));
+      }
+
+      // 从大到小排个序(？？？如果只显示top5的话，可以把小于前5的合并到一个“其他”分类去)
+      chartData.sort((a, b) => b.y.compareTo(a.y));
+
+      return chartData;
+    }
+
+    // 如果分类统计的数据为空，就不用显示饼图了
+    List<ChartData> data = isMonth
+        ? getCateCounts(monthBillItems, isMonthExpendClick)
+        : getCateCounts(yearBillItems, isYearExpendClick);
+
+    if (data.isEmpty) {
+      return Container();
+    }
+
+    return SizedBox(
+      height: 300.sp, // 图表还是绝对高度吧，如果使用相对高度不同设备显示差异挺大
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: EdgeInsets.only(left: 20.sp, top: 5.sp),
+            child: Text(
+              isMonth
+                  ? "${isMonthExpendClick ? '支出' : '收入'}构成"
+                  : "${isYearExpendClick ? '支出' : '收入'}构成",
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16.sp),
+            ),
+          ),
+          Expanded(
+            child: SfCircularChart(
+              // 点击分类图显示提示
+              tooltipBehavior: TooltipBehavior(enable: true),
+              series: <CircularSeries>[
+                DoughnutSeries<ChartData, String>(
+                  dataSource: data,
+                  xValueMapper: (ChartData data, _) => data.x,
+                  yValueMapper: (ChartData data, _) => data.y,
+                  // 改变饼在整个图表所占比例(默认80%)
+                  radius: '60%',
+                  // 内圆的占比(越大内部孔就越大)
+                  innerRadius: '50%',
+                  // Segments will explode on tap
+                  explode: true,
+                  // First segment will be exploded on initial rendering
+                  explodeIndex: 1,
+                  // 多于的归位“其他”分类中(有自定义的标签，加上这个显示不太对劲，所以要针对index处理)
+                  groupMode: CircularChartGroupMode.point,
+                  groupTo: 7,
+                  // 用于映射数据源中的文本(更详细的自定义用下面dataLabelSettings的builder)
+                  // dataLabelMapper: (ChartData data, _) => data.text,
+                  // 数据标签的配置(默认不显示)
+                  dataLabelSettings: DataLabelSettings(
+                    // 默认显示标签
+                    isVisible: true,
+                    // 标签相关使用对应分类图表的颜色
+                    useSeriesColor: true,
+                    // 智能排列数据标签，避免标签重叠时的交叉。
+                    labelIntersectAction: LabelIntersectAction.shift,
+                    // 标签显示的位置
+                    labelPosition: ChartDataLabelPosition.outside,
+                    // 标签和图连接线的设置
+                    connectorLineSettings: ConnectorLineSettings(
+                      // 指定连接线的形状
+                      type: ConnectorType.line,
+                      // 指定连接线的长度
+                      length: '20%',
+                      // 指定连接线的线宽
+                      width: 1.sp,
+                    ),
+                    // 隐藏值为0的数据
+                    showZeroValue: false,
+                    // 自定义数据标签的外观
+                    builder: (dynamic data, dynamic point, dynamic series,
+                        int pointIndex, int seriesIndex) {
+                      var d = (data as ChartData);
+                      // 因为上面groupTo设定为7,这里大于7的都显示其他
+                      if (pointIndex < 7) {
+                        return Text(
+                          d.text ?? "未分类",
+                          style: TextStyle(fontSize: 10.sp),
+                        );
+                      } else {
+                        return Text(
+                          "其他",
+                          style: TextStyle(fontSize: 10.sp),
+                        );
+                      }
+                    },
+                  ),
+                )
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// 按照数值大小倒序查看账单项次
   /// 这里应该是按照category大类分类统计，然后点击查看该分类的账单列表。暂时先这样
   buildRankingTop(String billType) {
@@ -706,15 +866,56 @@ class _BillReportIndexState extends State<BillReportIndex>
                           softWrap: true,
                           overflow: TextOverflow.ellipsis,
                           maxLines: 1,
-                          style: TextStyle(fontSize: 14.sp),
+                          style: TextStyle(
+                            fontSize: 14.sp,
+                            color: Theme.of(context).primaryColor,
+                          ),
                         ),
-                        Text(
-                          "${i.date}__${i.gmtModified ?? ''}",
+                        RichText(
                           softWrap: true,
                           overflow: TextOverflow.ellipsis,
                           maxLines: 1,
-                          style: TextStyle(fontSize: 10.sp),
-                        )
+                          text: TextSpan(
+                            children: [
+                              // 为了分类占的宽度一致才用的，只是显示的话可不必
+                              WidgetSpan(
+                                alignment: PlaceholderAlignment.baseline,
+                                baseline: TextBaseline.alphabetic,
+                                child: ConstrainedBox(
+                                  constraints: BoxConstraints(minWidth: 50.sp),
+                                  child: Text(
+                                    i.category ?? "<未分类>",
+                                    style: TextStyle(
+                                      fontSize: 10.sp,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              TextSpan(
+                                text: i.date,
+                                style: TextStyle(
+                                  color: Colors.black,
+                                  fontSize: 10.sp,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // // 用上面那个一行更好看
+                        // Text(
+                        //   i.category ?? "<未分类>",
+                        //   softWrap: true,
+                        //   overflow: TextOverflow.ellipsis,
+                        //   maxLines: 1,
+                        //   style: TextStyle(fontSize: 10.sp),
+                        // ),
+                        // Text(
+                        //   "${i.date}__${i.gmtModified ?? ''}",
+                        //   softWrap: true,
+                        //   overflow: TextOverflow.ellipsis,
+                        //   maxLines: 1,
+                        //   style: TextStyle(fontSize: 10.sp),
+                        // )
                       ],
                     ),
                   ),

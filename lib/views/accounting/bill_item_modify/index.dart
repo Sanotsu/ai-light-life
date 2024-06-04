@@ -46,20 +46,41 @@ class _BillEditPageState extends State<BillEditPage> {
   // 这些选项都是FormBuilderChipOption类型
   String selectedCategoryType = "支出";
   var categoryList = [
-    // 饮食
-    "三餐", "外卖", "零食", "夜宵", "烟酒", "饮料",
-    // 购物
-    "购物", "买菜", "日用", "水果", "买花", "服装",
-    // 娱乐
-    "娱乐", "电影", "旅行", "运动", "纪念", "充值",
-    // 住、行
-    "交通", "住房", "房租", "房贷",
-    // 生活
-    "理发", "还款",
+    // 2024-06-03 现在使用大分类(会修改测试数据，即旧的资料，别再动力)
+    "餐饮", "交通", "购物", "服饰", "水果", "住宿",
+    "娱乐", "缴费", "数码", "运动", "旅行", "宠物",
+    "教育", "医疗", "红包", "转账", "人情", "轻奢",
+    "美容", "亲子", "保险", "公益", "服务", "其他",
+    // 之前旧的分类，留存
+    // // 饮食
+    // "三餐", "外卖", "零食", "夜宵", "烟酒", "饮料",
+    // // 购物
+    // "购物", "买菜", "日用", "水果", "买花", "服装",
+    // // 娱乐
+    // "娱乐", "电影", "旅行", "运动", "纪念", "充值",
+    // // 住、行
+    // "交通", "住房", "房租", "房贷",
+    // // 生活
+    // "理发", "还款",
   ];
   var incomeCategoryList = [
-    // 饮食
-    "工资", "炒股", "基金", "摆摊", "投资", "代练",
+    // 收入
+    "工资", "奖金", "生意", "摆摊", "红包", "转账",
+    "投资", "炒股", "基金", "人情", "退款", "其他",
+  ];
+
+  // 微信账单中的分类
+  var outCates = [
+    // 第一行
+    "餐饮", "交通", "服饰", "购物", "服务", "教育",
+    "娱乐", "运动", "生活缴费", "旅行", "宠物", "医疗",
+    "保险", "公益", "发红包", "转账", "亲属卡", "其他人情",
+    "其他", "服饰美容", "酒店", "亲子", "退还"
+  ];
+  var inCates = [
+    // 第一行
+    "生意", "工资", "奖金", "其他人情", "收红包", "收转账",
+    "商家转账", "退款", "其他",
   ];
 
   @override
@@ -75,6 +96,11 @@ class _BillEditPageState extends State<BillEditPage> {
         });
       }
     });
+  }
+
+  // ???初始化之后就不能改了，没法按照收入支出分类切换后更新分类栏位初始化值
+  initType() {
+    return selectedCategoryType == "收入" ? "工资" : "餐饮";
   }
 
   // 构建收支条目
@@ -275,7 +301,7 @@ class _BillEditPageState extends State<BillEditPage> {
                     FormBuilderValidators.numeric(),
                   ]),
                   keyboardType: TextInputType.number,
-                  textInputAction: TextInputAction.done,
+                  textInputAction: TextInputAction.next,
                 ),
                 FormBuilderTextField(
                   name: 'item',
@@ -296,7 +322,7 @@ class _BillEditPageState extends State<BillEditPage> {
                   // 2024-05-27 9.3.0 版本了还没修
                   enableSuggestions: true,
                   keyboardType: TextInputType.text,
-                  textInputAction: TextInputAction.next,
+                  textInputAction: TextInputAction.done,
                 ),
                 FormBuilderChoiceChip<String>(
                   decoration: const InputDecoration(
@@ -306,7 +332,8 @@ class _BillEditPageState extends State<BillEditPage> {
                     fillColor: Colors.transparent,
                   ),
                   name: 'category',
-                  initialValue: '三餐',
+                  // initialValue: initType(),
+                  initialValue: "餐饮",
                   // 可让选项居中
                   alignment: WrapAlignment.center,
                   // 选项标签的一些大小修改配置
