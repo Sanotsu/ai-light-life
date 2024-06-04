@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import 'accounting/index.dart';
 import 'agi_llm_sample/index.dart';
+import 'backup_and_restore/index.dart';
 
 /// 主页面
 
@@ -16,7 +17,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  int _selectedIndex = 0;
+  int _selectedIndex = 1;
 
   static const List<Widget> _widgetOptions = <Widget>[
     AgiLlmSample(),
@@ -104,6 +105,50 @@ class _HomePageState extends State<HomePage> {
           ],
           currentIndex: _selectedIndex,
           onTap: _onItemTapped,
+        ),
+        drawer: Drawer(
+          // 将ListView添加到抽屉中。这确保了如果没有足够的垂直空间容纳所有东西，用户可以滚动抽屉中的选项。
+          child: ListView(
+            // 从ListView中删除任何内边距填充。
+            padding: EdgeInsets.zero,
+            children: [
+              const DrawerHeader(
+                decoration: BoxDecoration(color: Colors.blue),
+                child: Text('个人中心(占位)'),
+              ),
+              ListTile(
+                title: const Text('智能对话'),
+                selected: _selectedIndex == 0,
+                onTap: () {
+                  // 更新选中页面
+                  _onItemTapped(0);
+                  // 关闭抽屉
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                title: const Text('极简记账'),
+                selected: _selectedIndex == 1,
+                onTap: () {
+                  _onItemTapped(1);
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                title: const Text('备份恢复'),
+                onTap: () {
+                  Navigator.pop(context);
+
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const BackupAndRestore(),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );

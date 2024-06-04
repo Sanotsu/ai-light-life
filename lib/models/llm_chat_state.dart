@@ -83,7 +83,7 @@ class ChatMessage {
   }
 }
 
-/// 对话记录
+/// 对话记录 这个是存入sqlite的表对应的模型
 // 一次对话记录需要一个标题，首次创建的时间，然后包含很多的对话消息
 class ChatSession {
   final String uuid;

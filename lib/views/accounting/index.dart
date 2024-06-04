@@ -12,6 +12,7 @@ import '../../common/components/tool_widget.dart';
 import '../../common/constants.dart';
 import '../../common/utils/db_helper.dart';
 import '../../models/brief_accounting_state.dart';
+import '../backup_and_restore/index.dart';
 import 'bill_item_modify/index.dart';
 import 'bill_report/index.dart';
 import 'mock_data/index.dart';
@@ -457,6 +458,22 @@ class _BillItemIndexState extends State<BillItemIndex> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
+                  builder: (context) => const BackupAndRestore(),
+                ),
+              ).then((value) {
+                loadBillItemsByMonth();
+              });
+            },
+            icon: Icon(
+              Icons.backup_outlined,
+              color: Theme.of(context).primaryColor,
+            ),
+          ),
+          IconButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
                   builder: (context) => const BillEditPage(),
                 ),
               ).then((value) {
@@ -469,9 +486,12 @@ class _BillItemIndexState extends State<BillItemIndex> {
                 }
               });
             },
-            icon: const Icon(Icons.add),
+            icon: Icon(
+              Icons.add_outlined,
+              color: Theme.of(context).primaryColor,
+            ),
           ),
-          TextButton.icon(
+          IconButton(
             onPressed: () {
               Navigator.push(
                 context,
@@ -480,10 +500,24 @@ class _BillItemIndexState extends State<BillItemIndex> {
                 ),
               );
             },
-            label: const Text('统计'),
-            icon: Icon(Icons.arrow_forward_ios, size: 12.sp),
-            iconAlignment: IconAlignment.end,
+            icon: Icon(
+              Icons.bar_chart_outlined,
+              color: Theme.of(context).primaryColor,
+            ),
           ),
+          // TextButton.icon(
+          //   onPressed: () {
+          //     Navigator.push(
+          //       context,
+          //       MaterialPageRoute(
+          //         builder: (context) => const BillReportIndex(),
+          //       ),
+          //     );
+          //   },
+          //   label: const Text('统计'),
+          //   icon: Icon(Icons.arrow_forward_ios, size: 12.sp),
+          //   iconAlignment: IconAlignment.end,
+          // ),
         ],
       ),
 

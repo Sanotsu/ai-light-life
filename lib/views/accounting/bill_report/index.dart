@@ -469,8 +469,15 @@ class _BillReportIndexState extends State<BillReportIndex>
     // 获取支出/收入金额总量字符串
     getTotal(List<BillPeriodCount> counts, String date, bool isExpend) {
       if (counts.isEmpty) return "";
-      var temp = counts.firstWhere((e) => e.period == date);
-      return "￥${isExpend ? temp.expendTotalValue : temp.incomeTotalValue}";
+
+      print("getTotal-----------$counts $date");
+      // 2024-06-03 统计记录可能没有对应月份的数据。
+      //  比如6月1日查看统计，还没有账单项次记录，最新的只有5月份的
+      var temp = counts.where((e) => e.period == date).toList();
+      if (temp.isNotEmpty) {
+        return "￥${isExpend ? temp.first.expendTotalValue : temp.first.incomeTotalValue}";
+      }
+      return isExpend ? '暂无支出' : '暂无收入';
     }
 
     var titleText = isMonth

@@ -1,4 +1,4 @@
-// ignore_for_file: avoid_print
+// ignore_for_file: avoid_print, constant_identifier_names
 
 import 'dart:async';
 import 'dart:convert';
@@ -11,6 +11,11 @@ import 'package:path_provider/path_provider.dart';
 import '../../models/brief_accounting_state.dart';
 import '../../models/llm_chat_state.dart';
 import 'ddl_brief_accounting.dart';
+
+// 导出表文件临时存放的文件夹
+const DB_EXPORT_DIR = "db_export";
+// 导出的表前缀
+const DB_EXPORT_TABLE_PREFIX = "ba_";
 
 class DBHelper {
   ///
@@ -113,7 +118,9 @@ class DBHelper {
     // 获取应用文档目录路径
     Directory appDocDir = await getApplicationDocumentsDirectory();
     // 创建或检索 db_export 文件夹
-    var tempDir = await Directory(p.join(appDocDir.path, "db_export")).create();
+    var tempDir = await Directory(
+      p.join(appDocDir.path, DB_EXPORT_DIR),
+    ).create();
 
     // 打开数据库
     Database db = await database;
@@ -126,7 +133,7 @@ class DBHelper {
     for (Map<String, dynamic> table in tables) {
       String tableName = table['name'];
       // 不是自建的表，不导出
-      if (!tableName.startsWith("ff_")) {
+      if (!tableName.startsWith(DB_EXPORT_TABLE_PREFIX)) {
         continue;
       }
 

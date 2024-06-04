@@ -31,3 +31,18 @@ commonExceptionDialog(BuildContext context, String title, String message) {
     },
   );
 }
+
+// 显示底部提示条(默认都是出错或者提示的)
+void showSnackMessage(
+  BuildContext context,
+  String message, {
+  Color? backgroundColor = Colors.red,
+}) {
+  var snackBar = SnackBar(
+    content: Text(message),
+    duration: const Duration(seconds: 3),
+    backgroundColor: backgroundColor,
+  );
+
+  ScaffoldMessenger.of(context).showSnackBar(snackBar);
+}
