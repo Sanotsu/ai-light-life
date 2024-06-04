@@ -3,6 +3,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:path/path.dart' as p;
 import 'package:archive/archive_io.dart';
@@ -39,6 +40,57 @@ class _BackupAndRestoreState extends State<BackupAndRestore> {
 
   bool isLoading = false;
 
+  // 是否获得了存储权限(没获得就无法备份恢复)
+  bool isPermissionGranted = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _requestPermission();
+  }
+
+  _requestPermission() async {
+    /// 2024-01-12 直接询问存储权限，不给就直接显示退出就好
+    // 2024-01-12 Android13之后，没有storage权限了，取而代之的是：
+    // Permission.photos, Permission.videos or Permission.audio等
+    // 参看:https://github.com/Baseflow/flutter-permission-handler/issues/1247
+    if (Platform.isAndroid) {
+      // 获取设备sdk版本
+      final androidInfo = await DeviceInfoPlugin().androidInfo;
+      int sdkInt = androidInfo.version.sdkInt;
+
+      if (sdkInt <= 32) {
+        PermissionStatus storageStatus = await Permission.storage.request();
+        setState(() {
+          if (storageStatus.isGranted) {
+            isPermissionGranted = true;
+          } else {
+            isPermissionGranted = false;
+          }
+        });
+      } else {
+        Map<Permission, PermissionStatus> statuses = await [
+          Permission.audio,
+          Permission.photos,
+          Permission.videos,
+        ].request();
+
+        if (statuses[Permission.audio]!.isGranted &&
+            statuses[Permission.photos]!.isGranted &&
+            statuses[Permission.videos]!.isGranted) {
+          setState(() {
+            isPermissionGranted = true;
+          });
+        } else {
+          setState(() {
+            isPermissionGranted = false;
+          });
+        }
+      }
+    }
+  }
+
   ///
   /// 全量备份：导出db中所有的数据
   ///
@@ -53,11 +105,13 @@ class _BackupAndRestoreState extends State<BackupAndRestore> {
   ///   3.5 删除临时地址的压缩文件
   ///
   exportAllData() async {
-    final status = await Permission.storage.request();
     // 用户没有授权，简单提示一下
     if (!mounted) return;
-    if (!status.isGranted) {
-      showSnackMessage(context, "用户已禁止访问内部存储,无法进行json文件导入。");
+    if (!isPermissionGranted) {
+      showSnackMessage(
+        context,
+        "用户已禁止访问内部存储,无法进行json文件导入。\n如需启用，请到应用的权限管理中授权读写手机存储。",
+      );
       return;
     }
 

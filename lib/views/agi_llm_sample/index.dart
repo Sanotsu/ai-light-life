@@ -1,6 +1,7 @@
 // ignore_for_file: avoid_print
 
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:free_brief_accounting/common/constants.dart';
 import 'package:intl/intl.dart';
@@ -63,18 +64,26 @@ class _AgiLlmSampleState extends State<AgiLlmSample> {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           // 显示对话消息
-          const Expanded(
-            child: Text(
-              """这里有一些免费的对话大模型。\n来体验一下新的AI时代浪潮吧。
-            \n作为你的智能伙伴，\n我既能写文案、想点子，\n又能陪你聊天、答疑解惑。
-            \n文本翻译、FAQ、百科问答、情感分析、\n阅读理解、内容创作、代码编写……
-            \n想知道我能做什么？\n选择下面任意大模型，快来试一试吧！""",
-            ),
+          // const Text(
+          //   """这里有一些免费的对话大模型。\n来体验一下新的AI时代浪潮吧。
+          //   \n作为你的智能伙伴，\n我既能写文案、想点子，\n又能陪你聊天、答疑解惑。
+          //   \n文本翻译、FAQ、百科问答、情感分析、\n阅读理解、内容创作、代码编写……
+          //   \n想知道我能做什么？\n点击 下面任意大模型，快来试一试吧！""",
+          // ),
+          const MarkdownBody(
+            data: """这里有一些免费的对话大模型。  
+            来体验一下新的AI时代浪潮吧。  
+            \n作为你的智能伙伴，  
+            我既能写文案、想点子，  
+            又能陪你聊天、答疑解惑。  
+            \n文本翻译、FAQ、百科问答、情感分析、  
+            阅读理解、内容创作、代码编写……  
+            \n想知道我能做什么？  
+            **点击**下面任意大模型，快来试一试吧！""",
           ),
-          // 输入框和发送按钮
-          const Divider(),
+          // const Divider(),
           SizedBox(
-            height: 0.3.sh,
+            height: 0.25.sh,
             child: GridView.count(
               primary: false,
               padding: const EdgeInsets.all(20),

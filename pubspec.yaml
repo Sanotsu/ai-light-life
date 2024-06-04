@@ -57,6 +57,7 @@ dependencies:
   file_picker: ^8.0.3
   permission_handler: ^11.3.1
   archive: ^3.6.1
+  device_info_plus: ^10.1.0
 
 dev_dependencies:
   flutter_test:

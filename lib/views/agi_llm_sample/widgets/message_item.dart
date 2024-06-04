@@ -54,19 +54,22 @@ class MessageItem extends StatelessWidget {
               if (message.isPlaceholder == true)
                 Card(
                   elevation: 3,
-                  child: Row(
-                    crossAxisAlignment: crossAlignment,
-                    children: [
-                      Text(
-                        message.text,
-                        style: const TextStyle(color: Colors.black),
-                      ),
-                      SizedBox(
-                        height: 20.sp,
-                        width: 20.sp,
-                        child: const CircularProgressIndicator(),
-                      ),
-                    ],
+                  child: Padding(
+                    padding: EdgeInsets.all(5.sp),
+                    child: Row(
+                      crossAxisAlignment: crossAlignment,
+                      children: [
+                        Text(
+                          message.text,
+                          style: const TextStyle(color: Colors.black),
+                        ),
+                        SizedBox(
+                          height: 20.sp,
+                          width: 20.sp,
+                          child: const CircularProgressIndicator(),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
 
