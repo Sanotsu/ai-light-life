@@ -1,6 +1,8 @@
 // ignore_for_file: avoid_print
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:free_brief_accounting/models/baidu_ernie_state.dart';
 import 'package:uuid/uuid.dart';
@@ -51,7 +53,7 @@ class _IntelligentChatScreenState extends State<IntelligentChatScreen> {
   // 等待AI响应时的占位的消息，在构建真实对话的list时要删除
   var placeholderMessage = ChatMessage(
     messageId: "placeholderMessage",
-    text: "努力思考中 ",
+    text: "努力思考中(等待越久,回复内容越多)  ",
     isFromUser: false,
     dateTime: DateTime.now(),
     isPlaceholder: true,
@@ -168,8 +170,8 @@ class _IntelligentChatScreenState extends State<IntelligentChatScreen> {
       // 如果没有对话记录(即上层没有传入，且当前时用户第一次输入文字还没有创建对话记录)，则新建对话记录
       chatSession ??= ChatSession(
         uuid: const Uuid().v4(),
-        title: messages.first.text.length > 20
-            ? messages.first.text.substring(0, 20)
+        title: messages.first.text.length > 30
+            ? messages.first.text.substring(0, 30)
             : messages.first.text,
         gmtCreate: DateTime.now(),
         messages: messages,
@@ -275,10 +277,10 @@ class _IntelligentChatScreenState extends State<IntelligentChatScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text("修改对话记录标题:", style: TextStyle(fontSize: 18.sp)),
+          title: Text("修改对话标题:", style: TextStyle(fontSize: 20.sp)),
           content: TextField(
             controller: _titleController,
-            maxLines: 2,
+            maxLines: 3,
             // autofocus: true,
             // onChanged: (v) {
             //   print("onChange: $v");
@@ -321,26 +323,27 @@ class _IntelligentChatScreenState extends State<IntelligentChatScreen> {
     });
   }
 
+  /// 最后一条大模型回复如果不满意，可以重新生成(中间的不行，因为后续的问题是关联上下文的)
+  regenerateLatestQuestion() {
+    setState(() {
+      // 将最后一条消息删除，并添加占位消息，重新发送
+      messages.removeLast();
+      messages.add(placeholderMessage);
+
+      // 不是腾讯，就是百度
+      if (isErnie) {
+        getErnieResponse();
+      } else {
+        getHunyuanResponse();
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: GestureDetector(
-          onTap: () {
-            print("修改标题？？");
-            if (chatSession != null) {
-              updateChatTile();
-            }
-          },
-          child: Text(
-            '${(chatSession != null) ? chatSession?.title : '<暂未建立对话>'}',
-            maxLines: 2,
-            style: TextStyle(
-              fontSize: 15.sp,
-              color: Theme.of(context).primaryColor,
-            ),
-          ),
-        ),
+        title: const Text('AI 对话'),
         actions: [
           // TextButton(
           //   onPressed: () {
@@ -349,6 +352,8 @@ class _IntelligentChatScreenState extends State<IntelligentChatScreen> {
           //   },
           //   child: const Text("切换模型"),
           // ),
+
+          /// 如果是百度千帆的模型，可以切换其他免费模型
           if (isErnie)
             DropdownButton<ErnieLLM>(
               value: defaultLlm,
@@ -372,117 +377,241 @@ class _IntelligentChatScreenState extends State<IntelligentChatScreen> {
                 });
               },
             ),
+
+          /// 创建新对话
+          TextButton(
+            onPressed: () {
+              // 建立新对话就是把已有的对话清空就好(因为保存什么的在发送消息时就处理了)？？？
+              setState(() {
+                chatSession = null;
+                messages.clear();
+              });
+            },
+            child: const Text("新对话"),
+          ),
         ],
       ),
       body: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 如果是空，显示预设的问题
-          if (messages.isEmpty) const Text("你可以试着问我(对话总长度建议不超过8000字)："),
-          if (messages.isEmpty)
-            Expanded(
-              flex: 2,
-              child: ListView.builder(
-                itemCount: defaultQuestions.length,
-                itemBuilder: (context, index) {
-                  // 构建MessageItem
-                  return InkWell(
-                    onTap: () {
-                      _sendMessage(defaultQuestions[index]);
-                    },
-                    child: Card(
-                      elevation: 2,
-                      child: Container(
-                        padding: EdgeInsets.all(8.sp),
-                        color: Colors.teal[100],
-                        child: Text(defaultQuestions[index]),
-                      ),
-                    ),
-                  );
-                },
+          /// 如果对话是空，显示预设的问题
+          if (messages.isEmpty) ..._buildDefaultQuestionArea(),
+
+          /// 在顶部显示对话标题(避免在appbar显示，内容太挤)
+          if (chatSession != null) _buildChatTitleArea(),
+
+          // 标题和对话正文的分割线
+          const Divider(),
+
+          /// 显示对话消息主体
+          _buildChatListArea(),
+
+          /// 显示输入框和发送按钮
+          const Divider(),
+          _buildUserSendArea(),
+        ],
+      ),
+    );
+  }
+
+  /// 直接进入对话页面，展示预设问题的区域
+  _buildDefaultQuestionArea() {
+    return [
+      const Text("你可以试着问我(对话总长度建议不超过8000字)："),
+      Expanded(
+        flex: 2,
+        child: ListView.builder(
+          itemCount: defaultQuestions.length,
+          itemBuilder: (context, index) {
+            // 构建MessageItem
+            return InkWell(
+              onTap: () {
+                _sendMessage(defaultQuestions[index]);
+              },
+              child: Card(
+                elevation: 2,
+                child: Container(
+                  padding: EdgeInsets.all(8.sp),
+                  color: Colors.teal[100],
+                  child: Text(defaultQuestions[index]),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    ];
+  }
+
+  /// 对话的标题区域
+  _buildChatTitleArea() {
+    // 点击可修改标题
+    return Padding(
+      padding: EdgeInsets.all(5.sp),
+      child: Row(
+        children: [
+          const Icon(Icons.title),
+          SizedBox(width: 10.sp),
+          Expanded(
+            child: Text(
+              '${(chatSession != null) ? chatSession?.title : '<暂未建立对话>'}',
+              maxLines: 2,
+              softWrap: true,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 15.sp,
+                fontWeight: FontWeight.bold,
+                // color: Theme.of(context).primaryColor,
+              ),
+              // textAlign: TextAlign.center,
+            ),
+          ),
+          SizedBox(
+            width: 56.sp,
+            child: IconButton(
+              onPressed: () {
+                if (chatSession != null) {
+                  updateChatTile();
+                }
+              },
+              icon: Icon(
+                Icons.edit,
+                size: 18.sp,
+                color: Theme.of(context).primaryColor,
               ),
             ),
-          // 显示对话消息
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 构建对话列表主体
+  _buildChatListArea() {
+    return Expanded(
+      child: ListView.builder(
+        controller: _scrollController, // 设置ScrollController
+        // reverse: true, // 反转列表，使新消息出现在底部
+        itemCount: messages.length,
+        itemBuilder: (context, index) {
+          // 构建MessageItem
+          return Padding(
+              padding: EdgeInsets.all(5.sp),
+              child: Column(
+                children: [
+                  MessageItem(message: messages[index]),
+                  // 如果是大模型回复，可以有一些功能按钮
+                  if (!messages[index].isFromUser)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        // 其中，是大模型最后一条回复，则可以重新生成
+                        // 注意，还要排除占位消息
+                        if ((index == messages.length - 1) &&
+                            messages[index].isPlaceholder != true)
+                          TextButton(
+                            onPressed: () {
+                              regenerateLatestQuestion();
+                            },
+                            child: const Text("重新生成"),
+                          ),
+                        // 点击复制该条回复
+                        IconButton(
+                          onPressed: () {
+                            Clipboard.setData(
+                              ClipboardData(text: messages[index].text),
+                            );
+
+                            EasyLoading.showToast(
+                              "已复制",
+                              duration: const Duration(seconds: 3),
+                              toastPosition: EasyLoadingToastPosition.center,
+                            );
+                          },
+                          icon: Icon(Icons.copy, size: 20.sp),
+                        ),
+                        // 其他功能(占位)
+                        IconButton(
+                          onPressed: null,
+                          icon: Icon(Icons.thumb_up_alt_outlined, size: 20.sp),
+                        ),
+                        IconButton(
+                          onPressed: null,
+                          icon: Icon(Icons.thumb_down_outlined, size: 20.sp),
+                        ),
+                      ],
+                    )
+                ],
+              ));
+        },
+      ),
+    );
+  }
+
+  /// 用户发送消息的区域
+  _buildUserSendArea() {
+    return Padding(
+      padding: EdgeInsets.all(5.sp),
+      child: Row(
+        children: [
           Expanded(
-            child: ListView.builder(
-              controller: _scrollController, // 设置ScrollController
-              // reverse: true, // 反转列表，使新消息出现在底部
-              itemCount: messages.length,
-              itemBuilder: (context, index) {
-                // 构建MessageItem
-                return Padding(
-                  padding: EdgeInsets.all(5.sp),
-                  child: MessageItem(message: messages[index]),
-                );
+            child: TextField(
+              controller: _textController,
+              decoration: const InputDecoration(
+                hintText: '可以向我提任何问题哦 ٩(๑❛ᴗ❛๑)۶',
+                border: OutlineInputBorder(), // 添加边框
+              ),
+              maxLines: 5,
+              minLines: 1,
+              onChanged: (String? text) {
+                if (text != null) {
+                  setState(() {
+                    userInput = text.trim();
+                  });
+                }
               },
             ),
           ),
-          // 输入框和发送按钮
-          const Divider(),
-          Padding(
-            padding: EdgeInsets.all(5.sp),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _textController,
-                    decoration: const InputDecoration(
-                      hintText: '可以向我提任何问题哦 ٩(๑❛ᴗ❛๑)۶',
-                      border: OutlineInputBorder(), // 添加边框
-                    ),
-                    maxLines: 5,
-                    minLines: 1,
-                    onChanged: (String? text) {
-                      if (text != null) {
-                        setState(() {
-                          userInput = text.trim();
-                        });
-                      }
-                    },
-                  ),
-                ),
-                IconButton(
-                  // 如果AI正在响应，或者输入框没有任何文字，不让点击发送
-                  onPressed: isBotThinking || userInput.isEmpty
-                      ? null
-                      : () {
-                          if (!isMessageTooLong()) {
-                            // 在当前上下文中查找最近的 FocusScope 并使其失去焦点，从而收起键盘。
-                            FocusScope.of(context).unfocus();
+          IconButton(
+            // 如果AI正在响应，或者输入框没有任何文字，不让点击发送
+            onPressed: isBotThinking || userInput.isEmpty
+                ? null
+                : () {
+                    if (!isMessageTooLong()) {
+                      // 在当前上下文中查找最近的 FocusScope 并使其失去焦点，从而收起键盘。
+                      FocusScope.of(context).unfocus();
 
-                            _sendMessage(userInput, isFromUser: true);
+                      // 用户发送消息
+                      _sendMessage(userInput);
 
-                            // 发送完要清空记录用户输的入变量
-                            setState(() {
-                              userInput = "";
-                            });
-                          } else {
-                            showDialog(
-                              context: context,
-                              builder: (BuildContext context) {
-                                return AlertDialog(
-                                  title: const Text('对话过长'),
-                                  content: const Text(
-                                    '注意，由于免费API的使用压力，单个聊天对话的总长度不能超过8000字，请新开对话，谢谢。',
-                                  ),
-                                  actions: <Widget>[
-                                    TextButton(
-                                      onPressed: () {
-                                        Navigator.of(context).pop();
-                                      },
-                                      child: const Text('确定'),
-                                    ),
-                                  ],
-                                );
-                              },
-                            );
-                          }
+                      // 发送完要清空记录用户输的入变量
+                      setState(() {
+                        userInput = "";
+                      });
+                    } else {
+                      showDialog(
+                        context: context,
+                        builder: (BuildContext context) {
+                          return AlertDialog(
+                            title: const Text('对话过长'),
+                            content: const Text(
+                              '注意，由于免费API的使用压力，单个聊天对话的总长度不能超过8000字，请新开对话，谢谢。',
+                            ),
+                            actions: <Widget>[
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.of(context).pop();
+                                },
+                                child: const Text('确定'),
+                              ),
+                            ],
+                          );
                         },
-                  icon: const Icon(Icons.send),
-                ),
-              ],
-            ),
+                      );
+                    }
+                  },
+            icon: const Icon(Icons.send),
           ),
         ],
       ),

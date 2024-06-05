@@ -211,7 +211,7 @@ class _AgiLlmSampleState extends State<AgiLlmSample> {
                     Text(
                       e.title,
                       style: TextStyle(fontSize: 12.sp),
-                      maxLines: 1,
+                      maxLines: 2,
                       softWrap: true,
                       overflow: TextOverflow.ellipsis,
                     ),
