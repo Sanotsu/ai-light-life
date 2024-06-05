@@ -43,6 +43,9 @@ class _BackupAndRestoreState extends State<BackupAndRestore> {
   // 是否获得了存储权限(没获得就无法备份恢复)
   bool isPermissionGranted = false;
 
+  // 2024-06-05 测试用，z50u没法调试，build之后在页面显示权限结果
+  String tempPermMsg = "";
+
   @override
   void initState() {
     super.initState();
@@ -51,6 +54,16 @@ class _BackupAndRestoreState extends State<BackupAndRestore> {
   }
 
   _requestPermission() async {
+    // PermissionStatus status = await Permission.manageExternalStorage.request();
+    // print("请求授权结果$status");
+    // if (status.isGranted) {
+    //   setState(() {
+    //     isPermissionGranted = true;
+    //   });
+    // } else if (status.isPermanentlyDenied) {
+    //   openAppSettings();
+    // }
+
     /// 2024-01-12 直接询问存储权限，不给就直接显示退出就好
     // 2024-01-12 Android13之后，没有storage权限了，取而代之的是：
     // Permission.photos, Permission.videos or Permission.audio等
@@ -60,8 +73,17 @@ class _BackupAndRestoreState extends State<BackupAndRestore> {
       final androidInfo = await DeviceInfoPlugin().androidInfo;
       int sdkInt = androidInfo.version.sdkInt;
 
+      setState(() {
+        tempPermMsg = "安卓sdk号$sdkInt";
+      });
+
       if (sdkInt <= 32) {
         PermissionStatus storageStatus = await Permission.storage.request();
+
+        setState(() {
+          tempPermMsg = "请求授权结果小于32 $storageStatus";
+        });
+
         setState(() {
           if (storageStatus.isGranted) {
             isPermissionGranted = true;
@@ -71,14 +93,21 @@ class _BackupAndRestoreState extends State<BackupAndRestore> {
         });
       } else {
         Map<Permission, PermissionStatus> statuses = await [
-          Permission.audio,
-          Permission.photos,
-          Permission.videos,
+          // Permission.audio,
+          // Permission.photos,
+          // Permission.videos,
+          Permission.manageExternalStorage,
         ].request();
 
-        if (statuses[Permission.audio]!.isGranted &&
-            statuses[Permission.photos]!.isGranted &&
-            statuses[Permission.videos]!.isGranted) {
+        setState(() {
+          tempPermMsg = "请求授权结果大于33$statuses";
+        });
+
+        if (
+            // statuses[Permission.audio]!.isGranted &&
+            // statuses[Permission.photos]!.isGranted &&
+            // statuses[Permission.videos]!.isGranted &&
+            statuses[Permission.manageExternalStorage]!.isGranted) {
           setState(() {
             isPermissionGranted = true;
           });
@@ -242,7 +271,6 @@ class _BackupAndRestoreState extends State<BackupAndRestore> {
   ///   3.3 临时备份完成，删除数据库，再新建数据库(插入时会自动新建)
   ///   3.4 将json文件依次导入数据库
   ///   3.5 json文件导入成功，则删除临时备份文件
-  ///
   ///
   Future<void> restoreDataFromBackup() async {
     FilePickerResult? result =
@@ -423,6 +451,7 @@ class _BackupAndRestoreState extends State<BackupAndRestore> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          // Text(tempPermMsg),
           TextButton.icon(
             onPressed: () {
               showDialog(

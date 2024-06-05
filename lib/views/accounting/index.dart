@@ -460,7 +460,7 @@ class _BillItemIndexState extends State<BillItemIndex> {
                   builder: (context) => const BackupAndRestore(),
                 ),
               ).then((value) {
-                loadBillItemsByMonth();
+                handleSearch();
               });
             },
             icon: Icon(

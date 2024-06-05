@@ -81,7 +81,7 @@ class _AgiLlmSampleState extends State<AgiLlmSample> {
             \n想知道我能做什么？  
             **点击**下面任意大模型，快来试一试吧！""",
           ),
-          // const Divider(),
+          Divider(height: 50.sp),
           SizedBox(
             height: 0.25.sh,
             child: GridView.count(

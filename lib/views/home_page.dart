@@ -17,7 +17,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  int _selectedIndex = 1;
+  int _selectedIndex = 0;
 
   static const List<Widget> _widgetOptions = <Widget>[
     AgiLlmSample(),
@@ -46,8 +46,8 @@ class _HomePageState extends State<HomePage> {
           context: context,
           builder: (context) {
             return AlertDialog(
-              title: const Text("确认退出?"),
-              content: const Text("确认退出app吗？"),
+              title: const Text("退出确认"),
+              content: const Text("确认退出AI聊天和记账吗？"),
               actions: [
                 TextButton(
                   onPressed: () {
