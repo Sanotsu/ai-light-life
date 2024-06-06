@@ -2,8 +2,10 @@
 
 import '../dio_client/cus_http_client.dart';
 import '../dio_client/cus_http_request.dart';
+import '../models/aigc_state/platform_aigc_commom_state.dart';
 import '../models/baidu_ernie_state.dart';
 import '_self_keys.dart';
+import 'common_llm_info.dart';
 
 ///
 /// 注意，这里没有处理报错，请求过程中的错误在cus_client中集中处理的；
@@ -107,4 +109,32 @@ Future<BaiduErnieResponseBody> getErnieSpeedResponse(
 
   // 响应是json格式
   return BaiduErnieResponseBody.fromJson(respData);
+}
+
+///
+/// --------- 计划跨平台请求无感的方式---------------
+///
+/// 获取指定设备类型(产品)包含的功能列表
+Future<CommonRespBody> getBaiduAigcCommonResp(
+  List<CommonMessage> messages, {
+  // 百度免费的ernie-speed和ernie-lite 接口使用上是一致的，就是模型名称不一样
+  String? llmName,
+}) async {
+  // 如果有传模型名称，就用传递的；没有就默认的
+  llmName = llmName ?? llmNames[PlatformLLM.baiduErnieSpeed8K]!;
+
+  // 每次请求都要实时获取最小的token
+  String token = await getAccessToken();
+
+  var body = CommonReqBody(messages: messages);
+
+  var respData = await HttpUtils.post(
+    path: "$baiduErnieUrl$llmName?access_token=$token",
+    method: HttpMethod.post,
+    headers: {"Content-Type": "application/json"},
+    data: body,
+  );
+
+  // 响应是json格式
+  return CommonRespBody.fromJson(respData);
 }

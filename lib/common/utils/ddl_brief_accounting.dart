@@ -26,11 +26,12 @@ class BriefAccountingDdl {
 
   static const String ddlForChatHistory = """
     CREATE TABLE $tableNameOfChatHistory (
-      uuid        TEXT    NOT NULL,
-      title       TEXT    NOT NULL,
-      messages    TEXT    NOT NULL,
-      llm_name    TEXT    NOT NULL,
-      gmt_create	TEXT    NOT NULL,
+      uuid                TEXT    NOT NULL,
+      title               TEXT    NOT NULL,
+      gmt_create	        TEXT    NOT NULL,
+      messages            TEXT    NOT NULL,
+      llm_name            TEXT    NOT NULL,
+      yun_platform_name   TEXT,
       PRIMARY KEY("uuid")
     );
     """;
@@ -52,7 +53,7 @@ class BriefAccountingDdl {
       date	      TEXT,
       category    TEXT,
       item        TEXT      NOT NULL,
-      value       REAL,     NOT NULL,
+      value       REAL      NOT NULL,
       PRIMARY KEY("expend_id" AUTOINCREMENT)
     );
     """;
@@ -63,7 +64,7 @@ class BriefAccountingDdl {
       date	      TEXT,
       category    TEXT,
       item        TEXT      NOT NULL,
-      value       REAL,     NOT NULL,
+      value       REAL      NOT NULL,
       PRIMARY KEY("income_id" AUTOINCREMENT)
     );
     """;

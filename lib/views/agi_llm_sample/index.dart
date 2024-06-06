@@ -6,9 +6,10 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:free_brief_accounting/common/constants.dart';
 import 'package:intl/intl.dart';
 
+import '../../apis/common_llm_info.dart';
 import '../../common/utils/db_helper.dart';
 import '../../models/llm_chat_state.dart';
-import 'intelligent_chat_screen.dart';
+import 'common_chat_screen.dart';
 
 class AgiLlmSample extends StatefulWidget {
   const AgiLlmSample({super.key});
@@ -97,8 +98,8 @@ class _AgiLlmSampleState extends State<AgiLlmSample> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => const IntelligentChatScreen(
-                          llmType: 'ernie',
+                        builder: (context) => const CommonChatScreen(
+                          platType: CloudPlatform.baidu,
                         ),
                       ),
                     ).then((value) {
@@ -130,8 +131,8 @@ class _AgiLlmSampleState extends State<AgiLlmSample> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => const IntelligentChatScreen(
-                          llmType: 'hunyuan',
+                        builder: (context) => const CommonChatScreen(
+                          platType: CloudPlatform.tencent,
                         ),
                       ),
                     ).then((value) {
@@ -149,6 +150,39 @@ class _AgiLlmSampleState extends State<AgiLlmSample> {
                     child: Center(
                       child: Text(
                         '腾讯混元',
+                        style: TextStyle(
+                          fontSize: 22.sp,
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).primaryColor,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                InkWell(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const CommonChatScreen(
+                          platType: CloudPlatform.aliyun,
+                        ),
+                      ),
+                    ).then((value) {
+                      print("chatscreen的返回---$value");
+                    });
+                  },
+                  child: Container(
+                    padding: EdgeInsets.all(8.sp),
+                    decoration: BoxDecoration(
+                      // 设置圆角半径为10
+                      borderRadius: BorderRadius.all(Radius.circular(30.sp)),
+                      color: Colors.teal[200],
+                    ),
+                    // color: Colors.teal[100],
+                    child: Center(
+                      child: Text(
+                        '阿里百炼',
                         style: TextStyle(
                           fontSize: 22.sp,
                           fontWeight: FontWeight.bold,
@@ -191,9 +225,9 @@ class _AgiLlmSampleState extends State<AgiLlmSample> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => IntelligentChatScreen(
-              llmType: e.llmName,
+            builder: (context) => CommonChatScreen(
               chatSessionId: e.uuid,
+              platType: stringToCloudPlatform(e.cloudPlatformName ?? ""),
             ),
           ),
         );
@@ -275,10 +309,14 @@ class _AgiLlmSampleState extends State<AgiLlmSample> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => IntelligentChatScreen(
-              llmType: e.llmName,
+            builder: (context) => CommonChatScreen(
               chatSessionId: e.uuid,
+              platType: stringToCloudPlatform(e.cloudPlatformName ?? ""),
             ),
+            // builder: (context) => IntelligentChatScreen(
+            //   llmType: e.llmName,
+            //   chatSessionId: e.uuid,
+            // ),
           ),
         ).then((value) {
           print("chatscreen的返回---$value");
@@ -379,10 +417,14 @@ class _AgiLlmSampleState extends State<AgiLlmSample> {
           ).then((value) async {
             if (value == true) {
               // 先删除
-              _dbHelper.deleteChatById(e.uuid);
+              var a = await _dbHelper.deleteChatById(e.uuid);
+
+              print("删除结果---------$a");
 
               // 然后重新查询并更新
               var b = await _dbHelper.queryChatList();
+
+              print("查询结果---------${b.length}");
               setState(() {
                 chatHsitory = b;
               });

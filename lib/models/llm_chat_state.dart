@@ -94,6 +94,8 @@ class ChatSession {
   List<ChatMessage> messages;
   // 2024-06-01 大模型名称也要记一下，说不定后续要存API的原始返回内容复用
   final String llmName; // 使用的大模型名称需要记一下吗？
+  // 2024-06-06 记录了大模型名称，也记一下使用在哪个云平台
+  final String? cloudPlatformName;
 
   ChatSession({
     required this.uuid,
@@ -101,6 +103,7 @@ class ChatSession {
     required this.gmtCreate,
     required this.messages,
     required this.llmName,
+    this.cloudPlatformName,
   });
 
   factory ChatSession.fromMap(Map<String, dynamic> map) {
@@ -113,6 +116,7 @@ class ChatSession {
               ChatMessage.fromMap(messageMap as Map<String, dynamic>))
           .toList(),
       llmName: map['llm_name'] as String,
+      cloudPlatformName: map['yun_platform_name'] as String?,
     );
   }
 
@@ -123,6 +127,7 @@ class ChatSession {
       'gmt_create': DateFormat(constDatetimeFormat).format(gmtCreate),
       'messages': messages.toString(),
       'llm_name': llmName,
+      'yun_platform_name': cloudPlatformName,
     };
   }
 
@@ -134,6 +139,7 @@ class ChatSession {
         title: json["title"],
         gmtCreate: json["gmt_create"],
         llmName: json["llm_name"],
+        cloudPlatformName: json["yun_platform_name"],
       );
 
   Map<String, dynamic> toJson() => {
@@ -142,6 +148,7 @@ class ChatSession {
         "title": title,
         "gmt_create": gmtCreate,
         "llm_name": llmName,
+        "yun_platform_name": cloudPlatformName,
       };
 
   @override
@@ -151,8 +158,9 @@ class ChatSession {
       "uuid": $uuid,
       "title": $title,
       "gmtCreate": $gmtCreate,
-      "messages": $messages
-      "llmName": $llmName
+      "messages": $messages,
+      "llmName": $llmName,
+      "cloudPlatformName": $cloudPlatformName
     }
     ''';
   }
