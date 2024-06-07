@@ -6,7 +6,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:free_brief_accounting/common/constants.dart';
 import 'package:intl/intl.dart';
 
-import '../../apis/common_llm_info.dart';
+import '../../models/common_llm_info.dart';
 import '../../common/utils/db_helper.dart';
 import '../../models/llm_chat_state.dart';
 import 'common_chat_screen.dart';

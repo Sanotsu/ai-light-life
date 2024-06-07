@@ -6,12 +6,10 @@ import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:uuid/uuid.dart';
 
-import '../../apis/aliyun_apis.dart';
-import '../../apis/baidu_apis.dart';
-import '../../apis/common_llm_info.dart';
-import '../../apis/tencent_apis.dart';
+import '../../apis/common_apis.dart';
+import '../../models/common_llm_info.dart';
 import '../../common/utils/db_helper.dart';
-import '../../models/aigc_state/platform_aigc_commom_state.dart';
+import '../../models/ai_interface_state/platform_aigc_commom_state.dart';
 import '../../models/llm_chat_state.dart';
 import 'widgets/message_item.dart';
 
@@ -307,6 +305,31 @@ class _CommonChatScreenState extends State<CommonChatScreen> {
     });
   }
 
+  /// 从所有模型在获取指定平台的模型构建下拉按钮选项列表
+  List<DropdownMenuItem<PlatformLLM>> buildLLMList() {
+    // 因为目前是先选择平台进来，然后再可选择模型(后续可以放过级联选择在这个页面)
+    // 所以要过滤符合平台的模型
+    var tempList = PlatformLLM.values
+        .where((m) => m.name.startsWith(widget.platType.name))
+        .toList();
+
+    List<DropdownMenuItem<PlatformLLM>> list = [];
+    for (var i = 0; i < tempList.length; i++) {
+      var e = tempList[i];
+
+      list.add(DropdownMenuItem<PlatformLLM>(
+        value: e,
+        alignment: AlignmentDirectional.center,
+        child: Text(
+          "${widget.platType.name} 大模型${i + 1}",
+          style: TextStyle(fontSize: 10.sp),
+        ),
+      ));
+    }
+
+    return list;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -326,18 +349,21 @@ class _CommonChatScreenState extends State<CommonChatScreen> {
             value: defaultLlm,
             isDense: true,
             alignment: AlignmentDirectional.centerEnd,
-            items: PlatformLLM.values
-                .map<DropdownMenuItem<PlatformLLM>>(
-                  (PlatformLLM value) => DropdownMenuItem<PlatformLLM>(
-                    value: value,
-                    alignment: AlignmentDirectional.center,
-                    child: Text(
-                      value.name,
-                      style: TextStyle(fontSize: 10.sp),
-                    ),
-                  ),
-                )
-                .toList(),
+            // 从所有模型中过滤指定平台的模型(一点注意有效命名方式)
+            items: buildLLMList(),
+            // PlatformLLM.values
+            //     .where((m) => m.name.startsWith(widget.platType.name))
+            //     .map<DropdownMenuItem<PlatformLLM>>(
+            //       (PlatformLLM value) => DropdownMenuItem<PlatformLLM>(
+            //         value: value,
+            //         alignment: AlignmentDirectional.center,
+            //         child: Text(
+            //           "模型 ${value.index + 1}",
+            //           style: TextStyle(fontSize: 10.sp),
+            //         ),
+            //       ),
+            //     )
+            //     .toList(),
             onChanged: (PlatformLLM? newValue) {
               setState(() {
                 defaultLlm = newValue!;
@@ -498,15 +524,16 @@ class _CommonChatScreenState extends State<CommonChatScreen> {
                           },
                           icon: Icon(Icons.copy, size: 20.sp),
                         ),
-                        // 其他功能(占位)
-                        IconButton(
-                          onPressed: null,
-                          icon: Icon(Icons.thumb_up_alt_outlined, size: 20.sp),
-                        ),
-                        IconButton(
-                          onPressed: null,
-                          icon: Icon(Icons.thumb_down_outlined, size: 20.sp),
-                        ),
+                        // // 其他功能(占位)
+                        // IconButton(
+                        //   onPressed: null,
+                        //   icon: Icon(Icons.thumb_up_alt_outlined, size: 20.sp),
+                        // ),
+                        // IconButton(
+                        //   onPressed: null,
+                        //   icon: Icon(Icons.thumb_down_outlined, size: 20.sp),
+                        // ),
+                        SizedBox(width: 10.sp),
                       ],
                     )
                 ],

@@ -4,7 +4,7 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:intl/intl.dart';
 
-import '_self_keys.dart';
+import '../_self_keys.dart';
 
 /// 这里是生成签名的方案
 /// 内容局限在使用hunyuan-lite大模型的时候。

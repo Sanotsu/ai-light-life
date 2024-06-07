@@ -68,6 +68,7 @@ class HttpRequest {
         responseHeader: true,
         responseBody: true,
         // responseBody: false, // 响应太多了，不显示
+        maxWidth: 150,
       ),
     ]);
   }

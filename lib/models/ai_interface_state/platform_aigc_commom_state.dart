@@ -425,7 +425,7 @@ class CommonRespBody {
       id: json["id"] ?? json["Id"],
       requestId: json["request_id"] ?? json["RequestId"],
       created: json["created"] ?? json["Created"],
-      errorCode: errorCode,
+      errorCode: errorCode?.toString(),
       errorMsg: errorMsg,
       tencentError: json["ErrorMsg"] == null
           ? null
