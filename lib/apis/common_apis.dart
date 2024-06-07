@@ -33,13 +33,13 @@ const tencentAigcUrl = "https://hunyuan.tencentcloudapi.com/";
 ///
 Future<CommonRespBody> getAliyunAigcCommonResp(
   List<CommonMessage> messages, {
-  String? llmName,
+  String? model,
 }) async {
   // 如果有传模型名称，就用传递的；没有就默认的
-  llmName = llmName ?? llmNames[PlatformLLM.aliyunQwen1p8BChat]!;
+  model = model ?? llmModels[PlatformLLM.aliyunQwen1p8BChat]!;
 
   var body = CommonReqBody(
-    model: llmName,
+    model: model,
     input: AliyunInput(messages: messages),
     parameters: AliyunParameters(resultFormat: "message"),
   );
@@ -88,11 +88,11 @@ Future<String> getAccessToken() async {
 /// 获取指定设备类型(产品)包含的功能列表
 Future<CommonRespBody> getBaiduAigcCommonResp(
   List<CommonMessage> messages, {
-  String? llmName,
+  String? model,
 }) async {
   // 如果有传模型名称，就用传递的；没有就默认的
   // 百度免费的ernie-speed和ernie-lite 接口使用上是一致的，就是模型名称不一样
-  llmName = llmName ?? llmNames[PlatformLLM.baiduErnieSpeed8K]!;
+  model = model ?? llmModels[PlatformLLM.baiduErnieSpeed8K]!;
 
   // 每次请求都要实时获取最小的token
   String token = await getAccessToken();
@@ -100,7 +100,7 @@ Future<CommonRespBody> getBaiduAigcCommonResp(
   var body = CommonReqBody(messages: messages);
 
   var respData = await HttpUtils.post(
-    path: "$baiduAigcUrl$llmName?access_token=$token",
+    path: "$baiduAigcUrl$model?access_token=$token",
     method: HttpMethod.post,
     headers: {"Content-Type": "application/json"},
     data: body,
@@ -117,12 +117,12 @@ Future<CommonRespBody> getBaiduAigcCommonResp(
 /// 获取指定设备类型(产品)包含的功能列表
 Future<CommonRespBody> getTencentAigcCommonResp(
   List<CommonMessage> messages, {
-  String? llmName,
+  String? model,
 }) async {
   // 如果有传模型名称，就用传递的；没有就默认的
-  llmName = llmName ?? llmNames[PlatformLLM.tencentHunyuanLite]!;
+  model = model ?? llmModels[PlatformLLM.tencentHunyuanLite]!;
 
-  var body = CommonReqBody(model: llmName, messages: messages);
+  var body = CommonReqBody(model: model, messages: messages);
 
   var respData = await HttpUtils.post(
     path: tencentAigcUrl,

@@ -84,114 +84,21 @@ class _AgiLlmSampleState extends State<AgiLlmSample> {
           ),
           Divider(height: 50.sp),
           SizedBox(
-            height: 0.25.sh,
+            height: 0.3.sh,
             child: GridView.count(
               primary: false,
-              padding: const EdgeInsets.all(20),
+              padding: EdgeInsets.symmetric(horizontal: 20.sp),
               crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
+              mainAxisSpacing: 20,
               crossAxisCount: 2,
-              childAspectRatio: 4 / 3,
+              childAspectRatio: 2 / 1,
               children: <Widget>[
-                InkWell(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const CommonChatScreen(
-                          platType: CloudPlatform.baidu,
-                        ),
-                      ),
-                    ).then((value) {
-                      print("chatscreen的返回---$value");
-                    });
-                  },
-                  child: Container(
-                    padding: EdgeInsets.all(8.sp),
-                    decoration: BoxDecoration(
-                      // 设置圆角半径为10
-                      borderRadius: BorderRadius.all(Radius.circular(30.sp)),
-                      color: Colors.blue[100],
-                    ),
-                    // color: Colors.teal[100],
-                    child: Center(
-                      child: Text(
-                        "百度千帆",
-                        style: TextStyle(
-                          fontSize: 22.sp,
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).primaryColor,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                InkWell(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const CommonChatScreen(
-                          platType: CloudPlatform.tencent,
-                        ),
-                      ),
-                    ).then((value) {
-                      print("chatscreen的返回---$value");
-                    });
-                  },
-                  child: Container(
-                    padding: EdgeInsets.all(8.sp),
-                    decoration: BoxDecoration(
-                      // 设置圆角半径为10
-                      borderRadius: BorderRadius.all(Radius.circular(30.sp)),
-                      color: Colors.teal[200],
-                    ),
-                    // color: Colors.teal[100],
-                    child: Center(
-                      child: Text(
-                        '腾讯混元',
-                        style: TextStyle(
-                          fontSize: 22.sp,
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).primaryColor,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                InkWell(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const CommonChatScreen(
-                          platType: CloudPlatform.aliyun,
-                        ),
-                      ),
-                    ).then((value) {
-                      print("chatscreen的返回---$value");
-                    });
-                  },
-                  child: Container(
-                    padding: EdgeInsets.all(8.sp),
-                    decoration: BoxDecoration(
-                      // 设置圆角半径为10
-                      borderRadius: BorderRadius.all(Radius.circular(30.sp)),
-                      color: Colors.teal[200],
-                    ),
-                    // color: Colors.teal[100],
-                    child: Center(
-                      child: Text(
-                        '阿里百炼',
-                        style: TextStyle(
-                          fontSize: 22.sp,
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).primaryColor,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+                buildAIChatEntrance(CloudPlatform.baidu, "百度千帆",
+                    color: Colors.blue[100]),
+                buildAIChatEntrance(CloudPlatform.tencent, "腾讯混元",
+                    color: Colors.teal[100]),
+                buildAIChatEntrance(CloudPlatform.aliyun, "阿里百炼",
+                    color: Colors.orange[100]),
               ],
             ),
           ),
@@ -217,6 +124,48 @@ class _AgiLlmSampleState extends State<AgiLlmSample> {
     );
   }
 
+  /// 构建AI对话云平台入口按钮
+  buildAIChatEntrance(CloudPlatform platType, String label, {Color? color}) {
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => CommonChatScreen(platType: platType),
+          ),
+        );
+      },
+      child: Container(
+        padding: EdgeInsets.all(8.sp),
+        decoration: BoxDecoration(
+          // 设置圆角半径为10
+          borderRadius: BorderRadius.all(Radius.circular(30.sp)),
+          color: color ?? Colors.teal[200],
+          // 添加阴影效果
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2), // 阴影颜色
+              spreadRadius: 2, // 阴影的大小
+              blurRadius: 5, // 阴影的模糊程度
+              offset: Offset(0, 2.sp), // 阴影的偏移量
+            ),
+          ],
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 22.sp,
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).primaryColor,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 构建在对话历史中的对话标题列表
   buildGestureItems(ChatSession e) {
     return GestureDetector(
       onTap: () {

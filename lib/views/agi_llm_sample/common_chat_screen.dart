@@ -169,7 +169,7 @@ class _CommonChatScreenState extends State<CommonChatScreen> {
         gmtCreate: DateTime.now(),
         messages: messages,
         // 2026-06-06 这里记录的也是各平台原始的大模型名称
-        llmName: llmNames[defaultLlm]!,
+        llmName: llmModels[defaultLlm]!,
         cloudPlatformName: widget.platType.name,
       );
 
@@ -207,16 +207,16 @@ class _CommonChatScreenState extends State<CommonChatScreen> {
     // 等待请求响应
     CommonRespBody temp;
 
-    var llmName = llmNames[defaultLlm]!;
+    var llmName = llmModels[defaultLlm]!;
 
     print("llmNames[defaultLlm]!----$llmName");
     // 2024-06-06 ??? 这里一定要确保存在模型名称，因为要作为http请求参数
     if (widget.platType == CloudPlatform.baidu) {
-      temp = await getBaiduAigcCommonResp(msgs, llmName: llmName);
+      temp = await getBaiduAigcCommonResp(msgs, model: llmName);
     } else if (widget.platType == CloudPlatform.tencent) {
-      temp = await getTencentAigcCommonResp(msgs, llmName: llmName);
+      temp = await getTencentAigcCommonResp(msgs, model: llmName);
     } else if (widget.platType == CloudPlatform.aliyun) {
-      temp = await getAliyunAigcCommonResp(msgs, llmName: llmName);
+      temp = await getAliyunAigcCommonResp(msgs, model: llmName);
     } else {
       temp = await getTencentAigcCommonResp(msgs);
     }

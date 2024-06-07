@@ -155,6 +155,7 @@ device_info_plus: ^10.1.0 # 获取设备信息
   - refactor: 添加了阿里云、腾讯、百度通用的基础 aigc 的 http 请求和响应对应的 model;feat:阿里云通义千问开源版本一个模型接口测试可用。
 - 2024-06-07
   - refactor:重构了通用 aigc 请求 api 和 model 的使用，整理了对应文件命名和文件夹结构等。
+  - fix:简单调整了 llm 名称变量命令、对话主页面的入口按钮样式等。
 
 ### todo
 
