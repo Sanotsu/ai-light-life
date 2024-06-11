@@ -28,6 +28,7 @@ enum PlatformLLM {
   baiduErnieTiny8K,
   tencentHunyuanLite,
   aliyunQwen1p8BChat, // 1.8b -> 1point8b -> 1p8b
+  aliyunFaruiPlus32K,
 }
 
 /// 定义一个Map来存储枚举值和对应的字符串表示
@@ -41,6 +42,7 @@ final Map<PlatformLLM, String> llmModels = {
   PlatformLLM.baiduErnieTiny8K: 'ernie-tiny-8k',
   PlatformLLM.tencentHunyuanLite: 'hunyuan-lite', // 256k上下文，最大输出6k
   PlatformLLM.aliyunQwen1p8BChat: 'qwen-1.8b-chat', // 8k上下文，最大输出6k
+  PlatformLLM.aliyunFaruiPlus32K: 'farui-plus',
 };
 
 // 模型对应的中文名
@@ -53,6 +55,7 @@ final Map<PlatformLLM, String> llmNames = {
   PlatformLLM.baiduErnieTiny8K: 'ERNIE-Tiny-8K',
   PlatformLLM.tencentHunyuanLite: 'hunyuan-lite', // 256k上下文，最大输出6k
   PlatformLLM.aliyunQwen1p8BChat: '通义千问-开源版-1.8B', // 8k上下文，最大输出6k
+  PlatformLLM.aliyunFaruiPlus32K: '通义法睿-Plus-32K',
 };
 
 // 模型对应的分类(比如短小的基础对话、专业的知识等)
@@ -65,6 +68,7 @@ final Map<PlatformLLM, String> llmCategories = {
   PlatformLLM.baiduErnieTiny8K: '部署与精调成本在文心系列模型中最低',
   PlatformLLM.tencentHunyuanLite: '在NLP，代码，数学，行业等多项评测集上领先众多开源模型',
   PlatformLLM.aliyunQwen1p8BChat: '通义千问对外开源的1.8B规模参数量的经过人类指令对齐的chat模型',
+  PlatformLLM.aliyunFaruiPlus32K: '通义法睿是以通义千问为基座经法律行业数据和知识专门训练的法律行业大模型产品',
 };
 
 ///

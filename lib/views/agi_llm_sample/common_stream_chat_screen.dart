@@ -7,31 +7,33 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../apis/aliyun_apis.dart';
+
 import '../../apis/baidu_apis.dart';
 import '../../apis/tencent_apis.dart';
 import '../../models/common_llm_info.dart';
 import '../../common/utils/db_helper.dart';
 import '../../models/ai_interface_state/platform_aigc_commom_state.dart';
 import '../../models/llm_chat_state.dart';
+
 import 'widgets/message_item.dart';
 
-class CommonChatScreen extends StatefulWidget {
+class CommonStreamChatScreen extends StatefulWidget {
   // 混元还是erine(不同的公司，而且后者可以有好多个模型进行切换，前者就一个)
   final CloudPlatform platType;
   // 2024-06-01 点击最近的历史记录对话，可以加载到新的对话页面
   // 那么需要一个标识获取该历史对话的内容
   final String? chatSessionId;
-  const CommonChatScreen({
+  const CommonStreamChatScreen({
     super.key,
     required this.platType,
     this.chatSessionId,
   });
 
   @override
-  State createState() => _CommonChatScreenState();
+  State createState() => _CommonStreamChatScreenState();
 }
 
-class _CommonChatScreenState extends State<CommonChatScreen> {
+class _CommonStreamChatScreenState extends State<CommonStreamChatScreen> {
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _textController = TextEditingController();
   final DBHelper _dbHelper = DBHelper();
@@ -210,20 +212,19 @@ class _CommonChatScreenState extends State<CommonChatScreen> {
         .toList();
 
     // 等待请求响应
-    CommonRespBody temp;
-
+    List<CommonRespBody> temp;
     var llmName = llmModels[defaultLlm]!;
 
     print("llmNames[defaultLlm]!----$llmName");
     // 2024-06-06 ??? 这里一定要确保存在模型名称，因为要作为http请求参数
     if (widget.platType == CloudPlatform.baidu) {
-      temp = await getBaiduAigcCommonResp(msgs, model: llmName);
+      temp = await getBaiduAigcStreamCommonResp(msgs, model: llmName);
     } else if (widget.platType == CloudPlatform.tencent) {
-      temp = await getTencentAigcCommonResp(msgs, model: llmName);
+      temp = await getTencentAigcStreamCommonResp(msgs, model: llmName);
     } else if (widget.platType == CloudPlatform.aliyun) {
-      temp = await getAliyunAigcCommonResp(msgs, model: llmName);
+      temp = await getAliyunAigcStreamCommonResp(msgs, model: llmName);
     } else {
-      temp = await getTencentAigcCommonResp(msgs);
+      temp = await getTencentAigcStreamCommonResp(msgs);
     }
 
     // 得到回复后要删除表示加载中的占位消息
@@ -232,9 +233,10 @@ class _CommonChatScreenState extends State<CommonChatScreen> {
     });
 
     // 得到AI回复之后，添加到列表中，也注明不是用户提问
-    var tempText = temp.customReplyText;
-    if (temp.errorCode != null) {
-      tempText = "API接口报错: {${temp.errorCode}: ${temp.errorMsg}}，请切换其他模型试试。";
+    var tempText = temp.map((e) => e.customReplyText).join();
+    if (temp.isNotEmpty && temp.first.errorCode != null) {
+      tempText =
+          "API接口报错: {${temp.first.errorCode}: ${temp.first.errorMsg}}，请切换其他模型试试。";
     }
 
     _sendMessage(tempText, isFromUser: false);
@@ -326,8 +328,12 @@ class _CommonChatScreenState extends State<CommonChatScreen> {
       list.add(DropdownMenuItem<PlatformLLM>(
         value: e,
         alignment: AlignmentDirectional.center,
+        // child: Text(
+        //   "${widget.platType.name} 大模型${i + 1}",
+        //   style: TextStyle(fontSize: 10.sp),
+        // ),
         child: Text(
-          "${widget.platType.name} 大模型${i + 1}",
+          llmNames[e]!,
           style: TextStyle(fontSize: 10.sp),
         ),
       ));
@@ -340,7 +346,7 @@ class _CommonChatScreenState extends State<CommonChatScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('AI 对话'),
+        title: const Text('流AI 对话'),
         actions: [
           // TextButton(
           //   onPressed: () {
@@ -348,6 +354,13 @@ class _CommonChatScreenState extends State<CommonChatScreen> {
           //     _dbHelper.showTableNameList();
           //   },
           //   child: const Text("切换模型"),
+          // ),
+
+          // TextButton(
+          //   onPressed: () {
+          //     _sendMessage(defaultQuestions[0]);
+          //   },
+          //   child: const Text("流测试"),
           // ),
 
           /// 根据不同的云平台，切换支持的免费模型
@@ -499,6 +512,9 @@ class _CommonChatScreenState extends State<CommonChatScreen> {
               padding: EdgeInsets.all(5.sp),
               child: Column(
                 children: [
+                  // 如果是最后一个回复的文本，使用打字机特效
+                  // if (index == messages.length - 1)
+                  //   TypewriterText(text: messages[index].text),
                   MessageItem(message: messages[index]),
                   // 如果是大模型回复，可以有一些功能按钮
                   if (!messages[index].isFromUser)

@@ -10,6 +10,7 @@ import '../../models/common_llm_info.dart';
 import '../../common/utils/db_helper.dart';
 import '../../models/llm_chat_state.dart';
 import 'common_chat_screen.dart';
+import 'common_stream_chat_screen.dart';
 
 class AgiLlmSample extends StatefulWidget {
   const AgiLlmSample({super.key});
@@ -90,7 +91,7 @@ class _AgiLlmSampleState extends State<AgiLlmSample> {
               padding: EdgeInsets.symmetric(horizontal: 20.sp),
               crossAxisSpacing: 10,
               mainAxisSpacing: 20,
-              crossAxisCount: 2,
+              crossAxisCount: 3,
               childAspectRatio: 2 / 1,
               children: <Widget>[
                 buildAIChatEntrance(CloudPlatform.baidu, "百度千帆",
@@ -98,6 +99,12 @@ class _AgiLlmSampleState extends State<AgiLlmSample> {
                 buildAIChatEntrance(CloudPlatform.tencent, "腾讯混元",
                     color: Colors.teal[100]),
                 buildAIChatEntrance(CloudPlatform.aliyun, "阿里百炼",
+                    color: Colors.orange[100]),
+                buildAIChatStreamEntrance(CloudPlatform.baidu, "百度千帆(流式)",
+                    color: Colors.blue[100]),
+                buildAIChatStreamEntrance(CloudPlatform.tencent, "腾讯混元(流式)",
+                    color: Colors.teal[100]),
+                buildAIChatStreamEntrance(CloudPlatform.aliyun, "阿里百炼(流式)",
                     color: Colors.orange[100]),
               ],
             ),
@@ -124,7 +131,54 @@ class _AgiLlmSampleState extends State<AgiLlmSample> {
     );
   }
 
-  /// 构建AI对话云平台入口按钮
+  /// 跳转到流式请求的入口
+  buildAIChatStreamEntrance(
+    CloudPlatform platType,
+    String label, {
+    Color? color,
+  }) {
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => CommonStreamChatScreen(
+              platType: platType,
+            ),
+          ),
+        );
+      },
+      child: Container(
+        padding: EdgeInsets.all(0.sp),
+        decoration: BoxDecoration(
+          // 设置圆角半径为10
+          borderRadius: BorderRadius.all(Radius.circular(30.sp)),
+          color: color ?? Colors.teal[200],
+          // 添加阴影效果
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2), // 阴影颜色
+              spreadRadius: 2, // 阴影的大小
+              blurRadius: 5, // 阴影的模糊程度
+              offset: Offset(0, 2.sp), // 阴影的偏移量
+            ),
+          ],
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12.sp,
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).primaryColor,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 构建AI对话云平台入口按钮(默认非流式)
   buildAIChatEntrance(CloudPlatform platType, String label, {Color? color}) {
     return InkWell(
       onTap: () {
@@ -155,7 +209,7 @@ class _AgiLlmSampleState extends State<AgiLlmSample> {
           child: Text(
             label,
             style: TextStyle(
-              fontSize: 22.sp,
+              fontSize: 18.sp,
               fontWeight: FontWeight.bold,
               color: Theme.of(context).primaryColor,
             ),

@@ -8,7 +8,7 @@ import 'package:intl/intl.dart';
 class ChatMessage {
   final String messageId; // 每个消息有个ID方便整个对话列表的保存？？？
   final String text; // 文本内容
-  final DateTime dateTime; // 时间
+  DateTime dateTime; // 时间
   final bool isFromUser; // 是否来自用户
   final String? avatarUrl; // 头像URL
   final bool? isPlaceholder; // 是否是等待响应时的占位消息

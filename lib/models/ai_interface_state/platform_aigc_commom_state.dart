@@ -75,6 +75,7 @@ class CommonUsage {
 
 ///
 /// 百度的响应结果直接是result栏位
+/// 注意：腾讯的choice流式时取值Delta，非流式才取值Message，但两者结构是一样的，都是Role和Content
 ///
 class CommonChoice {
   CommonMessage message;
@@ -88,7 +89,11 @@ class CommonChoice {
   });
 
   factory CommonChoice.fromJson(Map<String, dynamic> json) => CommonChoice(
-        message: CommonMessage.fromJson(json["message"] ?? json["Message"]),
+        // 注意：腾讯的choice流式时取值Delta，非流式才取值Message，但两者结构是一样的，都是Role和Content
+        // 阿里的没有刻意区分
+        message: CommonMessage.fromJson(
+          json["message"] ?? json["Message"] ?? json["Delta"],
+        ),
         finishReason: json["finish_reason"] ?? json["FinishReason"],
         index: json["index"],
       );
@@ -133,14 +138,28 @@ class AliyunInput {
 class AliyunParameters {
   int? seed;
   String? resultFormat;
+  // 流式响应时，是否增量输出
+  // 默认为false，即后面的内容会包含已经输出的内容，不用手动叠加
+  bool? incrementalOutput;
 
-  AliyunParameters({this.seed, this.resultFormat});
+  AliyunParameters({
+    this.seed,
+    this.resultFormat,
+    this.incrementalOutput = true,
+  });
 
   factory AliyunParameters.fromJson(Map<String, dynamic> json) =>
-      AliyunParameters(seed: json["seed"], resultFormat: json["result_format"]);
+      AliyunParameters(
+        seed: json["seed"],
+        resultFormat: json["result_format"],
+        incrementalOutput: json["incremental_output"],
+      );
 
-  Map<String, dynamic> toJson() =>
-      {"seed": seed, "result_format": resultFormat};
+  Map<String, dynamic> toJson() => {
+        "seed": seed,
+        "result_format": resultFormat,
+        "incremental_output": incrementalOutput,
+      };
 }
 
 class AliyunOutput {
@@ -191,12 +210,20 @@ class CommonReqBody {
   String? model;
   // [腾讯、百度] 百度只需要这一个，模型在构建authorition就处理了
   List<CommonMessage>? messages;
+  //  [腾讯、百度] 是否流式返回(响应会更快，响应默认是增量模式，需要自行拼接；阿里的在自己的parameters中配置)
+  bool? stream;
   // [阿里云] 把消息体单独再放到一个input类中，该类还可以有其他属性
   AliyunInput? input;
   // [阿里云] 额外的，阿里还可以配置其他参数，比较有用的是指定输出消息的格式，阿里云不同模型可能默认响应不一样
   AliyunParameters? parameters;
 
-  CommonReqBody({this.model, this.messages, this.input, this.parameters});
+  CommonReqBody({
+    this.model,
+    this.messages,
+    this.stream = false,
+    this.input,
+    this.parameters,
+  });
 
   factory CommonReqBody.fromRawJson(String str) =>
       CommonReqBody.fromJson(json.decode(str));
@@ -212,6 +239,7 @@ class CommonReqBody {
           ((json["messages"] ?? json["Messages"]) as List)
               .map((x) => CommonMessage.fromJson(x)),
         ),
+        stream: json["stream"] ?? json["Stream"] ?? false,
         input:
             json["input"] == null ? null : AliyunInput.fromJson(json["input"]),
         parameters: json["parameters"] == null
@@ -229,10 +257,12 @@ class CommonReqBody {
                   (e) => e.toJson(caseType: "pascal"),
                 )
                 .toList(),
+            "Stream": stream,
           }
         : {
             "model": model,
             "messages": messages,
+            "stream": stream,
             "input": input?.toJson(),
             "parameters": parameters?.toJson(),
           };
@@ -402,9 +432,10 @@ class CommonRespBody {
         customReplyText = temp.first.message.content;
       }
     }
-    if (json["Note"] != null) {
-      customReplyText += "\n\n\n\n**${json["Note"]}**";
-    }
+    // 注意，如果是流式返回，每个都有note，拼在一起会有问题
+    // if (json["Note"] != null) {
+    //   customReplyText += "\n\n\n\n**${json["Note"]}**";
+    // }
 
     /// 报错信息很重要，先判断没有报错才显示正文回复的
     var errorCode = json["error_code"] ?? json["code"];
