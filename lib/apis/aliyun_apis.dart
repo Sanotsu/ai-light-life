@@ -12,6 +12,17 @@ import '_self_keys.dart';
 var aliyunAigcUrl =
     "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation";
 
+/// 2024-06-011 非流式的阿里返回content是空字符串？？？
+/*
+非流式就类似这样返回，明明output都有，但content是空的，原因不明，之前是ok的。
+{
+     output: {
+         choices: [{finish_reason: stop, message: {role: assistant, content: }}]
+    }
+     usage: {total_tokens: 87, output_tokens: 82, input_tokens: 5},
+     request_id: "4d9a188f-39ee-9c1b-839c-6ad961b211af"
+}
+*/
 Future<CommonRespBody> getAliyunAigcCommonResp(
   List<CommonMessage> messages, {
   String? model,
@@ -31,6 +42,7 @@ Future<CommonRespBody> getAliyunAigcCommonResp(
     path: aliyunAigcUrl,
     method: HttpMethod.post,
     headers: {
+      // "X-DashScope-SSE": "enable", // 不开启 SSE 响应
       "Content-Type": "application/json",
       "Authorization": "Bearer $ALIYUN_API_KEY",
     },
@@ -44,8 +56,13 @@ Future<CommonRespBody> getAliyunAigcCommonResp(
 
   print("2222222222xxxxxxxxxxxxxxxxx${(end - start) / 1000} 秒");
 
+  ///？？？ 2024-06-11 阿里云请求报错，会进入dio的错误拦截器，这里ret就是个null了
+  if (respData.runtimeType == String) {
+    respData = json.decode(respData);
+  }
+
   // 响应是json格式
-  return CommonRespBody.fromJson(respData);
+  return CommonRespBody.fromJson(respData ?? "{}");
 }
 
 Future<List<CommonRespBody>> getAliyunAigcStreamCommonResp(
@@ -70,7 +87,7 @@ Future<List<CommonRespBody>> getAliyunAigcStreamCommonResp(
     path: aliyunAigcUrl,
     method: HttpMethod.post,
     headers: {
-      "Accept": "text/event-stream", // 开启SSE
+      "X-DashScope-SSE": "enable", // 开启SSE
       "Content-Type": "application/json",
       "Authorization": "Bearer $ALIYUN_API_KEY",
     },

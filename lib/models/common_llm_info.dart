@@ -5,6 +5,13 @@ enum CloudPlatform {
   baidu,
 }
 
+// 模型对应的中文名
+final Map<CloudPlatform, String> cpNames = {
+  CloudPlatform.baidu: '百度',
+  CloudPlatform.tencent: '腾讯',
+  CloudPlatform.aliyun: '阿里',
+};
+
 // 定义一个函数来从字符串获取枚举值
 CloudPlatform stringToCloudPlatform(String value) {
   for (final entry in CloudPlatform.values) {
@@ -53,7 +60,7 @@ final Map<PlatformLLM, String> llmNames = {
   PlatformLLM.baiduErnieLite8K0922: 'ERNIE-Lite-8K-0922',
   PlatformLLM.baiduErnieLite8K0308: 'ERNIE-Lite-8K-0308',
   PlatformLLM.baiduErnieTiny8K: 'ERNIE-Tiny-8K',
-  PlatformLLM.tencentHunyuanLite: 'hunyuan-lite', // 256k上下文，最大输出6k
+  PlatformLLM.tencentHunyuanLite: '混元-Lite', // 256k上下文，最大输出6k
   PlatformLLM.aliyunQwen1p8BChat: '通义千问-开源版-1.8B', // 8k上下文，最大输出6k
   PlatformLLM.aliyunFaruiPlus32K: '通义法睿-Plus-32K',
 };

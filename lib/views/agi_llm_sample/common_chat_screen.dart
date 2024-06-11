@@ -4,26 +4,27 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:intl/intl.dart';
+import 'package:toggle_switch/toggle_switch.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../apis/aliyun_apis.dart';
 import '../../apis/baidu_apis.dart';
 import '../../apis/tencent_apis.dart';
+import '../../common/constants.dart';
 import '../../models/common_llm_info.dart';
 import '../../common/utils/db_helper.dart';
 import '../../models/ai_interface_state/platform_aigc_commom_state.dart';
 import '../../models/llm_chat_state.dart';
+
 import 'widgets/message_item.dart';
 
 class CommonChatScreen extends StatefulWidget {
-  // 混元还是erine(不同的公司，而且后者可以有好多个模型进行切换，前者就一个)
-  final CloudPlatform platType;
   // 2024-06-01 点击最近的历史记录对话，可以加载到新的对话页面
   // 那么需要一个标识获取该历史对话的内容
   final String? chatSessionId;
   const CommonChatScreen({
     super.key,
-    required this.platType,
     this.chatSessionId,
   });
 
@@ -32,20 +33,40 @@ class CommonChatScreen extends StatefulWidget {
 }
 
 class _CommonChatScreenState extends State<CommonChatScreen> {
-  final ScrollController _scrollController = ScrollController();
-  final TextEditingController _textController = TextEditingController();
   final DBHelper _dbHelper = DBHelper();
 
-// 默认使用的大模型，可以自行切换。
-// 预计希望在同一次对话时，即便切换了模型，也会带上上下文。
-// 那就要注意数量了，8K的限制
-  late PlatformLLM? defaultLlm;
+  // 人机对话消息滚动列表
+  final ScrollController _scrollController = ScrollController();
+
+  // 用户输入的文本控制器
+  final TextEditingController _userInputController = TextEditingController();
+  // 用户输入的内容（当不是AI在思考、且输入框有非空文字时才可以点击发送按钮）
+  String userInput = "";
+
+  // 要修改某个对话的名称
+  final TextEditingController _titleController = TextEditingController();
+
+  // 要修改最近对话列表中指定的某个对话的名称
+  final TextEditingController _selectionController = TextEditingController();
+
+  /// 级联选择效果：云平台-模型名
+  CloudPlatform selectedCloudPlatform = CloudPlatform.baidu;
+  PlatformLLM selectedLlm = PlatformLLM.baiduErnieLite8K0308;
 
   // AI是否在思考中(如果是，则不允许再次发送)
   bool isBotThinking = false;
 
-  // 用户输入的内容（当不是AI在思考、且输入框有非空文字时才可以点击发送按钮）
-  String userInput = "";
+  // 2024-06-11 默认使用流式请求，更快;但是同样的问题，流式使用的token会比非流式更多
+  bool isStream = true;
+
+  // 默认进入对话页面应该就是啥都没有，然后根据这空来显示预设对话
+  List<ChatMessage> messages = [];
+
+  // 2024-06-01 当前的对话记录(用于存入数据库或者从数据库中查询某个历史对话)
+  ChatSession? chatSession;
+
+  // 最近对话需要的记录历史对话的变量
+  List<ChatSession> chatHsitory = [];
 
   // 等待AI响应时的占位的消息，在构建真实对话的list时要删除
   var placeholderMessage = ChatMessage(
@@ -55,15 +76,6 @@ class _CommonChatScreenState extends State<CommonChatScreen> {
     dateTime: DateTime.now(),
     isPlaceholder: true,
   );
-
-  // 默认进入对话页面应该就是啥都没有，然后根据这空来显示预设对话
-  List<ChatMessage> messages = [];
-
-  // 2024-06-01 当前的对话记录(用于存入数据库或者从数据库中查询某个历史对话)
-  ChatSession? chatSession;
-
-  // 要修改某个对话的名称
-  final TextEditingController _titleController = TextEditingController();
 
   // 进入对话页面简单预设的一些问题
   List defaultQuestions = [
@@ -85,32 +97,35 @@ class _CommonChatScreenState extends State<CommonChatScreen> {
 
   @override
   void initState() {
-    // 千帆大模型有多个免费的模型所以才需要默认设一个；
-    // 混元大模型时不会用到这个栏位，就没有初始化给默认值
-    if (widget.platType == CloudPlatform.baidu) {
-      defaultLlm = PlatformLLM.baiduErnieSpeed8K;
-    } else if (widget.platType == CloudPlatform.aliyun) {
-      defaultLlm = PlatformLLM.aliyunQwen1p8BChat;
-    } else if (widget.platType == CloudPlatform.tencent) {
-      defaultLlm = PlatformLLM.tencentHunyuanLite;
-    }
-
     // 2024-06-01 为了通用，就在外面传入对话记录编号
     if (widget.chatSessionId != null) {
-      getChatInfo(widget.chatSessionId!);
+      _getChatInfo(widget.chatSessionId!);
     }
 
     super.initState();
   }
 
-  // 获取对话列表
-  getChatInfo(String chatId) async {
+  /// 获取指定对话列表
+  _getChatInfo(String chatId) async {
     print("调用了getChatInfo----------");
     var list = await _dbHelper.queryChatList(uuid: chatId);
 
     if (list.isNotEmpty && list.isNotEmpty) {
       setState(() {
         chatSession = list.first;
+
+        // 如果有存是哪个模型，也默认选中该模型
+        // ？？？2024-06-11 虽然同一个对话现在可以切换平台和模型了，但这里只是保留第一次对话取的值
+        // 后面对话过程中切换平台和模型，只会在该次对话过程中有效
+        var temp = llmModels.entries
+            .where((e) => e.value == list.first.llmName)
+            .toList();
+
+        if (temp.isNotEmpty) {
+          selectedLlm = temp.first.key;
+        }
+
+        print("list.first----${list.first}");
 
         // 查到了db中的历史记录，则需要替换成当前的(父页面没选择历史对话进来就是空，则都不会有这个函数)
         messages = chatSession!.messages;
@@ -120,7 +135,7 @@ class _CommonChatScreenState extends State<CommonChatScreen> {
 
   // 这个发送消息实际是将对话文本添加到对话列表中
   // 但是在用户发送消息之后，需要等到AI响应，成功响应之后将响应加入对话中
-  void _sendMessage(String text, {bool isFromUser = true}) {
+  _sendMessage(String text, {bool isFromUser = true}) {
     // 发送消息的逻辑，这里只是简单地将消息添加到列表中
     var temp = ChatMessage(
       messageId: const Uuid().v4(),
@@ -137,9 +152,9 @@ class _CommonChatScreenState extends State<CommonChatScreen> {
 
       // 2024-06-01 注意，在每次添加了对话之后，都把整个对话列表存入对话历史中去
       // 当然，要在占位消息之前
-      saveToDb();
+      _saveToDb();
 
-      _textController.clear();
+      _userInputController.clear();
       // 滚动到ListView的底部
       _scrollController.animateTo(
         _scrollController.position.maxScrollExtent,
@@ -155,12 +170,13 @@ class _CommonChatScreenState extends State<CommonChatScreen> {
         messages.add(placeholderMessage);
 
         // 不是腾讯，就是百度
-        getLlmResponse();
+        _getLlmResponse();
       }
     });
   }
 
-  saveToDb() async {
+  // 保存对话到数据库
+  _saveToDb() async {
     print("处理插入前message的长度${messages.length}");
     // 如果插入时只有一条，那就是用户首次输入，截取部分内容和生成对话记录的uuid
 
@@ -174,8 +190,8 @@ class _CommonChatScreenState extends State<CommonChatScreen> {
         gmtCreate: DateTime.now(),
         messages: messages,
         // 2026-06-06 这里记录的也是各平台原始的大模型名称
-        llmName: llmModels[defaultLlm]!,
-        cloudPlatformName: widget.platType.name,
+        llmName: llmModels[selectedLlm]!,
+        cloudPlatformName: selectedCloudPlatform.name,
       );
 
       print("这是输入了第一天消息，生成了初始化的对话$chatSession");
@@ -199,7 +215,7 @@ class _CommonChatScreenState extends State<CommonChatScreen> {
 
   // 根据不同的平台、选中的不同模型，调用对应的接口，得到回复
   // 虽然返回的响应通用了，但不同的平台和模型实际取值还是没有抽出来的
-  getLlmResponse() async {
+  _getLlmResponse() async {
     // 将已有的消息处理成Ernie支出的消息列表格式(构建查询条件时要删除占位的消息)
     List<CommonMessage> msgs = messages
         .where((e) => e.isPlaceholder != true)
@@ -210,20 +226,34 @@ class _CommonChatScreenState extends State<CommonChatScreen> {
         .toList();
 
     // 等待请求响应
-    CommonRespBody temp;
+    List<CommonRespBody> temp;
+    var llmName = llmModels[selectedLlm]!;
 
-    var llmName = llmModels[defaultLlm]!;
-
-    print("llmNames[defaultLlm]!----$llmName");
+    print("llmNames[selectedLlm]!----$llmName");
     // 2024-06-06 ??? 这里一定要确保存在模型名称，因为要作为http请求参数
-    if (widget.platType == CloudPlatform.baidu) {
-      temp = await getBaiduAigcCommonResp(msgs, model: llmName);
-    } else if (widget.platType == CloudPlatform.tencent) {
-      temp = await getTencentAigcCommonResp(msgs, model: llmName);
-    } else if (widget.platType == CloudPlatform.aliyun) {
-      temp = await getAliyunAigcCommonResp(msgs, model: llmName);
+    // 2024-06-11 如果是用户切换了“更快”或“更多”，则使用不同的请求
+    if (isStream) {
+      if (selectedCloudPlatform == CloudPlatform.baidu) {
+        temp = await getBaiduAigcStreamCommonResp(msgs, model: llmName);
+      } else if (selectedCloudPlatform == CloudPlatform.tencent) {
+        temp = await getTencentAigcStreamCommonResp(msgs, model: llmName);
+      } else if (selectedCloudPlatform == CloudPlatform.aliyun) {
+        temp = await getAliyunAigcStreamCommonResp(msgs, model: llmName);
+      } else {
+        temp = await getTencentAigcStreamCommonResp(msgs);
+      }
     } else {
-      temp = await getTencentAigcCommonResp(msgs);
+      if (selectedCloudPlatform == CloudPlatform.baidu) {
+        temp = [await getBaiduAigcCommonResp(msgs, model: llmName)];
+      } else if (selectedCloudPlatform == CloudPlatform.tencent) {
+        temp = [await getTencentAigcCommonResp(msgs, model: llmName)];
+      } else if (selectedCloudPlatform == CloudPlatform.aliyun) {
+        // 2024-06-11 注意，测试阿里云非流式响应结果是空字符串，原因不明，所以非流也暂时使用流式请求
+        // temp = [await getAliyunAigcCommonResp(msgs, model: llmName)];
+        temp = await getAliyunAigcStreamCommonResp(msgs, model: llmName);
+      } else {
+        temp = [await getTencentAigcCommonResp(msgs)];
+      }
     }
 
     // 得到回复后要删除表示加载中的占位消息
@@ -232,9 +262,10 @@ class _CommonChatScreenState extends State<CommonChatScreen> {
     });
 
     // 得到AI回复之后，添加到列表中，也注明不是用户提问
-    var tempText = temp.customReplyText;
-    if (temp.errorCode != null) {
-      tempText = "API接口报错: {${temp.errorCode}: ${temp.errorMsg}}，请切换其他模型试试。";
+    var tempText = temp.map((e) => e.customReplyText).join();
+    if (temp.isNotEmpty && temp.first.errorCode != null) {
+      tempText =
+          "API接口报错: {${temp.first.errorCode}: ${temp.first.errorMsg}}，请切换其他模型试试。";
     }
 
     _sendMessage(tempText, isFromUser: false);
@@ -243,6 +274,339 @@ class _CommonChatScreenState extends State<CommonChatScreen> {
   /// 2024-05-31 暂时不根据token的返回来说了，临时直接显示整个对话不超过8千字
   bool isMessageTooLong() =>
       messages.fold(0, (sum, msg) => sum + msg.text.length) > 8000;
+
+  /// 当切换了云平台时，要同步切换选中的大模型
+  onCloudPlatformChanged(CloudPlatform? value) {
+    // 如果平台被切换，则更新当前的平台为选中的平台，且重置模型为符合该平台的模型的第一个
+    if (value != selectedCloudPlatform) {
+      // 更新被选中的平台为当前选中平台
+      selectedCloudPlatform = value ?? CloudPlatform.baidu;
+
+      // 找到符合平台的模型（？？？理论上一定不为空，为空了就是有问题的数据）
+      var temp = PlatformLLM.values
+          .where((e) => e.name.startsWith(selectedCloudPlatform.name))
+          .toList();
+
+      setState(() {
+        selectedLlm = temp.first;
+      });
+    }
+  }
+
+  /// 最后一条大模型回复如果不满意，可以重新生成(中间的不行，因为后续的问题是关联上下文的)
+  regenerateLatestQuestion() {
+    setState(() {
+      // 将最后一条消息删除，并添加占位消息，重新发送
+      messages.removeLast();
+      placeholderMessage.dateTime = DateTime.now();
+      messages.add(placeholderMessage);
+
+      _getLlmResponse();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('AI 对话'),
+        actions: [
+          // TextButton(
+          //   onPressed: () {
+          //     // _dbHelper.deleteDB();
+          //     _dbHelper.showTableNameList();
+          //   },
+          //   child: const Text("切换模型"),
+          // ),
+          // buildB(),
+
+          SizedBox(width: 10.sp),
+
+          /// 选择“更快”就使用流式请求，否则就一般的非流式
+          ToggleSwitch(
+            minHeight: 24,
+            minWidth: 44.0,
+            fontSize: 11.0,
+            cornerRadius: 5.0,
+            dividerMargin: 0.0,
+            // isVertical: true,
+            // // 激活时按钮的前景背景色
+            // activeFgColor: Colors.black,
+            // activeBgColor: [Colors.green],
+            // // 未激活时的前景背景色
+            // inactiveBgColor: Colors.grey,
+            // inactiveFgColor: Colors.white,
+            initialLabelIndex: isStream ? 0 : 1,
+            totalSwitches: 2,
+            labels: const ['更快', '更多'],
+            // radiusStyle: true,
+            onToggle: (index) {
+              print('switched to: $index');
+
+              setState(() {
+                isStream = index == 0 ? true : false;
+              });
+
+              print('isStream to: $isStream');
+            },
+          ),
+
+          /// 创建新对话
+          TextButton(
+            onPressed: () {
+              // 建立新对话就是把已有的对话清空就好(因为保存什么的在发送消息时就处理了)？？？
+              setState(() {
+                chatSession = null;
+                messages.clear();
+              });
+            },
+            child: const Text("新对话"),
+          ),
+          Builder(
+            builder: (BuildContext context) {
+              return IconButton(
+                icon: Text(
+                  '最近对话',
+                  style: TextStyle(color: Theme.of(context).primaryColor),
+                ),
+                onPressed: () async {
+                  // 获取历史记录
+
+                  //  await _dbHelper.deleteDB();
+
+                  var a = await _dbHelper.queryChatList();
+
+                  setState(() {
+                    chatHsitory = a;
+                  });
+                  print("历史记录$a");
+
+                  if (!mounted) return;
+                  // ignore: use_build_context_synchronously
+                  Scaffold.of(context).openEndDrawer();
+                },
+              );
+            },
+          ),
+        ],
+      ),
+      body: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          /// 构建可切换云平台和模型的行
+          Container(
+            color: Colors.grey[300],
+            child: buildPlatAndLlmRow(),
+          ),
+
+          /// 如果对话是空，显示预设的问题
+          if (messages.isEmpty) ...buildDefaultQuestionArea(),
+
+          /// 在顶部显示对话标题(避免在appbar显示，内容太挤)
+          if (chatSession != null) buildChatTitleArea(),
+
+          // 标题和对话正文的分割线
+          const Divider(),
+
+          /// 显示对话消息主体
+          buildChatListArea(),
+
+          /// 显示输入框和发送按钮
+          const Divider(),
+          buildUserSendArea(),
+        ],
+      ),
+      endDrawer: Drawer(
+        child: ListView(
+          children: <Widget>[
+            SizedBox(
+              // 调整DrawerHeader的高度
+              height: 60.sp,
+              child: DrawerHeader(
+                decoration: BoxDecoration(color: Colors.lightGreen[100]),
+                child: const Center(child: Text('最近对话')),
+              ),
+            ),
+            ...(chatHsitory.map((e) => buildGestureItems(e)).toList()),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 构建在对话历史中的对话标题列表
+  buildGestureItems(ChatSession e) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.of(context).pop();
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => CommonChatScreen(
+              chatSessionId: e.uuid,
+            ),
+          ),
+        );
+      },
+      child: Card(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Padding(
+                padding: EdgeInsets.only(left: 5.sp),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      e.title,
+                      style: TextStyle(fontSize: 12.sp),
+                      maxLines: 2,
+                      softWrap: true,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      DateFormat(constDatetimeFormat).format(e.gmtCreate),
+                      style: TextStyle(fontSize: 10.sp),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            SizedBox(
+              width: 80.sp,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildUpdateBotton(e),
+                  _buildDeleteBotton(e),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  _buildDeleteBotton(ChatSession e) {
+    return SizedBox(
+      width: 40.sp,
+      child: IconButton(
+        onPressed: () {
+          showDialog(
+            context: context,
+            builder: (context) {
+              return AlertDialog(
+                title: Text("确认删除对话记录:", style: TextStyle(fontSize: 18.sp)),
+                content: Text(e.title),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop(false);
+                    },
+                    child: const Text("取消"),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop(true);
+                    },
+                    child: const Text("确定"),
+                  ),
+                ],
+              );
+            },
+          ).then((value) async {
+            if (value == true) {
+              // 先删除
+              var a = await _dbHelper.deleteChatById(e.uuid);
+
+              print("删除结果---------$a");
+
+              // 然后重新查询并更新
+              var b = await _dbHelper.queryChatList();
+
+              print("查询结果---------${b.length}");
+              setState(() {
+                chatHsitory = b;
+              });
+            }
+          });
+        },
+        icon: Icon(
+          Icons.delete,
+          size: 16.sp,
+          color: Theme.of(context).primaryColor,
+        ),
+        iconSize: 18.sp,
+        padding: EdgeInsets.all(0.sp),
+      ),
+    );
+  }
+
+  _buildUpdateBotton(ChatSession e) {
+    return SizedBox(
+      width: 40.sp,
+      child: IconButton(
+        onPressed: () {
+          setState(() {
+            _selectionController.text = e.title;
+          });
+          showDialog(
+            context: context,
+            builder: (context) {
+              return AlertDialog(
+                title: Text("修改对话记录标题:", style: TextStyle(fontSize: 18.sp)),
+                content: TextField(
+                  controller: _selectionController,
+                  maxLines: 2,
+                  // autofocus: true,
+                  // onChanged: (v) {
+                  //   print("onChange: $v");
+                  // },
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop(false);
+                    },
+                    child: const Text("取消"),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop(true);
+                    },
+                    child: const Text("确定"),
+                  ),
+                ],
+              );
+            },
+          ).then((value) async {
+            if (value == true) {
+              var temp = e;
+              temp.title = _selectionController.text.trim();
+              // 修改对话的标题
+              _dbHelper.updateChatSession(temp);
+
+              // 修改成功后重新查询更新
+              var b = await _dbHelper.queryChatList();
+              setState(() {
+                chatHsitory = b;
+              });
+            }
+          });
+        },
+        icon: Icon(
+          Icons.edit,
+          size: 16.sp,
+          color: Theme.of(context).primaryColor,
+        ),
+        iconSize: 18.sp,
+      ),
+    );
+  }
 
   /// 修改自动生成对话的标题
   updateChatTile() {
@@ -299,123 +663,65 @@ class _CommonChatScreenState extends State<CommonChatScreen> {
     });
   }
 
-  /// 最后一条大模型回复如果不满意，可以重新生成(中间的不行，因为后续的问题是关联上下文的)
-  regenerateLatestQuestion() {
-    setState(() {
-      // 将最后一条消息删除，并添加占位消息，重新发送
-      messages.removeLast();
-      placeholderMessage.dateTime = DateTime.now();
-      messages.add(placeholderMessage);
-
-      getLlmResponse();
-    });
-  }
-
-  /// 从所有模型在获取指定平台的模型构建下拉按钮选项列表
-  List<DropdownMenuItem<PlatformLLM>> buildLLMList() {
-    // 因为目前是先选择平台进来，然后再可选择模型(后续可以放过级联选择在这个页面)
-    // 所以要过滤符合平台的模型
-    var tempList = PlatformLLM.values
-        .where((m) => m.name.startsWith(widget.platType.name))
-        .toList();
-
-    List<DropdownMenuItem<PlatformLLM>> list = [];
-    for (var i = 0; i < tempList.length; i++) {
-      var e = tempList[i];
-
-      list.add(DropdownMenuItem<PlatformLLM>(
-        value: e,
-        alignment: AlignmentDirectional.center,
-        child: Text(
-          "${widget.platType.name} 大模型${i + 1}",
-          style: TextStyle(fontSize: 10.sp),
-        ),
-      ));
-    }
-
-    return list;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('AI 对话'),
-        actions: [
-          // TextButton(
-          //   onPressed: () {
-          //     // _dbHelper.deleteDB();
-          //     _dbHelper.showTableNameList();
-          //   },
-          //   child: const Text("切换模型"),
-          // ),
-
-          /// 根据不同的云平台，切换支持的免费模型
-          DropdownButton<PlatformLLM>(
-            value: defaultLlm,
+  /// 构建切换平台和模型的行
+  buildPlatAndLlmRow() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        SizedBox(width: 40.sp),
+        const Text("平台:"),
+        SizedBox(width: 10.sp),
+        SizedBox(
+          width: 60.sp,
+          child: DropdownButton<CloudPlatform?>(
+            value: selectedCloudPlatform,
             isDense: true,
-            alignment: AlignmentDirectional.centerEnd,
-            // 从所有模型中过滤指定平台的模型(一点注意有效命名方式)
-            items: buildLLMList(),
-            // PlatformLLM.values
-            //     .where((m) => m.name.startsWith(widget.platType.name))
-            //     .map<DropdownMenuItem<PlatformLLM>>(
-            //       (PlatformLLM value) => DropdownMenuItem<PlatformLLM>(
-            //         value: value,
-            //         alignment: AlignmentDirectional.center,
-            //         child: Text(
-            //           "模型 ${value.index + 1}",
-            //           style: TextStyle(fontSize: 10.sp),
-            //         ),
-            //       ),
-            //     )
-            //     .toList(),
-            onChanged: (PlatformLLM? newValue) {
+            alignment: AlignmentDirectional.center,
+            items: CloudPlatform.values.map((e) {
+              return DropdownMenuItem<CloudPlatform?>(
+                value: e,
+                alignment: AlignmentDirectional.center,
+                child: Text(
+                  cpNames[e]!,
+                  style: TextStyle(fontSize: 15.sp, color: Colors.blue),
+                ),
+              );
+            }).toList(),
+            onChanged: onCloudPlatformChanged,
+          ),
+        ),
+
+        const Text("模型:"),
+        SizedBox(width: 10.sp),
+        Expanded(
+          child: DropdownButton<PlatformLLM?>(
+            value: selectedLlm,
+            isDense: true,
+            items: PlatformLLM.values
+                .where((m) => m.name.startsWith(selectedCloudPlatform.name))
+                .map((e) => DropdownMenuItem<PlatformLLM>(
+                      value: e,
+                      alignment: AlignmentDirectional.center,
+                      child: Text(
+                        llmNames[e]!,
+                        style: TextStyle(fontSize: 12.sp, color: Colors.blue),
+                      ),
+                    ))
+                .toList(),
+            onChanged: (val) {
               setState(() {
-                defaultLlm = newValue!;
+                selectedLlm = val!;
               });
             },
           ),
-
-          /// 创建新对话
-          TextButton(
-            onPressed: () {
-              // 建立新对话就是把已有的对话清空就好(因为保存什么的在发送消息时就处理了)？？？
-              setState(() {
-                chatSession = null;
-                messages.clear();
-              });
-            },
-            child: const Text("新对话"),
-          ),
-        ],
-      ),
-      body: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          /// 如果对话是空，显示预设的问题
-          if (messages.isEmpty) ..._buildDefaultQuestionArea(),
-
-          /// 在顶部显示对话标题(避免在appbar显示，内容太挤)
-          if (chatSession != null) _buildChatTitleArea(),
-
-          // 标题和对话正文的分割线
-          const Divider(),
-
-          /// 显示对话消息主体
-          _buildChatListArea(),
-
-          /// 显示输入框和发送按钮
-          const Divider(),
-          _buildUserSendArea(),
-        ],
-      ),
+        ),
+        //
+      ],
     );
   }
 
   /// 直接进入对话页面，展示预设问题的区域
-  _buildDefaultQuestionArea() {
+  buildDefaultQuestionArea() {
     return [
       const Text("你可以试着问我(对话总长度建议不超过8000字)："),
       Expanded(
@@ -444,7 +750,7 @@ class _CommonChatScreenState extends State<CommonChatScreen> {
   }
 
   /// 对话的标题区域
-  _buildChatTitleArea() {
+  buildChatTitleArea() {
     // 点击可修改标题
     return Padding(
       padding: EdgeInsets.all(5.sp),
@@ -487,7 +793,7 @@ class _CommonChatScreenState extends State<CommonChatScreen> {
   }
 
   /// 构建对话列表主体
-  _buildChatListArea() {
+  buildChatListArea() {
     return Expanded(
       child: ListView.builder(
         controller: _scrollController, // 设置ScrollController
@@ -499,6 +805,9 @@ class _CommonChatScreenState extends State<CommonChatScreen> {
               padding: EdgeInsets.all(5.sp),
               child: Column(
                 children: [
+                  // 如果是最后一个回复的文本，使用打字机特效
+                  // if (index == messages.length - 1)
+                  //   TypewriterText(text: messages[index].text),
                   MessageItem(message: messages[index]),
                   // 如果是大模型回复，可以有一些功能按钮
                   if (!messages[index].isFromUser)
@@ -523,7 +832,7 @@ class _CommonChatScreenState extends State<CommonChatScreen> {
                             );
 
                             EasyLoading.showToast(
-                              "已复制",
+                              "已复制到剪贴板",
                               duration: const Duration(seconds: 3),
                               toastPosition: EasyLoadingToastPosition.center,
                             );
@@ -550,14 +859,14 @@ class _CommonChatScreenState extends State<CommonChatScreen> {
   }
 
   /// 用户发送消息的区域
-  _buildUserSendArea() {
+  buildUserSendArea() {
     return Padding(
       padding: EdgeInsets.all(5.sp),
       child: Row(
         children: [
           Expanded(
             child: TextField(
-              controller: _textController,
+              controller: _userInputController,
               decoration: const InputDecoration(
                 hintText: '可以向我提任何问题哦 ٩(๑❛ᴗ❛๑)۶',
                 border: OutlineInputBorder(), // 添加边框

@@ -158,9 +158,9 @@ class ChatSession {
       "uuid": $uuid,
       "title": $title,
       "gmtCreate": $gmtCreate,
-      "messages": $messages,
       "llmName": $llmName,
-      "cloudPlatformName": $cloudPlatformName
+      "cloudPlatformName": $cloudPlatformName,
+      "messages": $messages
     }
     ''';
   }
