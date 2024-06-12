@@ -60,6 +60,9 @@ dependencies:
   device_info_plus: ^10.1.0
   animated_text_kit: ^4.2.2 # 动画文本特效工具，上次更新2022-06-05 但用户多
   toggle_switch: ^2.3.0 # 第三方的切换按钮
+  cached_network_image: ^3.3.1 # 缓存网络图片
+  image_gallery_saver: ^2.0.3 # 保存图片到图库(安卓9及以下无效)
+  photo_view: ^0.15.0 # 图片预览
 
 dev_dependencies:
   flutter_test:

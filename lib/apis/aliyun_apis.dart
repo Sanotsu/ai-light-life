@@ -5,6 +5,7 @@ import 'dart:convert';
 import '../dio_client/cus_http_client.dart';
 import '../dio_client/cus_http_request.dart';
 import '../models/ai_interface_state/platform_aigc_commom_state.dart';
+import '../models/ai_interface_state/aliyun_text2image_state.dart';
 import '../models/common_llm_info.dart';
 import '_self_keys.dart';
 
@@ -126,4 +127,96 @@ Future<List<CommonRespBody>> getAliyunAigcStreamCommonResp(
 
   // 响应是json格式
   return list;
+}
+
+///
+/// 文生图任务提交 POST https://dashscope.aliyuncs.com/api/v1/services/aigc/text2image/image-synthesis
+///
+var aliyunText2imageUrl =
+    "https://dashscope.aliyuncs.com/api/v1/services/aigc/text2image/image-synthesis";
+
+Future<AliyunTextToImgResp> commitAliyunText2ImgJob(
+  Input input,
+  Parameters parameters,
+) async {
+  // var body = AliyunTextToImgReq(
+  //   model: "wanx-v1",
+  //   input: Input(
+  //     prompt: "一只奔跑的猫、猫娘",
+  //     negativePrompt: "肥胖、加菲、老",
+  //   ),
+  //   parameters: Parameters(
+  //     style: "<3d cartoon>",
+  //     size: "1024*1024",
+  //     n: 2,
+  //     seed: 12345678,
+  //     strength: 0.5,
+  //   ),
+  // );
+
+  var body = AliyunTextToImgReq(
+    model: "wanx-v1",
+    input: input,
+    parameters: parameters,
+  );
+
+  var start = DateTime.now().millisecondsSinceEpoch;
+
+  var respData = await HttpUtils.post(
+    path: aliyunText2imageUrl,
+    method: HttpMethod.post,
+    headers: {
+      "X-DashScope-Async": "enable", // 固定的，异步方式提交作业。
+      "Content-Type": "application/json",
+      "Authorization": "Bearer $ALIYUN_API_KEY",
+    },
+    // 可能是因为头的content type设定，这里直接传类实例即可，传toJson也可
+    data: body,
+  );
+
+  print("阿里云文生图---------------------$respData");
+
+  var end = DateTime.now().millisecondsSinceEpoch;
+
+  print("2222222222xxxxxxxxxxxxxxxxx${(end - start) / 1000} 秒");
+
+  ///？？？ 2024-06-11 阿里云请求报错，会进入dio的错误拦截器，这里ret就是个null了
+  if (respData.runtimeType == String) {
+    respData = json.decode(respData);
+  }
+
+  // 响应是json格式
+  return AliyunTextToImgResp.fromJson(respData ?? {});
+}
+
+///
+/// 作业任务状态查询和结果获取接口
+/// GET https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}
+///
+Future<AliyunTextToImgResp> getAliyunText2ImgJobResult(String taskId) async {
+  var start = DateTime.now().millisecondsSinceEpoch;
+
+  // var taskId = "8bb11ab3-a7b2-4e37-b90f-f7d31d356279";
+
+  var respData = await HttpUtils.post(
+    path: "https://dashscope.aliyuncs.com/api/v1/tasks/$taskId",
+    method: HttpMethod.get,
+    headers: {
+      "Authorization": "Bearer $ALIYUN_API_KEY",
+    },
+  );
+
+  print("阿里云文生图结果查询---------------------$respData");
+
+  var end = DateTime.now().millisecondsSinceEpoch;
+
+  print("333333xxxxxxxxxxxxxxxxx${(end - start) / 1000} 秒");
+
+  ///？？？ 2024-06-11 阿里云请求报错，会进入dio的错误拦截器，这里ret就是个null了
+  if (respData.runtimeType == String) {
+    respData = json.decode(respData);
+  }
+
+  // 响应是json格式
+  return AliyunTextToImgResp.fromJson(respData ?? "{}");
 }

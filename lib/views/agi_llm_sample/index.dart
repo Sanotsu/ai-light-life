@@ -5,6 +5,7 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import 'common_chat_screen.dart';
+import 'aliyun_text2image_screen.dart';
 
 class AgiLlmSample extends StatefulWidget {
   const AgiLlmSample({super.key});
@@ -79,7 +80,44 @@ class _AgiLlmSampleState extends State<AgiLlmSample> {
               childAspectRatio: 16 / 9,
               children: <Widget>[
                 buildAIChatEntrance("文生文", color: Colors.blue[200]),
-                buildAIChatEntrance("文生图(todo)", color: Colors.grey[100]),
+                // buildAIChatEntrance("文生图(todo)", color: Colors.grey[100]),
+                InkWell(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AliyunText2ImageScreen(),
+                      ),
+                    );
+                  },
+                  child: Container(
+                    padding: EdgeInsets.all(8.sp),
+                    decoration: BoxDecoration(
+                      // 设置圆角半径为10
+                      borderRadius: BorderRadius.all(Radius.circular(30.sp)),
+                      color: Colors.teal[200],
+                      // 添加阴影效果
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.2), // 阴影颜色
+                          spreadRadius: 2, // 阴影的大小
+                          blurRadius: 5, // 阴影的模糊程度
+                          offset: Offset(0, 2.sp), // 阴影的偏移量
+                        ),
+                      ],
+                    ),
+                    child: Center(
+                      child: Text(
+                        "文生图",
+                        style: TextStyle(
+                          fontSize: 18.sp,
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).primaryColor,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
