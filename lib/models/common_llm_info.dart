@@ -30,8 +30,9 @@ enum PlatformLLM {
   baiduErnieSpeed8K,
   baiduErnieSpeed128K,
   // baiduErnieSpeedAppBuilder,
-  baiduErnieLite8K0922,
-  baiduErnieLite8K0308,
+  // baiduErnieLite8K0922, // 2024-07-04 下线
+  // baiduErnieLite8K0308,
+  baiduErnieLite8K, // 2024-06-12 有短信通知，使用不带日期后缀的为宜
   baiduErnieTiny8K,
   tencentHunyuanLite,
   aliyunQwen1p8BChat, // 1.8b -> 1point8b -> 1p8b
@@ -44,8 +45,9 @@ final Map<PlatformLLM, String> llmModels = {
   PlatformLLM.baiduErnieSpeed8K: 'ernie_speed',
   PlatformLLM.baiduErnieSpeed128K: 'ernie-speed-128k',
   // PlatformLLM.baiduErnieSpeedAppBuilder: 'ai_apaas',
-  PlatformLLM.baiduErnieLite8K0922: 'eb-instant',
-  PlatformLLM.baiduErnieLite8K0308: 'ernie-lite-8k',
+  // PlatformLLM.baiduErnieLite8K0922: 'eb-instant',
+  // PlatformLLM.baiduErnieLite8K0308: 'ernie-lite-8k',
+  PlatformLLM.baiduErnieLite8K: 'ernie-lite-8k',
   PlatformLLM.baiduErnieTiny8K: 'ernie-tiny-8k',
   PlatformLLM.tencentHunyuanLite: 'hunyuan-lite', // 256k上下文，最大输出6k
   PlatformLLM.aliyunQwen1p8BChat: 'qwen-1.8b-chat', // 8k上下文，最大输出6k
@@ -57,8 +59,9 @@ final Map<PlatformLLM, String> llmNames = {
   PlatformLLM.baiduErnieSpeed8K: 'ERNIE-Speed-8K',
   PlatformLLM.baiduErnieSpeed128K: 'ERNIE-Speed-128K',
   // PlatformLLM.baiduErnieSpeedAppBuilder: 'ERNIE-Speed-AppBuilder-8K-0322',
-  PlatformLLM.baiduErnieLite8K0922: 'ERNIE-Lite-8K-0922',
-  PlatformLLM.baiduErnieLite8K0308: 'ERNIE-Lite-8K-0308',
+  // PlatformLLM.baiduErnieLite8K0922: 'ERNIE-Lite-8K-0922',
+  // PlatformLLM.baiduErnieLite8K0308: 'ERNIE-Lite-8K-0308',
+  PlatformLLM.baiduErnieLite8K: 'ERNIE-Lite-8K',
   PlatformLLM.baiduErnieTiny8K: 'ERNIE-Tiny-8K',
   PlatformLLM.tencentHunyuanLite: '混元-Lite', // 256k上下文，最大输出6k
   PlatformLLM.aliyunQwen1p8BChat: '通义千问-开源版-1.8B', // 8k上下文，最大输出6k
@@ -66,16 +69,24 @@ final Map<PlatformLLM, String> llmNames = {
 };
 
 // 模型对应的分类(比如短小的基础对话、专业的知识等)
-final Map<PlatformLLM, String> llmCategories = {
-  PlatformLLM.baiduErnieSpeed8K: '通用能力',
-  PlatformLLM.baiduErnieSpeed128K: '通用能力',
+final Map<PlatformLLM, String> llmDescriptions = {
+  PlatformLLM.baiduErnieSpeed8K:
+      'ERNIE Speed是百度2024年最新发布的自研高性能大语言模型，通用能力优异，适合作为基座模型进行精调，更好地处理特定场景问题，同时具备极佳的推理性能。\n\nERNIE-Speed-8K是模型的一个版本，上下文窗口为8K。',
+  PlatformLLM.baiduErnieSpeed128K:
+      'ERNIE Speed是百度2024年最新发布的自研高性能大语言模型，通用能力优异，适合作为基座模型进行精调，更好地处理特定场景问题，同时具备极佳的推理性能。\n\nERNIE-Speed-128K是模型的一个版本，上下文窗口为128K。。',
   // PlatformLLM.baiduErnieSpeedAppBuilder: '针对企业级大模型应用进行了专门的指令调优，在问答场景、智能体相关场景可以获得同等规模模型下更好的效果',
-  PlatformLLM.baiduErnieLite8K0922: '轻量级大语言模型，兼顾优异的模型效果与推理性能',
-  PlatformLLM.baiduErnieLite8K0308: '轻量级大语言模型，兼顾优异的模型效果与推理性能',
-  PlatformLLM.baiduErnieTiny8K: '部署与精调成本在文心系列模型中最低',
-  PlatformLLM.tencentHunyuanLite: '在NLP，代码，数学，行业等多项评测集上领先众多开源模型',
-  PlatformLLM.aliyunQwen1p8BChat: '通义千问对外开源的1.8B规模参数量的经过人类指令对齐的chat模型',
-  PlatformLLM.aliyunFaruiPlus32K: '通义法睿是以通义千问为基座经法律行业数据和知识专门训练的法律行业大模型产品',
+  // PlatformLLM.baiduErnieLite8K0922: '轻量级大语言模型，兼顾优异的模型效果与推理性能',
+  // PlatformLLM.baiduErnieLite8K0308: '轻量级大语言模型，兼顾优异的模型效果与推理性能',
+  PlatformLLM.baiduErnieLite8K:
+      'ERNIE Lite是百度自研的轻量级大语言模型，兼顾优异的模型效果与推理性能，适合低算力AI加速卡推理使用。',
+  PlatformLLM.baiduErnieTiny8K:
+      'ERNIE Tiny是百度自研的超高性能大语言模型，部署与精调成本在文心系列模型中最低。\n\nERNIE-Tiny-8K是模型的一个版本，上下文窗口为8K。',
+  PlatformLLM.tencentHunyuanLite:
+      '腾讯混元大模型(Tencent Hunyuan)是由腾讯研发的大语言模型，具备强大的中文创作能力，复杂语境下的逻辑推理能力，以及可靠的任务执行能力。\\nn混元-Lite 升级为MOE结构，上下文窗口为256k，在NLP，代码，数学，行业等多项评测集上领先众多开源模型。',
+  PlatformLLM.aliyunQwen1p8BChat:
+      '"通义千问-开源版-1.8B"是通义千问对外开源的1.8B规模参数量的经过人类指令对齐的chat模型，模型支持 8k tokens上下文，API限定用户输入为6k Tokens。',
+  PlatformLLM.aliyunFaruiPlus32K:
+      '"通义法睿"是以通义千问为基座经法律行业数据和知识专门训练的法律行业大模型产品，综合运用了模型精调、强化学习、 RAG检索增强、法律Agent技术，具有回答法律问题、推理法律适用、推荐裁判类案、辅助案情分析、生成法律文书、检索法律知识、审查合同条款等功能。',
 };
 
 ///

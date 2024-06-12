@@ -20,13 +20,7 @@ import '../../models/llm_chat_state.dart';
 import 'widgets/message_item.dart';
 
 class CommonChatScreen extends StatefulWidget {
-  // 2024-06-01 点击最近的历史记录对话，可以加载到新的对话页面
-  // 那么需要一个标识获取该历史对话的内容
-  final String? chatSessionId;
-  const CommonChatScreen({
-    super.key,
-    this.chatSessionId,
-  });
+  const CommonChatScreen({super.key});
 
   @override
   State createState() => _CommonChatScreenState();
@@ -47,11 +41,11 @@ class _CommonChatScreenState extends State<CommonChatScreen> {
   final TextEditingController _titleController = TextEditingController();
 
   // 要修改最近对话列表中指定的某个对话的名称
-  final TextEditingController _selectionController = TextEditingController();
+  final _selectedTitleController = TextEditingController();
 
   /// 级联选择效果：云平台-模型名
   CloudPlatform selectedCloudPlatform = CloudPlatform.baidu;
-  PlatformLLM selectedLlm = PlatformLLM.baiduErnieLite8K0308;
+  PlatformLLM selectedLlm = PlatformLLM.baiduErnieSpeed8K;
 
   // AI是否在思考中(如果是，则不允许再次发送)
   bool isBotThinking = false;
@@ -95,16 +89,6 @@ class _CommonChatScreenState extends State<CommonChatScreen> {
     // "一个长方体的棱长和是144厘米，它的长、宽、高之比是4:3:2，长方体的体积是多少？",
   ];
 
-  @override
-  void initState() {
-    // 2024-06-01 为了通用，就在外面传入对话记录编号
-    if (widget.chatSessionId != null) {
-      _getChatInfo(widget.chatSessionId!);
-    }
-
-    super.initState();
-  }
-
   /// 获取指定对话列表
   _getChatInfo(String chatId) async {
     print("调用了getChatInfo----------");
@@ -117,15 +101,19 @@ class _CommonChatScreenState extends State<CommonChatScreen> {
         // 如果有存是哪个模型，也默认选中该模型
         // ？？？2024-06-11 虽然同一个对话现在可以切换平台和模型了，但这里只是保留第一次对话取的值
         // 后面对话过程中切换平台和模型，只会在该次对话过程中有效
-        var temp = llmModels.entries
+        var tempLlms = llmModels.entries
             .where((e) => e.value == list.first.llmName)
             .toList();
 
-        if (temp.isNotEmpty) {
-          selectedLlm = temp.first.key;
-        }
+        var tempCps = CloudPlatform.values
+            .where((e) => e.name.contains(list.first.cloudPlatformName ?? ""))
+            .toList();
 
-        print("list.first----${list.first}");
+        // 避免麻烦，两个都不为空才显示；否则还是预设的
+        if (tempLlms.isNotEmpty && tempCps.isNotEmpty) {
+          selectedLlm = tempLlms.first.key;
+          selectedCloudPlatform = tempCps.first;
+        }
 
         // 查到了db中的历史记录，则需要替换成当前的(父页面没选择历史对话进来就是空，则都不会有这个函数)
         messages = chatSession!.messages;
@@ -308,88 +296,7 @@ class _CommonChatScreenState extends State<CommonChatScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('AI 对话'),
-        actions: [
-          // TextButton(
-          //   onPressed: () {
-          //     // _dbHelper.deleteDB();
-          //     _dbHelper.showTableNameList();
-          //   },
-          //   child: const Text("切换模型"),
-          // ),
-          // buildB(),
-
-          SizedBox(width: 10.sp),
-
-          /// 选择“更快”就使用流式请求，否则就一般的非流式
-          ToggleSwitch(
-            minHeight: 24,
-            minWidth: 44.0,
-            fontSize: 11.0,
-            cornerRadius: 5.0,
-            dividerMargin: 0.0,
-            // isVertical: true,
-            // // 激活时按钮的前景背景色
-            // activeFgColor: Colors.black,
-            // activeBgColor: [Colors.green],
-            // // 未激活时的前景背景色
-            // inactiveBgColor: Colors.grey,
-            // inactiveFgColor: Colors.white,
-            initialLabelIndex: isStream ? 0 : 1,
-            totalSwitches: 2,
-            labels: const ['更快', '更多'],
-            // radiusStyle: true,
-            onToggle: (index) {
-              print('switched to: $index');
-
-              setState(() {
-                isStream = index == 0 ? true : false;
-              });
-
-              print('isStream to: $isStream');
-            },
-          ),
-
-          /// 创建新对话
-          TextButton(
-            onPressed: () {
-              // 建立新对话就是把已有的对话清空就好(因为保存什么的在发送消息时就处理了)？？？
-              setState(() {
-                chatSession = null;
-                messages.clear();
-              });
-            },
-            child: const Text("新对话"),
-          ),
-          Builder(
-            builder: (BuildContext context) {
-              return IconButton(
-                icon: Text(
-                  '最近对话',
-                  style: TextStyle(color: Theme.of(context).primaryColor),
-                ),
-                onPressed: () async {
-                  // 获取历史记录
-
-                  //  await _dbHelper.deleteDB();
-
-                  var a = await _dbHelper.queryChatList();
-
-                  setState(() {
-                    chatHsitory = a;
-                  });
-                  print("历史记录$a");
-
-                  if (!mounted) return;
-                  // ignore: use_build_context_synchronously
-                  Scaffold.of(context).openEndDrawer();
-                },
-              );
-            },
-          ),
-        ],
-      ),
+      appBar: buildAppbarArea(),
       body: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -397,7 +304,10 @@ class _CommonChatScreenState extends State<CommonChatScreen> {
           /// 构建可切换云平台和模型的行
           Container(
             color: Colors.grey[300],
-            child: buildPlatAndLlmRow(),
+            child: Padding(
+              padding: EdgeInsets.only(left: 20.sp),
+              child: buildPlatAndLlmRow(),
+            ),
           ),
 
           /// 如果对话是空，显示预设的问题
@@ -435,20 +345,104 @@ class _CommonChatScreenState extends State<CommonChatScreen> {
     );
   }
 
+  /// 构建appbar区域
+  buildAppbarArea() {
+    return AppBar(
+      title: const Text('AI对话'),
+      actions: [
+        // TextButton(
+        //   onPressed: () {
+        //     // _dbHelper.deleteDB();
+        //     _dbHelper.showTableNameList();
+        //   },
+        //   child: const Text("切换模型"),
+        // ),
+        // buildB(),
+
+        /// 选择“更快”就使用流式请求，否则就一般的非流式
+        ToggleSwitch(
+          minHeight: 24.sp,
+          minWidth: 44.sp,
+          fontSize: 11.sp,
+          cornerRadius: 5.sp,
+          dividerMargin: 0.sp,
+          // isVertical: true,
+          // // 激活时按钮的前景背景色
+          // activeFgColor: Colors.black,
+          // activeBgColor: [Colors.green],
+          // // 未激活时的前景背景色
+          // inactiveBgColor: Colors.grey,
+          // inactiveFgColor: Colors.white,
+          initialLabelIndex: isStream ? 0 : 1,
+          totalSwitches: 2,
+          labels: const ['更快', '更多'],
+          // radiusStyle: true,
+          onToggle: (index) {
+            print('switched to: $index');
+
+            setState(() {
+              isStream = index == 0 ? true : false;
+            });
+
+            print('isStream to: $isStream');
+          },
+        ),
+        SizedBox(width: 20.sp),
+
+        /// 创建新对话
+        IconButton(
+          onPressed: () {
+            // 建立新对话就是把已有的对话清空就好(因为保存什么的在发送消息时就处理了)？？？
+            setState(() {
+              chatSession = null;
+              messages.clear();
+            });
+          },
+          icon: Icon(Icons.add, size: 24.sp),
+        ),
+        Builder(
+          builder: (BuildContext context) {
+            return IconButton(
+              // icon: Text(
+              //   '最近对话',
+              //   style: TextStyle(
+              //     fontSize: 12.sp,
+              //     color: Theme.of(context).primaryColor,
+              //   ),
+              // ),
+              icon: Icon(Icons.history, size: 24.sp),
+              onPressed: () async {
+                // 获取历史记录
+
+                //  await _dbHelper.deleteDB();
+
+                var a = await _dbHelper.queryChatList();
+
+                setState(() {
+                  chatHsitory = a;
+                });
+                print("历史记录$a");
+
+                if (!mounted) return;
+                // ignore: use_build_context_synchronously
+                Scaffold.of(context).openEndDrawer();
+              },
+            );
+          },
+        ),
+      ],
+    );
+  }
+
   /// 构建在对话历史中的对话标题列表
   buildGestureItems(ChatSession e) {
     return GestureDetector(
       onTap: () {
         Navigator.of(context).pop();
-
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => CommonChatScreen(
-              chatSessionId: e.uuid,
-            ),
-          ),
-        );
+        // 点击了知道历史对话，则替换当前对话
+        setState(() {
+          _getChatInfo(e.uuid);
+        });
       },
       child: Card(
         child: Row(
@@ -532,6 +526,14 @@ class _CommonChatScreenState extends State<CommonChatScreen> {
               setState(() {
                 chatHsitory = b;
               });
+
+              // 2024-06-11 如果删除的历史对话，就是当前对话，那就要跳到新开对话页面
+              if (chatSession?.uuid == e.uuid) {
+                setState(() {
+                  chatSession = null;
+                  messages.clear();
+                });
+              }
             }
           });
         },
@@ -552,7 +554,7 @@ class _CommonChatScreenState extends State<CommonChatScreen> {
       child: IconButton(
         onPressed: () {
           setState(() {
-            _selectionController.text = e.title;
+            _selectedTitleController.text = e.title;
           });
           showDialog(
             context: context,
@@ -560,7 +562,7 @@ class _CommonChatScreenState extends State<CommonChatScreen> {
               return AlertDialog(
                 title: Text("修改对话记录标题:", style: TextStyle(fontSize: 18.sp)),
                 content: TextField(
-                  controller: _selectionController,
+                  controller: _selectedTitleController,
                   maxLines: 2,
                   // autofocus: true,
                   // onChanged: (v) {
@@ -586,7 +588,7 @@ class _CommonChatScreenState extends State<CommonChatScreen> {
           ).then((value) async {
             if (value == true) {
               var temp = e;
-              temp.title = _selectionController.text.trim();
+              temp.title = _selectedTitleController.text.trim();
               // 修改对话的标题
               _dbHelper.updateChatSession(temp);
 
@@ -608,7 +610,7 @@ class _CommonChatScreenState extends State<CommonChatScreen> {
     );
   }
 
-  /// 修改自动生成对话的标题
+  /// 修改当前正在对话的自动生成对话的标题
   updateChatTile() {
     setState(() {
       _titleController.text = chatSession!.title;
@@ -668,55 +670,95 @@ class _CommonChatScreenState extends State<CommonChatScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        SizedBox(width: 40.sp),
         const Text("平台:"),
         SizedBox(width: 10.sp),
         SizedBox(
           width: 60.sp,
-          child: DropdownButton<CloudPlatform?>(
-            value: selectedCloudPlatform,
-            isDense: true,
-            alignment: AlignmentDirectional.center,
-            items: CloudPlatform.values.map((e) {
-              return DropdownMenuItem<CloudPlatform?>(
-                value: e,
-                alignment: AlignmentDirectional.center,
-                child: Text(
-                  cpNames[e]!,
-                  style: TextStyle(fontSize: 15.sp, color: Colors.blue),
-                ),
-              );
-            }).toList(),
-            onChanged: onCloudPlatformChanged,
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey, width: 1.0),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: DropdownButton<CloudPlatform?>(
+              value: selectedCloudPlatform,
+              isDense: true,
+              alignment: AlignmentDirectional.center,
+              items: CloudPlatform.values.map((e) {
+                return DropdownMenuItem<CloudPlatform?>(
+                  value: e,
+                  alignment: AlignmentDirectional.center,
+                  child: Text(
+                    cpNames[e]!,
+                    style: TextStyle(fontSize: 15.sp, color: Colors.blue),
+                  ),
+                );
+              }).toList(),
+              onChanged: onCloudPlatformChanged,
+            ),
           ),
         ),
 
         const Text("模型:"),
         SizedBox(width: 10.sp),
         Expanded(
-          child: DropdownButton<PlatformLLM?>(
-            value: selectedLlm,
-            isDense: true,
-            items: PlatformLLM.values
-                .where((m) => m.name.startsWith(selectedCloudPlatform.name))
-                .map((e) => DropdownMenuItem<PlatformLLM>(
-                      value: e,
-                      alignment: AlignmentDirectional.center,
-                      child: Text(
-                        llmNames[e]!,
-                        style: TextStyle(fontSize: 12.sp, color: Colors.blue),
-                      ),
-                    ))
-                .toList(),
-            onChanged: (val) {
-              setState(() {
-                selectedLlm = val!;
-              });
-            },
+          // 下拉框有个边框，需要放在容器中
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey, width: 1.0),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: DropdownButton<PlatformLLM?>(
+              value: selectedLlm,
+              isDense: true,
+              alignment: AlignmentDirectional.centerEnd,
+              items: PlatformLLM.values
+                  .where((m) => m.name.startsWith(selectedCloudPlatform.name))
+                  .map((e) => DropdownMenuItem<PlatformLLM>(
+                        value: e,
+                        alignment: AlignmentDirectional.center,
+                        child: Text(
+                          llmNames[e]!,
+                          style: TextStyle(fontSize: 12.sp, color: Colors.blue),
+                        ),
+                      ))
+                  .toList(),
+              onChanged: (val) {
+                setState(() {
+                  selectedLlm = val!;
+                });
+              },
+            ),
           ),
+        ),
+        IconButton(
+          onPressed: () {
+            _showHelpDialog(context, llmDescriptions[selectedLlm] ?? "");
+          },
+          icon: Icon(Icons.help, size: 18.sp),
+          iconSize: 20.sp,
         ),
         //
       ],
+    );
+  }
+
+  void _showHelpDialog(BuildContext context, String text) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('模型说明'),
+          content: Text(text),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('关闭'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
     );
   }
 
