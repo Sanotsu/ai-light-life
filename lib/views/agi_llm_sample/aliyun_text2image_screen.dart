@@ -35,40 +35,28 @@ class _AliyunText2ImageScreenState extends State<AliyunText2ImageScreen>
   String negativePrompt = "";
 
   // 可选的图片风格
-  Map<String, List<String>> styles = {
-    "默认": [
-      'auto',
-      "https://img.alicdn.com/imgextra/i2/O1CN011O63Nx1kGxP0iWziu_!!6000000004657-0-tps-600-595.jpg"
-    ],
-    "3D卡通": [
-      '3d cartoon',
-      "https://img.alicdn.com/imgextra/i4/O1CN01hskruP1KcJreu8a22_!!6000000001184-0-tps-600-595.jpg"
-    ],
-    "动画": [
-      'anime',
-      "https://img.alicdn.com/imgextra/i2/O1CN01r0BnOq1mYTmrqtDp0_!!6000000004966-0-tps-600-595.jpg"
-    ],
-    "油画": [
-      'oil painting',
-      "https://img.alicdn.com/imgextra/i1/O1CN01pWQ0lK1dgsVWjphQn_!!6000000003766-0-tps-600-595.jpg"
-    ],
-    "水彩": [
-      'watercolor',
-      "https://img.alicdn.com/imgextra/i3/O1CN01I76QDg1kJhmKTCWUu_!!6000000004663-0-tps-600-595.jpg"
-    ],
-    "素描": [
-      'sketch',
-      "https://img.alicdn.com/imgextra/i2/O1CN0152hIXE1g0gs6wSXCo_!!6000000004080-0-tps-600-595.jpg"
-    ],
-    "中国画": [
-      'chinese painting',
-      "https://img.alicdn.com/imgextra/i3/O1CN01JZYQ4h20ZlWH7WjSp_!!6000000006864-0-tps-600-595.jpg"
-    ],
-    "扁平插画": [
-      'flat illustration',
-      "https://img.alicdn.com/imgextra/i2/O1CN01DWkQJk1SVSrbGSlsN_!!6000000002252-0-tps-600-595.jpg"
-    ],
+  Map<String, String> styles = {
+    "默认": 'auto',
+    "3D卡通": '3d cartoon',
+    "动画": 'anime',
+    "油画": 'oil painting',
+    "水彩": 'watercolor',
+    "素描": 'sketch',
+    "中国画": 'chinese painting',
+    "扁平插画": 'flat illustration',
   };
+  // 选定的风格对应的预览本地图片
+  List<String> styleImages = [
+    'assets/text2image_styles/默认.jpg',
+    'assets/text2image_styles/3D卡通.jpg',
+    'assets/text2image_styles/动画.jpg',
+    'assets/text2image_styles/油画.jpg',
+    'assets/text2image_styles/水彩.jpg',
+    'assets/text2image_styles/素描.jpg',
+    'assets/text2image_styles/中国画.jpg',
+    'assets/text2image_styles/扁平插画.jpg',
+  ];
+
 // 初始化为0，表示第一个样式被选中
   int _selectedStyleIndex = 0;
   // 预设的尺寸列表
@@ -162,7 +150,7 @@ class _AliyunText2ImageScreenState extends State<AliyunText2ImageScreen>
 
     print("正向词 $prompt");
     print("消极词 $negativePrompt");
-    print("样式 <${styles.values.toList()[_selectedStyleIndex][0]}>");
+    print("样式 <${styles.values.toList()[_selectedStyleIndex]}>");
     print("尺寸 ${sizeList[selectedSizeIndex]}");
     print("张数 ${numSize[selectedNumIndex]}");
 
@@ -172,7 +160,7 @@ class _AliyunText2ImageScreenState extends State<AliyunText2ImageScreen>
     );
 
     var parameters = Parameters(
-      style: "<${styles.values.toList()[_selectedStyleIndex][0]}>",
+      style: "<${styles.values.toList()[_selectedStyleIndex]}>",
       size: sizeList[selectedSizeIndex],
       n: numSize[selectedNumIndex],
     );
@@ -218,14 +206,35 @@ class _AliyunText2ImageScreenState extends State<AliyunText2ImageScreen>
 
   // 定时检查文生图任务的状态
   Future<AliyunTextToImgResp?> timedText2ImageJobStatus(String taskId) async {
-    const maxWaitDuration = Duration(minutes: 5); // 设置最大等待时间为5分钟
+    // 是否超时了
+    bool isMaxWaitTimeExceeded = false;
+
+    const maxWaitDuration = Duration(minutes: 10); // 设置最大等待时间为10分钟
+
+    // 超时之后会报错，所以就会跳出下面的while循环
     Timer timer = Timer(maxWaitDuration, () {
       print('Max wait time exceeded. Stopping requests.');
       // 在这里可以执行一些清理工作，比如取消其他请求
+      // 10分钟还没有得到结果，取消遮罩，弹窗报错
+      setState(() {
+        isGenImage = false;
+        _removeLoadingOverlay();
+      });
+
+      EasyLoading.showError(
+        "生成图片超时，请稍候重试！",
+        duration: const Duration(seconds: 10),
+      );
+
+      // 超时了要修改超时标识，以便退出while循环
+      isMaxWaitTimeExceeded = true;
+
+      print('Job wait time exceeded. Terminated...');
     });
 
+    // 10分钟定时内，循环获取文生图任务的状态；超过10分钟则超时跳出循环
     bool isRequestSuccessful = false;
-    while (!isRequestSuccessful) {
+    while (!isRequestSuccessful && !isMaxWaitTimeExceeded) {
       try {
         var result = await getAliyunText2ImgJobResult(taskId);
 
@@ -239,7 +248,7 @@ class _AliyunText2ImageScreenState extends State<AliyunText2ImageScreen>
 
           return result;
         } else {
-          print('Request failed. Retrying...');
+          print('Job still running. Retrying...');
           // 如果请求失败，等待一段时间后重试
           await Future.delayed(const Duration(seconds: 5)); // 这里设置重试间隔为5秒
         }
@@ -279,6 +288,9 @@ class _AliyunText2ImageScreenState extends State<AliyunText2ImageScreen>
         "https://dashscope-result-hz.oss-cn-hangzhou.aliyuncs.com/1d/85/20240612/522176a8/b0056938-0aef-451e-871e-efcbf900e741-1.png?Expires=1718263794&OSSAccessKeyId=LTAI5tQZd8AEcZX6KZV4G8qL&Signature=H2Q34TYygkkmAoxmutnNpuGU0mg%3D",
         "https://dashscope-result-sh.oss-cn-shanghai.aliyuncs.com/1d/87/20240612/1b61f1c0/18ded425-eba6-477a-9141-bf6e263cd355-1.png?Expires=1718263794&OSSAccessKeyId=LTAI5tQZd8AEcZX6KZV4G8qL&Signature=vrpEVY6eChP8M3DS9NSauC4USWU%3D",
         "https://dashscope-result-hz.oss-cn-hangzhou.aliyuncs.com/1d/81/20240612/522176a8/236ad21f-8e2b-435b-b488-9377615f2da3-1.png?Expires=1718280633&OSSAccessKeyId=LTAI5tQZd8AEcZX6KZV4G8qL&Signature=t4mITLm169UWvxWa6acWLEBjbgs%3D",
+        "https://dashscope-result-sh.oss-cn-shanghai.aliyuncs.com/1d/e9/20240613/1b61f1c0/38439ec0-cc66-42a8-a2c6-45a3d3ba7162-1.png?Expires=1718332753&OSSAccessKeyId=LTAI5tQZd8AEcZX6KZV4G8qL&Signature=9WoaCavRSvctaQc7uO1pZIgPJJ4%3D",
+        "https://dashscope-result-sh.oss-cn-shanghai.aliyuncs.com/1d/eb/20240613/1b61f1c0/134c1b5b-09ea-40f2-9464-bb705e25b0fd-1.png?Expires=1718333128&OSSAccessKeyId=LTAI5tQZd8AEcZX6KZV4G8qL&Signature=4sCQJSs0RIf8hZsNEcOa5zGkw8c%3D",
+        "https://dashscope-result-hz.oss-cn-hangzhou.aliyuncs.com/1d/51/20240613/522176a8/11a9d0b3-3c76-4d5f-91c9-b3f6d9087bd5-1.png?Expires=1718334452&OSSAccessKeyId=LTAI5tQZd8AEcZX6KZV4G8qL&Signature=IPXbq2FnFhzPts8s%2FZFgDYbAjZg%3D",
       ];
       isGenImage = false;
       _removeLoadingOverlay();
@@ -289,26 +301,57 @@ class _AliyunText2ImageScreenState extends State<AliyunText2ImageScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('AI文生图'),
+        title: const Text('AI文本生成图像'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              var taskId = "4975f6a4-373d-4996-bbd8-e0cbc57dd89a";
+
+              getAliyunText2ImgJobResult(taskId);
+            },
+            child: const Text("测试任务"),
+          )
+        ],
       ),
+      resizeToAvoidBottomInset: false,
       body: Column(
         mainAxisAlignment: MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           /// 执行按钮
-          buildText2ImageButtonArea(),
+          // buildText2ImageButtonArea(),
+          Padding(
+            padding: EdgeInsets.all(5.sp),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  "文生图配置",
+                  style: TextStyle(
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                buildText2ImageButtonArea(),
+              ],
+            ),
+          ),
 
           /// 文生图配置折叠栏
-          Expanded(child: buildConfigArea()),
+          Expanded(flex: 2, child: buildConfigArea()),
 
           const Divider(),
           Padding(
             padding: EdgeInsets.all(5.sp),
-            child: Text("生成的图片结果：", style: TextStyle(fontSize: 16.sp)),
+            child: Text(
+              "生成的图片(点击查看、长按保存)",
+              style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold),
+            ),
           ),
 
           /// 文生图的结果
-          Expanded(child: buildImageResult()),
+          buildImageResult(),
+          SizedBox(height: 10.sp),
         ],
       ),
     );
@@ -321,6 +364,7 @@ class _AliyunText2ImageScreenState extends State<AliyunText2ImageScreen>
       children: [
         TextButton(
           onPressed: () {
+            FocusScope.of(context).unfocus();
             // 处理编辑按钮的点击事件
             setState(() {
               prompt = "";
@@ -362,6 +406,25 @@ class _AliyunText2ImageScreenState extends State<AliyunText2ImageScreen>
   /// 构建文生图的配置折叠栏
   buildConfigArea() {
     return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          /// 画风、尺寸、张数选择
+          _buildStyleAndNumberSizeArea(),
+          // ...buildStyleNumSizeToggleSwitchs(),
+
+          /// 正向提示词
+          _buildPromptHint(),
+
+          /// 消极提示词
+          _buildNegativePromptHint(),
+        ],
+      ),
+    );
+  }
+
+  buildConfigAreaBak() {
+    return SingleChildScrollView(
       child: ExpansionTile(
         controller: _expansionTileController,
         initiallyExpanded: true,
@@ -389,38 +452,54 @@ class _AliyunText2ImageScreenState extends State<AliyunText2ImageScreen>
   /// 构建生成的图片区域
   buildImageResult() {
     return SizedBox(
-      height: 0.4.sh,
+      // 最多4张图片，每张占0.24宽度，高度就预留0.5宽度。在外层Column最下面留点空即可
+      height: 0.5.sw,
       child: SingleChildScrollView(
         child: Column(
           children: [
             if (rstImageUrls.isNotEmpty)
               Padding(
-                padding: EdgeInsets.all(10.sp),
-                child: _buildRstImageGrid(rstImageUrls, context),
+                padding: EdgeInsets.symmetric(horizontal: 0.25.sw),
+                child: _buildRstImageGrid(
+                  styles.keys.toList()[_selectedStyleIndex],
+                  rstImageUrls,
+                  context,
+                ),
               ),
           ],
         ),
       ),
     );
   }
+  // buildImageResult() {
+  //   return SingleChildScrollView(
+  //     child: Column(
+  //       children: [
+  //         if (rstImageUrls.isNotEmpty)
+  //           Padding(
+  //             padding: EdgeInsets.symmetric(horizontal: 0.25.sw),
+  //             child: _buildRstImageGrid(rstImageUrls, context),
+  //           ),
+  //       ],
+  //     ),
+  //   );
+  // }
 
   /// 构建画风、尺寸、张数选择区域
   _buildStyleAndNumberSizeArea() {
     return Row(
       children: [
-        SizedBox(
-          // height: 200.sp,
-          width: 0.6.sw,
-          child: _buildImageGrid(),
-        ),
+        SizedBox(width: 5.sp),
+        SizedBox(width: 0.48.sw, child: _buildImageGrid()),
         SizedBox(width: 5.sp),
         Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text("尺寸："),
             Center(
               child: ToggleSwitch(
-                minHeight: 30.sp,
-                minWidth: 0.36.sw,
+                minHeight: 32.sp,
+                minWidth: 0.47.sw,
                 fontSize: 12.sp,
                 cornerRadius: 5.sp,
                 dividerMargin: 10.sp,
@@ -430,31 +509,28 @@ class _AliyunText2ImageScreenState extends State<AliyunText2ImageScreen>
                 labels: sizeList,
                 // radiusStyle: true,
                 onToggle: (index) {
-                  print('switched to: $index');
-
                   setState(() {
                     selectedSizeIndex = index ?? 0;
                   });
                 },
               ),
             ),
-            const Divider(),
-            const Text("张数："),
+            SizedBox(height: 2.sp),
+            const Text("张数(2毛一张)："),
             Center(
               child: ToggleSwitch(
-                minHeight: 40.sp,
-                minWidth: 0.09.sw,
+                minHeight: 32.sp,
+                minWidth: 0.115.sw,
                 fontSize: 12.sp,
                 cornerRadius: 5.sp,
                 dividerMargin: 0.sp,
                 initialLabelIndex: selectedNumIndex,
                 totalSwitches: 4,
-                // radiusStyle: true,
+                radiusStyle: true,
                 multiLineText: true,
                 centerText: true,
                 labels: numSize.map((e) => "$e张").toList(),
                 onToggle: (index) {
-                  print('switched to: $index');
                   setState(() {
                     selectedNumIndex = index ?? 0;
                   });
@@ -475,11 +551,11 @@ class _AliyunText2ImageScreenState extends State<AliyunText2ImageScreen>
         mainAxisAlignment: MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text("正向提示词(不可为空)"),
+          const Text("正向提示词(不可为空)", style: TextStyle(color: Colors.green)),
           TextField(
             controller: _promptController,
             decoration: InputDecoration(
-              hintText: '描述画面的提示词信息。',
+              hintText: '描述画面的提示词信息。支持中英文，长度不超过500个字符。',
               hintStyle: TextStyle(fontSize: 12.sp),
               border: const OutlineInputBorder(), // 添加边框
             ),
@@ -506,7 +582,7 @@ class _AliyunText2ImageScreenState extends State<AliyunText2ImageScreen>
         mainAxisAlignment: MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text("反向提示词"),
+          const Text("反向提示词(可以不填)"),
           TextField(
             controller: _negativePromptController,
             decoration: InputDecoration(
@@ -630,15 +706,10 @@ class _AliyunText2ImageScreenState extends State<AliyunText2ImageScreen>
                 borderRadius: BorderRadius.circular(5.0), // 可选，为图片添加圆角
               ),
               child: _buildImageStack(
-                styles.entries.toList()[index].value[1],
+                styleImages[index],
                 styles.keys.toList()[index],
-                styles.entries.toList()[index].value[0],
+                styles.values.toList()[index],
               ),
-
-              // Image.network(
-              //   styles.entries.toList()[index].value[1],
-              //   fit: BoxFit.cover,
-              // ),
             ),
           ),
         );
@@ -653,23 +724,23 @@ _buildImageStack(String url, String label, String label1) {
     fit: StackFit.expand, // 使Stack填满父Widget的空间
     children: [
       // 图片作为背景
-      // Positioned.fill(
-      //   child: Image.asset(
-      //     'assets/image.jpg', // 请替换为你的图片路径
-      //     fit: BoxFit.cover, // 使图片覆盖并保持宽高比填充Stack
-      //   ),
-      // ),
       Positioned.fill(
-        child: Image.network(
-          url,
-          fit: BoxFit.cover, // 保持图片宽高比并填充Stack
-          errorBuilder:
-              (BuildContext context, Object exception, StackTrace? stackTrace) {
-            // 图片加载失败时的回退处理
-            return Container(color: Colors.grey.shade300);
-          },
+        child: Image.asset(
+          url, // 请替换为你的图片路径
+          fit: BoxFit.cover, // 使图片覆盖并保持宽高比填充Stack
         ),
       ),
+      // Positioned.fill(
+      //   child: Image.network(
+      //     url,
+      //     fit: BoxFit.cover, // 保持图片宽高比并填充Stack
+      //     errorBuilder:
+      //         (BuildContext context, Object exception, StackTrace? stackTrace) {
+      //       // 图片加载失败时的回退处理
+      //       return Container(color: Colors.grey.shade300);
+      //     },
+      //   ),
+      // ),
       // 文字覆盖在图片上
       // 文字覆盖在图片上并居中
       Align(
@@ -685,13 +756,13 @@ _buildImageStack(String url, String label, String label1) {
                 text: label,
                 style: TextStyle(
                   // color: Colors.orange,
-                  fontSize: 12.sp,
+                  fontSize: 10.sp,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               TextSpan(
                 text: "\n$label1",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 10.sp),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 9.sp),
               ),
             ],
           ),
@@ -723,7 +794,7 @@ _buildImageStack(String url, String label, String label1) {
 }
 
 /// 构建生成的图片结果
-_buildRstImageGrid(List<String> urls, BuildContext context) {
+_buildRstImageGrid(String style, List<String> urls, BuildContext context) {
   return GridView.count(
     crossAxisCount: 2,
     shrinkWrap: true,
@@ -773,10 +844,15 @@ _buildRstImageGrid(List<String> urls, BuildContext context) {
 
                 // 安卓9及以下好像无法保存
                 final result = await ImageGallerySaver.saveImage(
-                    Uint8List.fromList(response.data),
-                    quality: 100,
-                    name: "hello$index");
-                print(result);
+                  Uint8List.fromList(response.data),
+                  quality: 100,
+                  name: "${style}_${DateTime.now().millisecondsSinceEpoch}",
+                );
+                if (result["isSuccess"] == true) {
+                  EasyLoading.showToast("图片已保存到相册！");
+                } else {
+                  EasyLoading.showToast("无法保存图片！");
+                }
               } else {
                 EasyLoading.showToast("Android9 及以下版本无法长按保存到相册！");
               }
