@@ -10,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../models/brief_accounting_state.dart';
 import '../../models/llm_chat_state.dart';
+import '../../models/llm_text2image_state.dart';
 import 'ddl_brief_accounting.dart';
 
 // 导出表文件临时存放的文件夹
@@ -65,6 +66,7 @@ class DBHelper {
       // txn.execute(BriefAccountingDdl.ddlForIncome);
       txn.execute(BriefAccountingDdl.ddlForBillItem);
       txn.execute(BriefAccountingDdl.ddlForChatHistory);
+      txn.execute(BriefAccountingDdl.ddlForText2ImageHistory);
     });
   }
 
@@ -567,4 +569,63 @@ class DBHelper {
         where: 'uuid = ?',
         whereArgs: [item.uuid],
       );
+
+  ///***********************************************/
+  /// AI 文生图的相关操作
+  ///
+
+// 查询所有记录
+  Future<List<TextToImageResult>> queryTextToImageResultList({
+    String? requestId,
+    String? prompt,
+  }) async {
+    Database db = await database;
+
+    print("文生图历史记录查询参数：");
+    print("uuid $requestId");
+    print("正向提示词关键字 $prompt");
+
+    final where = <String>[];
+    final whereArgs = <dynamic>[];
+
+    if (requestId != null) {
+      where.add('request_id = ?');
+      whereArgs.add(requestId);
+    }
+
+    if (prompt != null) {
+      where.add('prompt LIKE ?');
+      whereArgs.add("%$prompt%");
+    }
+
+    final rows = await db.query(
+      BriefAccountingDdl.tableNameOfText2ImageHistory,
+      where: where.isNotEmpty ? where.join(' AND ') : null,
+      whereArgs: whereArgs.isNotEmpty ? whereArgs : null,
+      orderBy: "gmt_create DESC",
+    );
+
+    return rows.map((row) => TextToImageResult.fromMap(row)).toList();
+  }
+
+  // 删除单条
+  Future<int> deleteTextToImageResultById(String requestId) async =>
+      (await database).delete(
+        BriefAccountingDdl.tableNameOfText2ImageHistory,
+        where: "request_id=?",
+        whereArgs: [requestId],
+      );
+
+  // 新增(只有单个的时候就一个值的数组，理论上不会批量插入)
+  Future<List<Object?>> insertTextToImageResultList(
+      List<TextToImageResult> rsts) async {
+    var batch = (await database).batch();
+    for (var item in rsts) {
+      batch.insert(
+        BriefAccountingDdl.tableNameOfText2ImageHistory,
+        item.toMap(),
+      );
+    }
+    return await batch.commit();
+  }
 }

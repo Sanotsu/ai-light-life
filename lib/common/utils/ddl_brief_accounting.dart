@@ -20,7 +20,7 @@ class BriefAccountingDdl {
     );
     """;
 
-  /// 2024-06-1 新增AI对话留存
+  /// 2024-06-01 新增AI对话留存
   // 账单条目表
   static const tableNameOfChatHistory = 'ba_chat_history';
 
@@ -33,6 +33,22 @@ class BriefAccountingDdl {
       llm_name            TEXT    NOT NULL,
       yun_platform_name   TEXT,
       PRIMARY KEY("uuid")
+    );
+    """;
+
+  /// 2024-06-13 新增文生图简单内容流程
+  // 账单条目表
+  static const tableNameOfText2ImageHistory = 'ba_text2image_history';
+
+  static const String ddlForText2ImageHistory = """
+    CREATE TABLE $tableNameOfText2ImageHistory (
+      request_id      TEXT    NOT NULL,
+      prompt          TEXT    NOT NULL,
+      negative_prompt TEXT,
+      style           TEXT    NOT NULL,
+      image_urls      TEXT,
+      gmt_create      TEXT    NOT NULL,
+      PRIMARY KEY("request_id")
     );
     """;
 

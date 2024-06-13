@@ -13,9 +13,13 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:image_gallery_saver/image_gallery_saver.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:toggle_switch/toggle_switch.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../apis/aliyun_apis.dart';
+import '../../common/utils/db_helper.dart';
 import '../../models/ai_interface_state/aliyun_text2image_state.dart';
+import '../../models/llm_text2image_state.dart';
+import '../accounting/mock_data/index.dart';
 
 class AliyunText2ImageScreen extends StatefulWidget {
   const AliyunText2ImageScreen({super.key});
@@ -26,6 +30,8 @@ class AliyunText2ImageScreen extends StatefulWidget {
 
 class _AliyunText2ImageScreenState extends State<AliyunText2ImageScreen>
     with WidgetsBindingObserver {
+  final DBHelper _dbHelper = DBHelper();
+
   final _promptController = TextEditingController();
   final _negativePromptController = TextEditingController();
 
@@ -80,6 +86,9 @@ class _AliyunText2ImageScreenState extends State<AliyunText2ImageScreen>
   // 控制ExpansionTile是否展开的控制器
   final _expansionTileController = ExpansionTileController();
 
+  // 最近对话需要的记录历史对话的变量
+  List<TextToImageResult> text2ImageHsitory = [];
+
   @override
   void initState() {
     super.initState();
@@ -116,6 +125,7 @@ class _AliyunText2ImageScreenState extends State<AliyunText2ImageScreen>
               children: [
                 CircularProgressIndicator(),
                 Text("图片生成中……"),
+                Text("请勿退出当前页面"),
               ],
             ),
           ),
@@ -189,6 +199,19 @@ class _AliyunText2ImageScreenState extends State<AliyunText2ImageScreen>
           if (e.url != null) imageUrls.add(e.url!);
         }
       }
+
+      var temp = TextToImageResult(
+        requestId: jobResp.requestId ?? "无",
+        prompt: prompt,
+        negativePrompt: negativePrompt,
+        style: "<${styles.values.toList()[_selectedStyleIndex]}>",
+        imageUrls: imageUrls,
+        gmtCreate: DateTime.now(),
+      );
+
+      var aa = await _dbHelper.insertTextToImageResultList([temp]);
+
+      print("文生图===========插入数据库的结果$aa");
 
       setState(() {
         rstImageUrls = imageUrls;
@@ -280,18 +303,7 @@ class _AliyunText2ImageScreenState extends State<AliyunText2ImageScreen>
 
     setState(() {
       // 过期时间可能是一天
-      rstImageUrls = [
-        "https://dashscope-result-hz.oss-cn-hangzhou.aliyuncs.com/1d/3b/20240612/522176a8/7d14f071-f31c-4085-ad77-db60b1307282-1.png?Expires=1718247586&OSSAccessKeyId=LTAI5tQZd8AEcZX6KZV4G8qL&Signature=5n8biAg1alMrRR0JemdxeHhrN8w%3D",
-        "https://dashscope-result-hz.oss-cn-hangzhou.aliyuncs.com/1d/8b/20240612/522176a8/0c8973ed-3865-4628-b55d-71c838e51092-1.png?Expires=1718247586&OSSAccessKeyId=LTAI5tQZd8AEcZX6KZV4G8qL&Signature=IYwwkPED3XeYm%2FHLQP3dsKRc448%3D",
-        "https://dashscope-result-hz.oss-cn-hangzhou.aliyuncs.com/1d/94/20240612/522176a8/871d4009-24cd-490f-802f-17326f4fc774-1.png?Expires=1718263056&OSSAccessKeyId=LTAI5tQZd8AEcZX6KZV4G8qL&Signature=xFVg%2BFhgIom74JvxQ6h6SLtKqzs%3D",
-        "https://dashscope-result-sh.oss-cn-shanghai.aliyuncs.com/1d/96/20240612/1b61f1c0/90ca6b45-6e70-4755-8ab1-3b9f298a29e6-1.png?Expires=1718263794&OSSAccessKeyId=LTAI5tQZd8AEcZX6KZV4G8qL&Signature=XgLfyZWcO8hKG%2BgOHPajTo%2B17hU%3D",
-        "https://dashscope-result-hz.oss-cn-hangzhou.aliyuncs.com/1d/85/20240612/522176a8/b0056938-0aef-451e-871e-efcbf900e741-1.png?Expires=1718263794&OSSAccessKeyId=LTAI5tQZd8AEcZX6KZV4G8qL&Signature=H2Q34TYygkkmAoxmutnNpuGU0mg%3D",
-        "https://dashscope-result-sh.oss-cn-shanghai.aliyuncs.com/1d/87/20240612/1b61f1c0/18ded425-eba6-477a-9141-bf6e263cd355-1.png?Expires=1718263794&OSSAccessKeyId=LTAI5tQZd8AEcZX6KZV4G8qL&Signature=vrpEVY6eChP8M3DS9NSauC4USWU%3D",
-        "https://dashscope-result-hz.oss-cn-hangzhou.aliyuncs.com/1d/81/20240612/522176a8/236ad21f-8e2b-435b-b488-9377615f2da3-1.png?Expires=1718280633&OSSAccessKeyId=LTAI5tQZd8AEcZX6KZV4G8qL&Signature=t4mITLm169UWvxWa6acWLEBjbgs%3D",
-        "https://dashscope-result-sh.oss-cn-shanghai.aliyuncs.com/1d/e9/20240613/1b61f1c0/38439ec0-cc66-42a8-a2c6-45a3d3ba7162-1.png?Expires=1718332753&OSSAccessKeyId=LTAI5tQZd8AEcZX6KZV4G8qL&Signature=9WoaCavRSvctaQc7uO1pZIgPJJ4%3D",
-        "https://dashscope-result-sh.oss-cn-shanghai.aliyuncs.com/1d/eb/20240613/1b61f1c0/134c1b5b-09ea-40f2-9464-bb705e25b0fd-1.png?Expires=1718333128&OSSAccessKeyId=LTAI5tQZd8AEcZX6KZV4G8qL&Signature=4sCQJSs0RIf8hZsNEcOa5zGkw8c%3D",
-        "https://dashscope-result-hz.oss-cn-hangzhou.aliyuncs.com/1d/51/20240613/522176a8/11a9d0b3-3c76-4d5f-91c9-b3f6d9087bd5-1.png?Expires=1718334452&OSSAccessKeyId=LTAI5tQZd8AEcZX6KZV4G8qL&Signature=IPXbq2FnFhzPts8s%2FZFgDYbAjZg%3D",
-      ];
+      rstImageUrls = aliyunText2ImageUrls;
       isGenImage = false;
       _removeLoadingOverlay();
     });
@@ -303,14 +315,47 @@ class _AliyunText2ImageScreenState extends State<AliyunText2ImageScreen>
       appBar: AppBar(
         title: const Text('AI文本生成图像'),
         actions: [
-          TextButton(
-            onPressed: () {
-              var taskId = "4975f6a4-373d-4996-bbd8-e0cbc57dd89a";
+          // TextButton(
+          //   onPressed: () {
+          //     // var taskId = "4975f6a4-373d-4996-bbd8-e0cbc57dd89a";
+          //     // getAliyunText2ImgJobResult(taskId);
 
-              getAliyunText2ImgJobResult(taskId);
+          //     _dbHelper.deleteTextToImageResultById(
+          //       "f3dda36e-cd2f-9792-8f1a-84ef972928c4",
+          //     );
+          //   },
+          //   child: const Text("测试任务"),
+          // ),
+          Builder(
+            builder: (BuildContext context) {
+              return IconButton(
+                // icon: Text(
+                //   '最近对话',
+                //   style: TextStyle(
+                //     fontSize: 12.sp,
+                //     color: Theme.of(context).primaryColor,
+                //   ),
+                // ),
+                icon: Icon(Icons.history, size: 24.sp),
+                onPressed: () async {
+                  // 获取历史记录
+
+                  //  await _dbHelper.deleteDB();
+
+                  var a = await _dbHelper.queryTextToImageResultList();
+
+                  setState(() {
+                    text2ImageHsitory = a;
+                  });
+                  print("历史记录$a");
+
+                  if (!mounted) return;
+                  // ignore: use_build_context_synchronously
+                  Scaffold.of(context).openEndDrawer();
+                },
+              );
             },
-            child: const Text("测试任务"),
-          )
+          ),
         ],
       ),
       resizeToAvoidBottomInset: false,
@@ -354,6 +399,200 @@ class _AliyunText2ImageScreenState extends State<AliyunText2ImageScreen>
           SizedBox(height: 10.sp),
         ],
       ),
+      endDrawer: Drawer(
+        child: ListView(
+          children: <Widget>[
+            SizedBox(
+              // 调整DrawerHeader的高度
+              height: 60.sp,
+              child: DrawerHeader(
+                decoration: BoxDecoration(color: Colors.lightGreen[100]),
+                child: const Center(child: Text('文本生成图片记录')),
+              ),
+            ),
+            ...(text2ImageHsitory.map((e) => buildGestureItems(e)).toList()),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _launchUrl(String url) async {
+    if (!await launchUrl(Uri.parse(url))) {
+      throw Exception('Could not launch $url');
+    }
+  }
+
+  /// 构建在对话历史中的对话标题列表
+  buildGestureItems(TextToImageResult e) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.of(context).pop();
+
+        // 点击了指定文生图记录，弹窗显示缩略图
+        showDialog(
+          context: context,
+          builder: (context) {
+            return AlertDialog(
+              title: Text("文本生成图片信息", style: TextStyle(fontSize: 18.sp)),
+              content: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "正向提示词:",
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      e.prompt,
+                      style: TextStyle(fontSize: 12.sp),
+                    ),
+                    const Text(
+                      "反向提示词:",
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      e.negativePrompt ?? "无",
+                      style: TextStyle(fontSize: 12.sp),
+                    ),
+                    Divider(height: 5.sp),
+
+                    /// 点击按钮去浏览器下载查看
+                    Row(
+                      children: List.generate(
+                        e.imageUrls?.length ?? 0,
+                        (index) => ElevatedButton(
+                          // 假设url一定存在的
+                          onPressed: () => _launchUrl(e.imageUrls![index]),
+                          child: Text('图片${index + 1}'),
+                        ),
+                      ).toList(),
+                    ),
+
+                    /// 图片预览，点击可放大，长按保存到相册
+                    if (e.imageUrls != null && e.imageUrls!.isNotEmpty)
+                      _buildRstImageGrid(e.style, e.imageUrls!, context),
+
+                    // ...List.generate(
+                    //   e.imageUrls?.length ?? 0,
+                    //   (index) => ElevatedButton(
+                    //     onPressed: () {
+                    //       if (e.imageUrls?[index] != null) {
+                    //         _launchUrl(e.imageUrls![index]);
+                    //       }
+                    //     },
+                    //     child: Text('图片${index + 1}'),
+                    //   ),
+                    // ).toList(),
+
+                    // ...(e.imageUrls
+                    //         ?.map((url) => ElevatedButton(
+                    //               onPressed: () {
+                    //                 _launchUrl(url);
+                    //               },
+                    //               child: const Text('图片'),
+                    //             ))
+                    //         .toList() ??
+                    //     []),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop(true);
+                  },
+                  child: const Text("确定"),
+                ),
+              ],
+            );
+          },
+        );
+      },
+      child: Card(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Padding(
+                padding: EdgeInsets.only(left: 5.sp),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "${e.requestId.substring(0, 6)} ${e.prompt.length > 10 ? e.prompt.substring(0, 10) : e.prompt}",
+                      style: TextStyle(fontSize: 15.sp),
+                      maxLines: 2,
+                      softWrap: true,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      "创建时间:${e.gmtCreate} \n过期时间:${e.gmtCreate.add(const Duration(days: 1))}",
+                      style: TextStyle(fontSize: 10.sp),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            _buildDeleteBotton(e),
+          ],
+        ),
+      ),
+    );
+  }
+
+  _buildDeleteBotton(TextToImageResult e) {
+    return SizedBox(
+      width: 40.sp,
+      child: IconButton(
+        onPressed: () {
+          showDialog(
+            context: context,
+            builder: (context) {
+              return AlertDialog(
+                title: Text("确认删除文生图记录:", style: TextStyle(fontSize: 18.sp)),
+                content: Text("记录请求编号：\n${e.requestId}"),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop(false);
+                    },
+                    child: const Text("取消"),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop(true);
+                    },
+                    child: const Text("确定"),
+                  ),
+                ],
+              );
+            },
+          ).then((value) async {
+            if (value == true) {
+              // 先删除
+              var a = await _dbHelper.deleteTextToImageResultById(e.requestId);
+
+              print("删除结果---------$a");
+
+              // 然后重新查询并更新
+              var b = await _dbHelper.queryTextToImageResultList();
+
+              print("查询结果---------${b.length}");
+              setState(() {
+                text2ImageHsitory = b;
+              });
+            }
+          });
+        },
+        icon: Icon(
+          Icons.delete,
+          size: 16.sp,
+          color: Theme.of(context).primaryColor,
+        ),
+        iconSize: 18.sp,
+        padding: EdgeInsets.all(0.sp),
+      ),
     );
   }
 
@@ -376,9 +615,9 @@ class _AliyunText2ImageScreenState extends State<AliyunText2ImageScreen>
               selectedNumIndex = 0;
             });
           },
-          child: const Text("清空配置"),
+          child: const Text("还原配置"),
         ),
-        TextButton(
+        ElevatedButton(
           onPressed: prompt.isNotEmpty
               ? () async {
                   FocusScope.of(context).unfocus();
@@ -397,7 +636,10 @@ class _AliyunText2ImageScreenState extends State<AliyunText2ImageScreen>
                   // await mockGetUrl();
                 }
               : null,
-          child: const Text("生成图片"),
+          child: const Text(
+            "生成图片",
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
         ),
       ],
     );
@@ -854,7 +1096,7 @@ _buildRstImageGrid(String style, List<String> urls, BuildContext context) {
                   EasyLoading.showToast("无法保存图片！");
                 }
               } else {
-                EasyLoading.showToast("Android9 及以下版本无法长按保存到相册！");
+                EasyLoading.showToast("Android 9 及以下版本无法长按保存到相册！");
               }
             }
           },
