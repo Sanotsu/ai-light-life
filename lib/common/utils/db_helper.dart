@@ -515,12 +515,14 @@ class DBHelper {
   Future<List<ChatSession>> queryChatList({
     String? uuid,
     String? keyword,
+    String? cateType = 'aigc',
   }) async {
     Database db = await database;
 
     print("对话历史记录查询参数：");
     print("uuid $uuid");
     print("keyword $keyword");
+    print("cateType $cateType");
 
     final where = <String>[];
     final whereArgs = <dynamic>[];
@@ -533,6 +535,11 @@ class DBHelper {
     if (keyword != null) {
       where.add('title LIKE ?');
       whereArgs.add("%$keyword%");
+    }
+
+    if (cateType != null) {
+      where.add('chat_type = ?');
+      whereArgs.add(cateType);
     }
 
     final rows = await db.query(

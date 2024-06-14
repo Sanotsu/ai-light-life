@@ -100,6 +100,26 @@ final Map<PlatformLLM, String> llmDescriptions = {
 };
 
 ///
+///
+/// 2024-06-14 大模型简单分成积累，默认的是对话模型，文生图、图生文等得另外来
+///
+///
+enum Image2TextLLM {
+  baiduFuyu8B, // 百度平台第三方的图像理解模型
+}
+
+final Map<Image2TextLLM, String> i2tLlmModels = {
+  Image2TextLLM.baiduFuyu8B: 'fuyu-8b',
+};
+final Map<Image2TextLLM, String> i2tLlmNames = {
+  Image2TextLLM.baiduFuyu8B: 'Fuyu-8B',
+};
+final Map<Image2TextLLM, String> i2tLlmDescriptions = {
+  Image2TextLLM.baiduFuyu8B:
+      'Fuyu-8B是由Adept AI训练的多模态图像理解模型，可以支持多样的图像分辨率，回答图形图表有关问题。模型在视觉问答和图像描述等任务上表现良好。',
+};
+
+///
 /// 【？？？ 比较麻烦，暂时不弄了】
 /// 2024-06-07 限量免费的，或者限时免费的放到下面来
 ///

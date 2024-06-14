@@ -100,8 +100,9 @@ class ChatSession {
   /// 图像理解也是对话记录，所以增加一个类别
   String chatType; // aigc\image2text\text2image
   // ？？？2024-06-14 在图像理解中可以复用对话，存放被理解的图片的base64字符串
+  // base64在memoryImage中可能会因为重复渲染而一闪一闪，还是存图片地址好了
   // i2t => image to text
-  String? i2tImageBase64;
+  String? i2tImagePath;
 
   ChatSession({
     required this.uuid,
@@ -110,7 +111,7 @@ class ChatSession {
     required this.messages,
     required this.llmName,
     this.cloudPlatformName,
-    this.i2tImageBase64,
+    this.i2tImagePath,
     required this.chatType,
   });
 
@@ -125,7 +126,7 @@ class ChatSession {
           .toList(),
       llmName: map['llm_name'] as String,
       cloudPlatformName: map['yun_platform_name'] as String?,
-      i2tImageBase64: map['i2t_image_base64'] as String?,
+      i2tImagePath: map['i2t_image_path'] as String?,
       chatType: map['chat_type'] as String,
     );
   }
@@ -139,7 +140,7 @@ class ChatSession {
       'llm_name': llmName,
       'yun_platform_name': cloudPlatformName,
       'chat_type': chatType,
-      'i2t_image_base64': i2tImageBase64,
+      'i2t_image_path': i2tImagePath,
     };
   }
 
@@ -153,7 +154,7 @@ class ChatSession {
         llmName: json["llm_name"],
         cloudPlatformName: json["yun_platform_name"],
         chatType: json["chat_type"],
-        i2tImageBase64: json["i2t_image_base64"],
+        i2tImagePath: json["i2t_image_path"],
       );
 
   Map<String, dynamic> toJson() => {
@@ -163,7 +164,7 @@ class ChatSession {
         "gmt_create": gmtCreate,
         "llm_name": llmName,
         "yun_platform_name": cloudPlatformName,
-        "i2t_image_base64": i2tImageBase64,
+        "i2t_image_path": i2tImagePath,
         'chat_type': chatType,
       };
 
@@ -177,7 +178,7 @@ class ChatSession {
       "llmName": $llmName,
       "cloudPlatformName": $cloudPlatformName,
       'chatType': $chatType,
-      "i2tImageBase64": ${(i2tImageBase64 != null && i2tImageBase64!.length > 10) ? i2tImageBase64?.substring(0, 10) : i2tImageBase64},
+      "i2tImageBase64": ${(i2tImagePath != null && i2tImagePath!.length > 10) ? i2tImagePath?.substring(0, 10) : i2tImagePath},
       "messages": $messages
     }
     ''';

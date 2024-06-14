@@ -92,7 +92,7 @@ class _CommonChatScreenState extends State<CommonChatScreen> {
   /// 获取指定对话列表
   _getChatInfo(String chatId) async {
     print("调用了getChatInfo----------");
-    var list = await _dbHelper.queryChatList(uuid: chatId);
+    var list = await _dbHelper.queryChatList(uuid: chatId, cateType: "aigc");
 
     if (list.isNotEmpty && list.isNotEmpty) {
       setState(() {
@@ -418,7 +418,7 @@ class _CommonChatScreenState extends State<CommonChatScreen> {
 
                 //  await _dbHelper.deleteDB();
 
-                var a = await _dbHelper.queryChatList();
+                var a = await _dbHelper.queryChatList(cateType: "aigc");
 
                 setState(() {
                   chatHsitory = a;
@@ -522,7 +522,7 @@ class _CommonChatScreenState extends State<CommonChatScreen> {
               print("删除结果---------$a");
 
               // 然后重新查询并更新
-              var b = await _dbHelper.queryChatList();
+              var b = await _dbHelper.queryChatList(cateType: 'aigc');
 
               print("查询结果---------${b.length}");
               setState(() {
@@ -595,7 +595,7 @@ class _CommonChatScreenState extends State<CommonChatScreen> {
               _dbHelper.updateChatSession(temp);
 
               // 修改成功后重新查询更新
-              var b = await _dbHelper.queryChatList();
+              var b = await _dbHelper.queryChatList(cateType: "aigc");
               setState(() {
                 chatHsitory = b;
               });
