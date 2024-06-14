@@ -171,7 +171,7 @@ class _BillEditPageState extends State<BillEditPage> {
       } catch (e) {
         // 将错误信息展示给用户
         if (!mounted) return;
-        commonExceptionDialog(context, "异常警告", e.toString());
+        commonHintDialog(context, "异常警告", e.toString());
         setState(() {
           isLoading = false;
         });

@@ -11,6 +11,7 @@ import 'package:uuid/uuid.dart';
 import '../../apis/aliyun_apis.dart';
 import '../../apis/baidu_apis.dart';
 import '../../apis/tencent_apis.dart';
+import '../../common/components/tool_widget.dart';
 import '../../common/constants.dart';
 import '../../models/common_llm_info.dart';
 import '../../common/utils/db_helper.dart';
@@ -299,35 +300,43 @@ class _CommonChatScreenState extends State<CommonChatScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: buildAppbarArea(),
-      body: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          /// 构建可切换云平台和模型的行
-          Container(
-            color: Colors.grey[300],
-            child: Padding(
-              padding: EdgeInsets.only(left: 10.sp),
-              child: buildPlatAndLlmRow(),
+      body: GestureDetector(
+        // 允许子控件（如TextField）接收点击事件
+        behavior: HitTestBehavior.translucent,
+        onTap: () {
+          // 点击空白处可以移除焦点，关闭键盘
+          FocusScope.of(context).unfocus();
+        },
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            /// 构建可切换云平台和模型的行
+            Container(
+              color: Colors.grey[300],
+              child: Padding(
+                padding: EdgeInsets.only(left: 10.sp),
+                child: buildPlatAndLlmRow(),
+              ),
             ),
-          ),
 
-          /// 如果对话是空，显示预设的问题
-          if (messages.isEmpty) ...buildDefaultQuestionArea(),
+            /// 如果对话是空，显示预设的问题
+            if (messages.isEmpty) ...buildDefaultQuestionArea(),
 
-          /// 在顶部显示对话标题(避免在appbar显示，内容太挤)
-          if (chatSession != null) buildChatTitleArea(),
+            /// 在顶部显示对话标题(避免在appbar显示，内容太挤)
+            if (chatSession != null) buildChatTitleArea(),
 
-          // 标题和对话正文的分割线
-          const Divider(),
+            // 标题和对话正文的分割线
+            const Divider(),
 
-          /// 显示对话消息主体
-          buildChatListArea(),
+            /// 显示对话消息主体
+            buildChatListArea(),
 
-          /// 显示输入框和发送按钮
-          const Divider(),
-          buildUserSendArea(),
-        ],
+            /// 显示输入框和发送按钮
+            const Divider(),
+            buildUserSendArea(),
+          ],
+        ),
       ),
       endDrawer: Drawer(
         child: ListView(
@@ -350,22 +359,16 @@ class _CommonChatScreenState extends State<CommonChatScreen> {
   /// 构建appbar区域
   buildAppbarArea() {
     return AppBar(
-      title: const Text('AI对话'),
+      title: Text(
+        '智能对话',
+        style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold),
+      ),
       actions: [
-        // TextButton(
-        //   onPressed: () {
-        //     // _dbHelper.deleteDB();
-        //     _dbHelper.showTableNameList();
-        //   },
-        //   child: const Text("切换模型"),
-        // ),
-        // buildB(),
-
         /// 选择“更快”就使用流式请求，否则就一般的非流式
         ToggleSwitch(
           minHeight: 24.sp,
-          minWidth: 44.sp,
-          fontSize: 11.sp,
+          minWidth: 42.sp,
+          fontSize: 10.sp,
           cornerRadius: 5.sp,
           dividerMargin: 0.sp,
           // isVertical: true,
@@ -380,13 +383,9 @@ class _CommonChatScreenState extends State<CommonChatScreen> {
           labels: const ['更快', '更多'],
           // radiusStyle: true,
           onToggle: (index) {
-            print('switched to: $index');
-
             setState(() {
               isStream = index == 0 ? true : false;
             });
-
-            print('isStream to: $isStream');
           },
         ),
         SizedBox(width: 20.sp),
@@ -405,25 +404,13 @@ class _CommonChatScreenState extends State<CommonChatScreen> {
         Builder(
           builder: (BuildContext context) {
             return IconButton(
-              // icon: Text(
-              //   '最近对话',
-              //   style: TextStyle(
-              //     fontSize: 12.sp,
-              //     color: Theme.of(context).primaryColor,
-              //   ),
-              // ),
               icon: Icon(Icons.history, size: 24.sp),
               onPressed: () async {
                 // 获取历史记录
-
-                //  await _dbHelper.deleteDB();
-
                 var a = await _dbHelper.queryChatList(cateType: "aigc");
-
                 setState(() {
                   chatHsitory = a;
                 });
-                print("历史记录$a");
 
                 if (!mounted) return;
                 // ignore: use_build_context_synchronously
@@ -517,14 +504,10 @@ class _CommonChatScreenState extends State<CommonChatScreen> {
           ).then((value) async {
             if (value == true) {
               // 先删除
-              var a = await _dbHelper.deleteChatById(e.uuid);
-
-              print("删除结果---------$a");
+              await _dbHelper.deleteChatById(e.uuid);
 
               // 然后重新查询并更新
               var b = await _dbHelper.queryChatList(cateType: 'aigc');
-
-              print("查询结果---------${b.length}");
               setState(() {
                 chatHsitory = b;
               });
@@ -734,33 +717,17 @@ class _CommonChatScreenState extends State<CommonChatScreen> {
         ),
         IconButton(
           onPressed: () {
-            _showHelpDialog(context, llmDescriptions[selectedLlm] ?? "");
+            commonHintDialog(
+              context,
+              "模型说明",
+              llmDescriptions[selectedLlm] ?? "",
+            );
           },
           icon: Icon(Icons.help, size: 18.sp),
           iconSize: 20.sp,
         ),
         //
       ],
-    );
-  }
-
-  void _showHelpDialog(BuildContext context, String text) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('模型说明'),
-          content: Text(text),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('关闭'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-          ],
-        );
-      },
     );
   }
 

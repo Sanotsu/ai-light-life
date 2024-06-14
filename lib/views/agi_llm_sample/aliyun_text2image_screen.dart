@@ -1,21 +1,15 @@
 // ignore_for_file: avoid_print
 
 import 'dart:async';
-import 'dart:io';
-import 'dart:typed_data';
 
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:device_info_plus/device_info_plus.dart';
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:image_gallery_saver/image_gallery_saver.dart';
-import 'package:photo_view/photo_view.dart';
 import 'package:toggle_switch/toggle_switch.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../apis/aliyun_apis.dart';
+import '../../common/components/tool_widget.dart';
 import '../../common/utils/db_helper.dart';
 import '../../models/ai_interface_state/aliyun_text2image_state.dart';
 import '../../models/llm_text2image_state.dart';
@@ -82,9 +76,6 @@ class _AliyunText2ImageScreenState extends State<AliyunText2ImageScreen>
 
   // 添加一个overlay，在生成图片时，禁止用户的其他操作
   OverlayEntry? _overlayEntry;
-
-  // 控制ExpansionTile是否展开的控制器
-  final _expansionTileController = ExpansionTileController();
 
   // 最近对话需要的记录历史对话的变量
   List<TextToImageResult> text2ImageHsitory = [];
@@ -156,8 +147,6 @@ class _AliyunText2ImageScreenState extends State<AliyunText2ImageScreen>
     });
 
     // 查看现在读取的内容
-    print("xxxxxxxxxxxxxxxxxxxxxxxx");
-
     print("正向词 $prompt");
     print("消极词 $negativePrompt");
     print("样式 <${styles.values.toList()[_selectedStyleIndex]}>");
@@ -177,8 +166,6 @@ class _AliyunText2ImageScreenState extends State<AliyunText2ImageScreen>
 
     // 提交生成任务
     var jobResp = await commitAliyunText2ImgJob(input, parameters);
-    print("t提交的结果--------------------------");
-    print(jobResp);
 
     // 得到任务编号之后，查询状态
     var taskId = jobResp.output?.taskId;
@@ -186,9 +173,6 @@ class _AliyunText2ImageScreenState extends State<AliyunText2ImageScreen>
     if (taskId != null) {
       // 获取到任务编号之后，定时查看任务进行状态
       AliyunTextToImgResp? rst = await timedText2ImageJobStatus(taskId);
-
-      print("最后的结果--------------------------");
-      print(rst);
 
       // 任务处理完成之后，放到结果列表中显示
       var a = rst?.output?.results;
@@ -200,19 +184,19 @@ class _AliyunText2ImageScreenState extends State<AliyunText2ImageScreen>
         }
       }
 
-      var temp = TextToImageResult(
-        requestId: jobResp.requestId ?? "无",
-        prompt: prompt,
-        negativePrompt: negativePrompt,
-        style: "<${styles.values.toList()[_selectedStyleIndex]}>",
-        imageUrls: imageUrls,
-        gmtCreate: DateTime.now(),
-      );
+      // 将任务结果存入数据库中
+      await _dbHelper.insertTextToImageResultList([
+        TextToImageResult(
+          requestId: jobResp.requestId ?? "无",
+          prompt: prompt,
+          negativePrompt: negativePrompt,
+          style: "<${styles.values.toList()[_selectedStyleIndex]}>",
+          imageUrls: imageUrls,
+          gmtCreate: DateTime.now(),
+        )
+      ]);
 
-      var aa = await _dbHelper.insertTextToImageResultList([temp]);
-
-      print("文生图===========插入数据库的结果$aa");
-
+      // 移除遮罩
       setState(() {
         rstImageUrls = imageUrls;
         isGenImage = false;
@@ -313,41 +297,22 @@ class _AliyunText2ImageScreenState extends State<AliyunText2ImageScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('AI文本生成图像'),
+        title: Text(
+          '文本生图',
+          style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold),
+        ),
         actions: [
-          // TextButton(
-          //   onPressed: () {
-          //     // var taskId = "4975f6a4-373d-4996-bbd8-e0cbc57dd89a";
-          //     // getAliyunText2ImgJobResult(taskId);
-
-          //     _dbHelper.deleteTextToImageResultById(
-          //       "f3dda36e-cd2f-9792-8f1a-84ef972928c4",
-          //     );
-          //   },
-          //   child: const Text("测试任务"),
-          // ),
           Builder(
             builder: (BuildContext context) {
               return IconButton(
-                // icon: Text(
-                //   '最近对话',
-                //   style: TextStyle(
-                //     fontSize: 12.sp,
-                //     color: Theme.of(context).primaryColor,
-                //   ),
-                // ),
                 icon: Icon(Icons.history, size: 24.sp),
                 onPressed: () async {
                   // 获取历史记录
-
-                  //  await _dbHelper.deleteDB();
-
                   var a = await _dbHelper.queryTextToImageResultList();
 
                   setState(() {
                     text2ImageHsitory = a;
                   });
-                  print("历史记录$a");
 
                   if (!mounted) return;
                   // ignore: use_build_context_synchronously
@@ -359,45 +324,52 @@ class _AliyunText2ImageScreenState extends State<AliyunText2ImageScreen>
         ],
       ),
       resizeToAvoidBottomInset: false,
-      body: Column(
-        mainAxisAlignment: MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          /// 执行按钮
-          // buildText2ImageButtonArea(),
-          Padding(
-            padding: EdgeInsets.all(5.sp),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  "文生图配置",
-                  style: TextStyle(
-                    fontSize: 16.sp,
-                    fontWeight: FontWeight.bold,
+      body: GestureDetector(
+        // 允许子控件（如TextField）接收点击事件
+        behavior: HitTestBehavior.translucent,
+        onTap: () {
+          // 点击空白处可以移除焦点，关闭键盘
+          FocusScope.of(context).unfocus();
+        },
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            /// 执行按钮
+            Padding(
+              padding: EdgeInsets.all(5.sp),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    "文生图配置",
+                    style: TextStyle(
+                      fontSize: 16.sp,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-                buildText2ImageButtonArea(),
-              ],
+                  buildText2ImageButtonArea(),
+                ],
+              ),
             ),
-          ),
 
-          /// 文生图配置折叠栏
-          Expanded(flex: 2, child: buildConfigArea()),
+            /// 文生图配置折叠栏
+            Expanded(flex: 2, child: buildConfigArea()),
 
-          const Divider(),
-          Padding(
-            padding: EdgeInsets.all(5.sp),
-            child: Text(
-              "生成的图片(点击查看、长按保存)",
-              style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold),
+            const Divider(),
+            Padding(
+              padding: EdgeInsets.all(5.sp),
+              child: Text(
+                "生成的图片(点击查看、长按保存)",
+                style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold),
+              ),
             ),
-          ),
 
-          /// 文生图的结果
-          buildImageResult(),
-          SizedBox(height: 10.sp),
-        ],
+            /// 文生图的结果
+            buildImageResult(),
+            SizedBox(height: 10.sp),
+          ],
+        ),
       ),
       endDrawer: Drawer(
         child: ListView(
@@ -471,29 +443,7 @@ class _AliyunText2ImageScreenState extends State<AliyunText2ImageScreen>
 
                     /// 图片预览，点击可放大，长按保存到相册
                     if (e.imageUrls != null && e.imageUrls!.isNotEmpty)
-                      _buildRstImageGrid(e.style, e.imageUrls!, context),
-
-                    // ...List.generate(
-                    //   e.imageUrls?.length ?? 0,
-                    //   (index) => ElevatedButton(
-                    //     onPressed: () {
-                    //       if (e.imageUrls?[index] != null) {
-                    //         _launchUrl(e.imageUrls![index]);
-                    //       }
-                    //     },
-                    //     child: Text('图片${index + 1}'),
-                    //   ),
-                    // ).toList(),
-
-                    // ...(e.imageUrls
-                    //         ?.map((url) => ElevatedButton(
-                    //               onPressed: () {
-                    //                 _launchUrl(url);
-                    //               },
-                    //               child: const Text('图片'),
-                    //             ))
-                    //         .toList() ??
-                    //     []),
+                      buildNetworkImageViewGrid(e.style, e.imageUrls!, context),
                   ],
                 ),
               ),
@@ -571,14 +521,10 @@ class _AliyunText2ImageScreenState extends State<AliyunText2ImageScreen>
           ).then((value) async {
             if (value == true) {
               // 先删除
-              var a = await _dbHelper.deleteTextToImageResultById(e.requestId);
-
-              print("删除结果---------$a");
+              await _dbHelper.deleteTextToImageResultById(e.requestId);
 
               // 然后重新查询并更新
               var b = await _dbHelper.queryTextToImageResultList();
-
-              print("查询结果---------${b.length}");
               setState(() {
                 text2ImageHsitory = b;
               });
@@ -623,7 +569,7 @@ class _AliyunText2ImageScreenState extends State<AliyunText2ImageScreen>
                   FocusScope.of(context).unfocus();
 
                   // 实际请求
-                  await getText2ImageData();
+                  // await getText2ImageData();
 
                   // 如果配置栏是展开的，就折叠起来
                   // setState(() {
@@ -633,7 +579,7 @@ class _AliyunText2ImageScreenState extends State<AliyunText2ImageScreen>
                   // });
 
                   // 模拟请求
-                  // await mockGetUrl();
+                  await mockGetUrl();
                 }
               : null,
           child: const Text(
@@ -653,39 +599,12 @@ class _AliyunText2ImageScreenState extends State<AliyunText2ImageScreen>
         children: [
           /// 画风、尺寸、张数选择
           _buildStyleAndNumberSizeArea(),
-          // ...buildStyleNumSizeToggleSwitchs(),
 
           /// 正向提示词
           _buildPromptHint(),
 
           /// 消极提示词
           _buildNegativePromptHint(),
-        ],
-      ),
-    );
-  }
-
-  buildConfigAreaBak() {
-    return SingleChildScrollView(
-      child: ExpansionTile(
-        controller: _expansionTileController,
-        initiallyExpanded: true,
-        title: const Text('文生图配置'),
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              /// 画风、尺寸、张数选择
-              _buildStyleAndNumberSizeArea(),
-              // ...buildStyleNumSizeToggleSwitchs(),
-
-              /// 正向提示词
-              _buildPromptHint(),
-
-              /// 消极提示词
-              _buildNegativePromptHint(),
-            ],
-          ),
         ],
       ),
     );
@@ -702,7 +621,7 @@ class _AliyunText2ImageScreenState extends State<AliyunText2ImageScreen>
             if (rstImageUrls.isNotEmpty)
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: 0.25.sw),
-                child: _buildRstImageGrid(
+                child: buildNetworkImageViewGrid(
                   styles.keys.toList()[_selectedStyleIndex],
                   rstImageUrls,
                   context,
@@ -713,19 +632,6 @@ class _AliyunText2ImageScreenState extends State<AliyunText2ImageScreen>
       ),
     );
   }
-  // buildImageResult() {
-  //   return SingleChildScrollView(
-  //     child: Column(
-  //       children: [
-  //         if (rstImageUrls.isNotEmpty)
-  //           Padding(
-  //             padding: EdgeInsets.symmetric(horizontal: 0.25.sw),
-  //             child: _buildRstImageGrid(rstImageUrls, context),
-  //           ),
-  //       ],
-  //     ),
-  //   );
-  // }
 
   /// 构建画风、尺寸、张数选择区域
   _buildStyleAndNumberSizeArea() {
@@ -848,79 +754,6 @@ class _AliyunText2ImageScreenState extends State<AliyunText2ImageScreen>
     );
   }
 
-  // 全是切换选择框，不好看
-  buildStyleNumSizeToggleSwitchs() {
-    return [
-      // const Text("风格"),
-      Center(
-        child: ToggleSwitch(
-          minHeight: 48.sp,
-          minWidth: 45.sp,
-          cornerRadius: 5.sp,
-          dividerMargin: 0.sp,
-          initialLabelIndex: 0,
-          totalSwitches: styles.entries.length,
-          // radiusStyle: true,
-          onToggle: (index) {
-            print('switched to: $index');
-          },
-          // multiLineText: true,
-          // centerText: true,
-          customWidgets: styles.entries
-              .map((e) => Text(
-                    e.key,
-                    style: TextStyle(fontSize: 10.sp),
-                  ))
-              .toList(),
-        ),
-      ),
-
-      /// 大小
-      // const Text("size"),
-      Divider(height: 5.sp),
-
-      Center(
-        child: ToggleSwitch(
-          minHeight: 20.sp,
-          minWidth: 120.sp,
-          fontSize: 10.sp,
-          cornerRadius: 5.sp,
-          dividerMargin: 0.sp,
-          initialLabelIndex: 0,
-          totalSwitches: 3,
-          labels: const ['1024*1024', '720*1280', '1280*720'],
-          // radiusStyle: true,
-          onToggle: (index) {
-            print('switched to: $index');
-          },
-        ),
-      ),
-
-      /// 张数
-      // const Text("张数"),
-      Divider(height: 5.sp),
-
-      Center(
-        child: ToggleSwitch(
-          minHeight: 24.sp,
-          minWidth: 90.sp,
-          fontSize: 12.sp,
-          cornerRadius: 5.sp,
-          dividerMargin: 0.sp,
-          initialLabelIndex: 0,
-          totalSwitches: 4,
-          // radiusStyle: true,
-          onToggle: (index) {
-            print('switched to: $index');
-          },
-          multiLineText: true,
-          centerText: true,
-          labels: const ['1张', '2张', '3张', '4张'],
-        ),
-      ),
-    ];
-  }
-
   /// 预设的8种文生图的画风
   _buildImageGrid() {
     return GridView.count(
@@ -970,20 +803,13 @@ _buildImageStack(String url, String label, String label1) {
         child: Image.asset(
           url, // 请替换为你的图片路径
           fit: BoxFit.cover, // 使图片覆盖并保持宽高比填充Stack
+          errorBuilder:
+              (BuildContext context, Object exception, StackTrace? stackTrace) {
+            // 图片加载失败时的回退处理
+            return Container(color: Colors.grey.shade300);
+          },
         ),
       ),
-      // Positioned.fill(
-      //   child: Image.network(
-      //     url,
-      //     fit: BoxFit.cover, // 保持图片宽高比并填充Stack
-      //     errorBuilder:
-      //         (BuildContext context, Object exception, StackTrace? stackTrace) {
-      //       // 图片加载失败时的回退处理
-      //       return Container(color: Colors.grey.shade300);
-      //     },
-      //   ),
-      // ),
-      // 文字覆盖在图片上
       // 文字覆盖在图片上并居中
       Align(
         alignment: Alignment.bottomCenter, // 这里使文字靠底居中
@@ -1009,120 +835,7 @@ _buildImageStack(String url, String label, String label1) {
             ],
           ),
         ),
-        // Text(
-        //   label,
-        //   style: TextStyle(
-        //     color: Colors.white,
-        //     fontSize: 10.sp,
-        //     // fontWeight: FontWeight.bold,
-        //   ),
-        // ),
       ),
-      // Positioned(
-      //   bottom: 5.sp, // 文字距离底部的距离
-      //   child: Center(
-      //     child: Text(
-      //       label, // 显示的文本
-      //       style: TextStyle(
-      //         color: Colors.white, // 文字颜色
-      //         fontSize: 10.sp, // 文字大小
-      //         fontWeight: FontWeight.bold, // 文字粗细
-      //       ),
-      //     ),
-      //   ),
-      // ),
     ],
-  );
-}
-
-/// 构建生成的图片结果
-_buildRstImageGrid(String style, List<String> urls, BuildContext context) {
-  return GridView.count(
-    crossAxisCount: 2,
-    shrinkWrap: true,
-    mainAxisSpacing: 5.sp,
-    crossAxisSpacing: 5.sp,
-    physics: const NeverScrollableScrollPhysics(),
-    children: List.generate(urls.length, (index) {
-      return GridTile(
-        child: GestureDetector(
-          // 单击预览
-          onTap: () {
-            showDialog(
-              context: context,
-              builder: (BuildContext context) {
-                return Dialog(
-                  backgroundColor: Colors.transparent, // 设置背景透明
-                  child: PhotoView(
-                    imageProvider: NetworkImage(urls[index]),
-                    // 设置图片背景为透明
-                    backgroundDecoration: const BoxDecoration(
-                      color: Colors.transparent,
-                    ),
-                    // 可以旋转
-                    // enableRotation: true,
-                    // 缩放的最大最小限制
-                    minScale: PhotoViewComputedScale.contained * 0.8,
-                    maxScale: PhotoViewComputedScale.covered * 2,
-                  ),
-                );
-              },
-            );
-          },
-          // 长按保存到相册
-          onLongPress: () async {
-            if (Platform.isAndroid) {
-              final deviceInfoPlugin = DeviceInfoPlugin();
-              final deviceInfo = await deviceInfoPlugin.androidInfo;
-              final sdkInt = deviceInfo.version.sdkInt;
-
-              // Android9对应sdk是28,<=28就不显示保存按钮
-              if (sdkInt > 28) {
-                // 点击预览或者下载
-                var response = await Dio().get(urls[index],
-                    options: Options(responseType: ResponseType.bytes));
-
-                print(response.data);
-
-                // 安卓9及以下好像无法保存
-                final result = await ImageGallerySaver.saveImage(
-                  Uint8List.fromList(response.data),
-                  quality: 100,
-                  name: "${style}_${DateTime.now().millisecondsSinceEpoch}",
-                );
-                if (result["isSuccess"] == true) {
-                  EasyLoading.showToast("图片已保存到相册！");
-                } else {
-                  EasyLoading.showToast("无法保存图片！");
-                }
-              } else {
-                EasyLoading.showToast("Android 9 及以下版本无法长按保存到相册！");
-              }
-            }
-          },
-          // 默认缓存展示
-          child: CachedNetworkImage(
-            imageUrl: urls[index],
-            fit: BoxFit.cover,
-            progressIndicatorBuilder: (context, url, downloadProgress) =>
-                Center(
-              child: SizedBox(
-                height: 50.sp,
-                width: 50.sp,
-                child: CircularProgressIndicator(
-                  value: downloadProgress.progress,
-                ),
-              ),
-            ),
-            errorWidget: (context, url, error) => const Icon(Icons.error),
-          ),
-
-          // Image.network(
-          //   urls[index],
-          //   fit: BoxFit.cover,
-          // ),
-        ),
-      );
-    }),
   );
 }

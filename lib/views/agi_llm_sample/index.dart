@@ -33,13 +33,13 @@ class _AgiLlmSampleState extends State<AgiLlmSample> {
                 child: ConstrainedBox(
                   constraints: BoxConstraints(minWidth: 50.sp),
                   child: Text(
-                    'Free AGI LLMs',
+                    '智能助手',
                     style: TextStyle(fontSize: 24.sp),
                   ),
                 ),
               ),
               TextSpan(
-                text: "  (智能助手)",
+                text: "  (Simple AGI LLMs)",
                 style: TextStyle(color: Colors.black, fontSize: 15.sp),
               ),
             ],
@@ -59,15 +59,18 @@ class _AgiLlmSampleState extends State<AgiLlmSample> {
           //   \n想知道我能做什么？\n点击 下面任意大模型，快来试一试吧！""",
           // ),
           const MarkdownBody(
-            data: """这里有一些免费的对话大模型。  
-            来体验一下新的AI时代浪潮吧。  
-            \n作为你的智能伙伴，  
-            我既能写文案、想点子，  
-            又能陪你聊天、答疑解惑。  
-            \n文本翻译、FAQ、百科问答、情感分析、  
-            阅读理解、内容创作、代码编写……  
+            data: """这里有一些简单的大模型，体验一下AI能量吧。  
+            ***智能对话***  
+            既能写文案、想点子，又能陪你聊天、答疑解惑。  
+            文本翻译、FAQ、百科问答、情感分析、  
+            阅读理解、内容创作、代码编写……     
+            ***文本生图***   
+            简单的几句话，就能帮你生成各种风格的图片。  
+            ***图像理解***  
+            给我一张图，我能回答你关于该图片的有关问题。  
+
             \n想知道我能做什么？  
-            **点击**下面大模型分类，快来试一试吧！""",
+            **点击**下面指定功能，快来试一试吧！""",
           ),
           Divider(height: 50.sp),
           SizedBox(
@@ -80,9 +83,9 @@ class _AgiLlmSampleState extends State<AgiLlmSample> {
               crossAxisCount: 2,
               childAspectRatio: 2 / 1,
               children: <Widget>[
-                buildAIToolEntrance(0, "文生文", color: Colors.blue[200]),
-                buildAIToolEntrance(1, "文生图", color: Colors.grey[100]),
-                buildAIToolEntrance(2, "图生文", color: Colors.green[100]),
+                buildAIToolEntrance(0, "智能对话", color: Colors.blue[200]),
+                buildAIToolEntrance(1, "文本生图\n两毛一张", color: Colors.grey[100]),
+                buildAIToolEntrance(2, "图像理解", color: Colors.green[100]),
               ],
             ),
           ),

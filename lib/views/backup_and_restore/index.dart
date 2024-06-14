@@ -345,7 +345,7 @@ class _BackupAndRestoreState extends State<BackupAndRestore> {
           // 弹出报错提示框
           if (!mounted) return;
 
-          commonExceptionDialog(
+          commonHintDialog(
             context,
             "导入json文件出错",
             "文件名称:\n${file.path}\n\n错误信息:\n${e.toString()}",
