@@ -24,6 +24,9 @@ class BriefAccountingDdl {
   // 账单条目表
   static const tableNameOfChatHistory = 'ba_chat_history';
 
+  // 2024-06-14
+  // 图像理解也有对话，所以新加一个对话类型栏位：aigc、image2text、text2image……
+  // i2t_image_base64 指图像理解时被参考的图片base64数据
   static const String ddlForChatHistory = """
     CREATE TABLE $tableNameOfChatHistory (
       uuid                TEXT    NOT NULL,
@@ -32,6 +35,8 @@ class BriefAccountingDdl {
       messages            TEXT    NOT NULL,
       llm_name            TEXT    NOT NULL,
       yun_platform_name   TEXT,
+      i2t_image_base64    TEXT,
+      chat_type           TEXT    NOT NULL,
       PRIMARY KEY("uuid")
     );
     """;

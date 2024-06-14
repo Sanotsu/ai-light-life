@@ -1,8 +1,8 @@
 /// 定义云平台
 enum CloudPlatform {
-  aliyun,
-  tencent,
   baidu,
+  tencent,
+  aliyun,
 }
 
 // 模型对应的中文名
@@ -36,6 +36,8 @@ enum PlatformLLM {
   baiduErnieTiny8K,
   tencentHunyuanLite,
   aliyunQwen1p8BChat, // 1.8b -> 1point8b -> 1p8b
+  aliyunQwen1p51p8BChat, //  千问1.5开源本，18亿参数
+  aliyunQwen1p50p5BChat, //  千问1.5开源本，5亿参数
   aliyunFaruiPlus32K,
 }
 
@@ -50,7 +52,9 @@ final Map<PlatformLLM, String> llmModels = {
   PlatformLLM.baiduErnieLite8K: 'ernie-lite-8k',
   PlatformLLM.baiduErnieTiny8K: 'ernie-tiny-8k',
   PlatformLLM.tencentHunyuanLite: 'hunyuan-lite', // 256k上下文，最大输出6k
-  PlatformLLM.aliyunQwen1p8BChat: 'qwen-1.8b-chat', // 8k上下文，最大输出6k
+  PlatformLLM.aliyunQwen1p8BChat: 'qwen-1.8b-chat', // 8k上下文，最大输出2k
+  PlatformLLM.aliyunQwen1p51p8BChat: 'qwen1.5-1.8b-chat', // 32k上下文，最大输出2k
+  PlatformLLM.aliyunQwen1p50p5BChat: 'qwen1.5-0.5b-chat', // 32k上下文，最大输出2k
   PlatformLLM.aliyunFaruiPlus32K: 'farui-plus',
 };
 
@@ -65,6 +69,8 @@ final Map<PlatformLLM, String> llmNames = {
   PlatformLLM.baiduErnieTiny8K: 'ERNIE-Tiny-8K',
   PlatformLLM.tencentHunyuanLite: '混元-Lite', // 256k上下文，最大输出6k
   PlatformLLM.aliyunQwen1p8BChat: '通义千问-开源版-1.8B', // 8k上下文，最大输出6k
+  PlatformLLM.aliyunQwen1p51p8BChat: '通义千问1.5-开源版-1.8B', //32k上下文，最大输出2k
+  PlatformLLM.aliyunQwen1p50p5BChat: '通义千问1.5-开源版-0.5B', //32k上下文，最大输出2k
   PlatformLLM.aliyunFaruiPlus32K: '通义法睿-Plus-32K',
 };
 
@@ -85,6 +91,10 @@ final Map<PlatformLLM, String> llmDescriptions = {
       '腾讯混元大模型(Tencent Hunyuan)是由腾讯研发的大语言模型，具备强大的中文创作能力，复杂语境下的逻辑推理能力，以及可靠的任务执行能力。\\nn混元-Lite 升级为MOE结构，上下文窗口为256k，在NLP，代码，数学，行业等多项评测集上领先众多开源模型。',
   PlatformLLM.aliyunQwen1p8BChat:
       '"通义千问-开源版-1.8B"是通义千问对外开源的1.8B规模参数量的经过人类指令对齐的chat模型，模型支持 8k tokens上下文，API限定用户输入为6k Tokens。',
+  PlatformLLM.aliyunQwen1p51p8BChat:
+      '"通义千问1.5-开源版-1.8B"是通义千问1.5对外开源的1.8B规模参数量是经过人类指令对齐的chat模型，模型支持 32k tokens上下文，API限定用户输入为30k Tokens。',
+  PlatformLLM.aliyunQwen1p50p5BChat:
+      '"通义千问1.5-开源版-0.5B"是通义千问1.5对外开源的0.5B规模参数量是经过人类指令对齐的chat模型，模型支持 32k tokens上下文，API限定用户输入为30k Tokens。',
   PlatformLLM.aliyunFaruiPlus32K:
       '"通义法睿"是以通义千问为基座经法律行业数据和知识专门训练的法律行业大模型产品，综合运用了模型精调、强化学习、 RAG检索增强、法律Agent技术，具有回答法律问题、推理法律适用、推荐裁判类案、辅助案情分析、生成法律文书、检索法律知识、审查合同条款等功能。',
 };

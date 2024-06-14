@@ -4,6 +4,7 @@ import 'dart:convert';
 
 import '../../dio_client/cus_http_client.dart';
 import '../../dio_client/cus_http_request.dart';
+import '../models/ai_interface_state/baidu_fuyu8b_state.dart';
 import '../models/ai_interface_state/platform_aigc_commom_state.dart';
 import '../models/common_llm_info.dart';
 import '_self_keys.dart';
@@ -13,6 +14,10 @@ const baiduAigcUrl =
     "https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/chat/";
 // 百度的token请求地址
 const baiduAigcAuthUrl = "https://aip.baidubce.com/oauth/2.0/token";
+
+// 百度平台下第三方的fuyu图像理解模型API接口
+const baiduFuyu8BUrl =
+    "https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/image2text/fuyu_8b";
 
 ///
 /// 注意，这里没有处理报错，请求过程中的错误在cus_client中集中处理的；
@@ -43,7 +48,7 @@ Future<String> getAccessToken() async {
   return respData['access_token'];
 }
 
-/// 获取指定设备类型(产品)包含的功能列表
+/// 获取百度对话请求的响应数据
 Future<CommonRespBody> getBaiduAigcCommonResp(
   List<CommonMessage> messages, {
   String? model,
@@ -122,4 +127,29 @@ Future<List<CommonRespBody>> getBaiduAigcStreamCommonResp(
 
   // 响应是json格式
   return list;
+}
+
+/// 获取Fuyu-8B图像理解的响应结果
+Future<BaiduFuyu8BResp> getBaiduFuyu8BResp(String prompt, String image) async {
+  // 每次请求都要实时获取最小的token
+  String token = await getAccessToken();
+
+  var body = BaiduFuyu8BReq(prompt: prompt, image: image);
+
+  var start = DateTime.now().millisecondsSinceEpoch;
+
+  var respData = await HttpUtils.post(
+    path: "$baiduFuyu8BUrl?access_token=$token",
+    method: HttpMethod.post,
+    headers: {"Content-Type": "application/json"},
+    data: body,
+  );
+
+  var end = DateTime.now().millisecondsSinceEpoch;
+
+  print("百度图生文-------耗时${(end - start) / 1000} 秒");
+  print("百度图生文-------$respData");
+
+  // 响应是json格式
+  return BaiduFuyu8BResp.fromJson(respData);
 }

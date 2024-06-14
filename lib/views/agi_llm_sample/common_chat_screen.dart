@@ -180,6 +180,8 @@ class _CommonChatScreenState extends State<CommonChatScreen> {
         // 2026-06-06 这里记录的也是各平台原始的大模型名称
         llmName: llmModels[selectedLlm]!,
         cloudPlatformName: selectedCloudPlatform.name,
+        // 2026-06-06 对话历史默认带上类别
+        chatType: "aigc",
       );
 
       print("这是输入了第一天消息，生成了初始化的对话$chatSession");
@@ -305,7 +307,7 @@ class _CommonChatScreenState extends State<CommonChatScreen> {
           Container(
             color: Colors.grey[300],
             child: Padding(
-              padding: EdgeInsets.only(left: 20.sp),
+              padding: EdgeInsets.only(left: 10.sp),
               child: buildPlatAndLlmRow(),
             ),
           ),
@@ -673,7 +675,7 @@ class _CommonChatScreenState extends State<CommonChatScreen> {
         const Text("平台:"),
         SizedBox(width: 10.sp),
         SizedBox(
-          width: 60.sp,
+          width: 52.sp,
           child: Container(
             decoration: BoxDecoration(
               border: Border.all(color: Colors.grey, width: 1.0),
@@ -689,7 +691,7 @@ class _CommonChatScreenState extends State<CommonChatScreen> {
                   alignment: AlignmentDirectional.center,
                   child: Text(
                     cpNames[e]!,
-                    style: TextStyle(fontSize: 15.sp, color: Colors.blue),
+                    style: TextStyle(fontSize: 12.sp, color: Colors.blue),
                   ),
                 );
               }).toList(),
@@ -718,7 +720,7 @@ class _CommonChatScreenState extends State<CommonChatScreen> {
                         alignment: AlignmentDirectional.center,
                         child: Text(
                           llmNames[e]!,
-                          style: TextStyle(fontSize: 12.sp, color: Colors.blue),
+                          style: TextStyle(fontSize: 11.sp, color: Colors.blue),
                         ),
                       ))
                   .toList(),
@@ -844,57 +846,58 @@ class _CommonChatScreenState extends State<CommonChatScreen> {
         itemBuilder: (context, index) {
           // 构建MessageItem
           return Padding(
-              padding: EdgeInsets.all(5.sp),
-              child: Column(
-                children: [
-                  // 如果是最后一个回复的文本，使用打字机特效
-                  // if (index == messages.length - 1)
-                  //   TypewriterText(text: messages[index].text),
-                  MessageItem(message: messages[index]),
-                  // 如果是大模型回复，可以有一些功能按钮
-                  if (!messages[index].isFromUser)
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        // 其中，是大模型最后一条回复，则可以重新生成
-                        // 注意，还要排除占位消息
-                        if ((index == messages.length - 1) &&
-                            messages[index].isPlaceholder != true)
-                          TextButton(
-                            onPressed: () {
-                              regenerateLatestQuestion();
-                            },
-                            child: const Text("重新生成"),
-                          ),
-                        // 点击复制该条回复
-                        IconButton(
+            padding: EdgeInsets.all(5.sp),
+            child: Column(
+              children: [
+                // 如果是最后一个回复的文本，使用打字机特效
+                // if (index == messages.length - 1)
+                //   TypewriterText(text: messages[index].text),
+                MessageItem(message: messages[index]),
+                // 如果是大模型回复，可以有一些功能按钮
+                if (!messages[index].isFromUser)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      // 其中，是大模型最后一条回复，则可以重新生成
+                      // 注意，还要排除占位消息
+                      if ((index == messages.length - 1) &&
+                          messages[index].isPlaceholder != true)
+                        TextButton(
                           onPressed: () {
-                            Clipboard.setData(
-                              ClipboardData(text: messages[index].text),
-                            );
-
-                            EasyLoading.showToast(
-                              "已复制到剪贴板",
-                              duration: const Duration(seconds: 3),
-                              toastPosition: EasyLoadingToastPosition.center,
-                            );
+                            regenerateLatestQuestion();
                           },
-                          icon: Icon(Icons.copy, size: 20.sp),
+                          child: const Text("重新生成"),
                         ),
-                        // // 其他功能(占位)
-                        // IconButton(
-                        //   onPressed: null,
-                        //   icon: Icon(Icons.thumb_up_alt_outlined, size: 20.sp),
-                        // ),
-                        // IconButton(
-                        //   onPressed: null,
-                        //   icon: Icon(Icons.thumb_down_outlined, size: 20.sp),
-                        // ),
-                        SizedBox(width: 10.sp),
-                      ],
-                    )
-                ],
-              ));
+                      // 点击复制该条回复
+                      IconButton(
+                        onPressed: () {
+                          Clipboard.setData(
+                            ClipboardData(text: messages[index].text),
+                          );
+
+                          EasyLoading.showToast(
+                            "已复制到剪贴板",
+                            duration: const Duration(seconds: 3),
+                            toastPosition: EasyLoadingToastPosition.center,
+                          );
+                        },
+                        icon: Icon(Icons.copy, size: 20.sp),
+                      ),
+                      // // 其他功能(占位)
+                      // IconButton(
+                      //   onPressed: null,
+                      //   icon: Icon(Icons.thumb_up_alt_outlined, size: 20.sp),
+                      // ),
+                      // IconButton(
+                      //   onPressed: null,
+                      //   icon: Icon(Icons.thumb_down_outlined, size: 20.sp),
+                      // ),
+                      SizedBox(width: 10.sp),
+                    ],
+                  )
+              ],
+            ),
+          );
         },
       ),
     );

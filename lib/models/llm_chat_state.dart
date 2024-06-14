@@ -97,6 +97,12 @@ class ChatSession {
   // 2024-06-06 记录了大模型名称，也记一下使用在哪个云平台
   final String? cloudPlatformName;
 
+  /// 图像理解也是对话记录，所以增加一个类别
+  String chatType; // aigc\image2text\text2image
+  // ？？？2024-06-14 在图像理解中可以复用对话，存放被理解的图片的base64字符串
+  // i2t => image to text
+  String? i2tImageBase64;
+
   ChatSession({
     required this.uuid,
     required this.title,
@@ -104,6 +110,8 @@ class ChatSession {
     required this.messages,
     required this.llmName,
     this.cloudPlatformName,
+    this.i2tImageBase64,
+    required this.chatType,
   });
 
   factory ChatSession.fromMap(Map<String, dynamic> map) {
@@ -117,6 +125,8 @@ class ChatSession {
           .toList(),
       llmName: map['llm_name'] as String,
       cloudPlatformName: map['yun_platform_name'] as String?,
+      i2tImageBase64: map['i2t_image_base64'] as String?,
+      chatType: map['chat_type'] as String,
     );
   }
 
@@ -128,6 +138,8 @@ class ChatSession {
       'messages': messages.toString(),
       'llm_name': llmName,
       'yun_platform_name': cloudPlatformName,
+      'chat_type': chatType,
+      'i2t_image_base64': i2tImageBase64,
     };
   }
 
@@ -140,6 +152,8 @@ class ChatSession {
         gmtCreate: json["gmt_create"],
         llmName: json["llm_name"],
         cloudPlatformName: json["yun_platform_name"],
+        chatType: json["chat_type"],
+        i2tImageBase64: json["i2t_image_base64"],
       );
 
   Map<String, dynamic> toJson() => {
@@ -149,6 +163,8 @@ class ChatSession {
         "gmt_create": gmtCreate,
         "llm_name": llmName,
         "yun_platform_name": cloudPlatformName,
+        "i2t_image_base64": i2tImageBase64,
+        'chat_type': chatType,
       };
 
   @override
@@ -160,6 +176,8 @@ class ChatSession {
       "gmtCreate": $gmtCreate,
       "llmName": $llmName,
       "cloudPlatformName": $cloudPlatformName,
+      'chatType': $chatType,
+      "i2tImageBase64": ${(i2tImageBase64 != null && i2tImageBase64!.length > 10) ? i2tImageBase64?.substring(0, 10) : i2tImageBase64},
       "messages": $messages
     }
     ''';
