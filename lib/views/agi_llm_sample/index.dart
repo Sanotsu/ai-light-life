@@ -7,6 +7,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'baidu_image2text_screen.dart';
 import 'common_chat_screen.dart';
 import 'aliyun_text2image_screen.dart';
+import 'common_limited_chat_screen.dart';
 
 class AgiLlmSample extends StatefulWidget {
   const AgiLlmSample({super.key});
@@ -62,8 +63,8 @@ class _AgiLlmSampleState extends State<AgiLlmSample> {
             data: """这里有一些简单的大模型，体验一下AI能量吧。  
             ***智能对话***  
             既能写文案、想点子，又能陪你聊天、答疑解惑。  
-            文本翻译、FAQ、百科问答、情感分析、  
-            阅读理解、内容创作、代码编写……     
+            文本翻译、百科问答、情感分析、FAQ、    
+            阅读理解、内容创作、代码编写……无所不能。     
             ***文本生图***   
             简单的几句话，就能帮你生成各种风格的图片。  
             ***图像理解***  
@@ -84,6 +85,7 @@ class _AgiLlmSampleState extends State<AgiLlmSample> {
               childAspectRatio: 2 / 1,
               children: <Widget>[
                 buildAIToolEntrance(0, "智能对话", color: Colors.blue[200]),
+                buildAIToolEntrance(3, "智能对话\n限量测试", color: Colors.blue[200]),
                 buildAIToolEntrance(1, "文本生图\n两毛一张", color: Colors.grey[100]),
                 buildAIToolEntrance(2, "图像理解", color: Colors.green[100]),
               ],
@@ -105,8 +107,12 @@ class _AgiLlmSampleState extends State<AgiLlmSample> {
               return const CommonChatScreen();
             } else if (type == 1) {
               return const AliyunText2ImageScreen();
-            } else {
+            } else if (type == 2) {
               return const BaiduImage2TextScreen();
+            } else if (type == 3) {
+              return const CommonLimitedChatScreen();
+            } else {
+              return const CommonChatScreen();
             }
           }),
         );

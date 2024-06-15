@@ -62,6 +62,7 @@ class CommonUsage {
     );
   }
 
+  // ???应该没用到
   Map<String, dynamic> toJson() {
     return {
       "PromptTokens": promptTokens,
@@ -70,6 +71,21 @@ class CommonUsage {
       "input_tokens": inputTokens,
       "output_tokens": outputTokens,
     };
+  }
+
+  @override
+  String toString() {
+    // 2024-06-03 这个对话会被作为string存入数据库，然后再被读取转型为ChatMessage。
+    // 所以需要是个完整的json字符串，一般fromMap时可以处理
+    return '''
+    {
+     "promptTokens": "$promptTokens", 
+     "completionTokens": $completionTokens, 
+     "totalTokens": "$totalTokens", 
+     "inputTokens": "$inputTokens", 
+     "outputTokens": "$outputTokens"
+    }
+    ''';
   }
 }
 
@@ -141,11 +157,17 @@ class AliyunParameters {
   // 流式响应时，是否增量输出
   // 默认为false，即后面的内容会包含已经输出的内容，不用手动叠加
   bool? incrementalOutput;
+  // 2024-06-15 阿里云的请求这个parameters不能为null，但上面的在零一万物等模型中不存在，
+  // 所以这里一个对话模型可能都有的参数
+  // 控制生成结果的随机性。数值越小，随机性越弱；数值越大，随机性越强。
+  //    取值范围： [.0f, 1.0f]。 多样性，越高，多样性越好, 缺省 0.3。
+  double? topP;
 
   AliyunParameters({
     this.seed,
     this.resultFormat,
-    this.incrementalOutput = true,
+    this.incrementalOutput,
+    this.topP = 0.7,
   });
 
   factory AliyunParameters.fromJson(Map<String, dynamic> json) =>
@@ -153,12 +175,14 @@ class AliyunParameters {
         seed: json["seed"],
         resultFormat: json["result_format"],
         incrementalOutput: json["incremental_output"],
+        topP: json["top_p"],
       );
 
   Map<String, dynamic> toJson() => {
         "seed": seed,
         "result_format": resultFormat,
         "incremental_output": incrementalOutput,
+        "top_p": topP,
       };
 }
 

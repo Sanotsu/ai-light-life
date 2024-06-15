@@ -66,6 +66,47 @@ Future<CommonRespBody> getAliyunAigcCommonResp(
   return CommonRespBody.fromJson(respData ?? "{}");
 }
 
+/// 限量的查询，为了避免麻烦，模型参数
+Future<CommonRespBody> getAliyunLimitedAigcCommonResp(
+  List<CommonMessage> messages,
+  String? model,
+) async {
+  /// 2024-06-16 阿里云中限量的零一万物没有看到流式的入参数，也没有resultFormat等参数
+  /// 又因为 parameters 不可为空，这里传一个占位的
+  var body = CommonReqBody(
+    model: model,
+    input: AliyunInput(messages: messages),
+    parameters: AliyunParameters(topP: 0.7),
+  );
+
+  var start = DateTime.now().millisecondsSinceEpoch;
+
+  var respData = await HttpUtils.post(
+    path: aliyunAigcUrl,
+    method: HttpMethod.post,
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer $ALIYUN_API_KEY",
+    },
+    // 可能是因为头的content type设定，这里直接传类实例即可，传toJson也可
+    data: body,
+  );
+
+  print("limited===============$respData");
+
+  var end = DateTime.now().millisecondsSinceEpoch;
+
+  print("2222222222xxxxxxxxxxxxxxxxx${(end - start) / 1000} 秒");
+
+  ///？？？ 2024-06-11 阿里云请求报错，会进入dio的错误拦截器，这里ret就是个null了
+  if (respData.runtimeType == String) {
+    respData = json.decode(respData);
+  }
+
+  // 响应是json格式
+  return CommonRespBody.fromJson(respData ?? {});
+}
+
 Future<List<CommonRespBody>> getAliyunAigcStreamCommonResp(
   List<CommonMessage> messages, {
   String? model,

@@ -569,17 +569,10 @@ class _AliyunText2ImageScreenState extends State<AliyunText2ImageScreen>
                   FocusScope.of(context).unfocus();
 
                   // 实际请求
-                  // await getText2ImageData();
-
-                  // 如果配置栏是展开的，就折叠起来
-                  // setState(() {
-                  //   if (_expansionTileController.isExpanded) {
-                  //     _expansionTileController.collapse();
-                  //   }
-                  // });
+                  await getText2ImageData();
 
                   // 模拟请求
-                  await mockGetUrl();
+                  // await mockGetUrl();
                 }
               : null,
           child: const Text(

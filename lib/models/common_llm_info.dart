@@ -3,6 +3,7 @@ enum CloudPlatform {
   baidu,
   tencent,
   aliyun,
+  liminted, // 限时限量的测试
 }
 
 // 模型对应的中文名
@@ -10,6 +11,7 @@ final Map<CloudPlatform, String> cpNames = {
   CloudPlatform.baidu: '百度',
   CloudPlatform.tencent: '腾讯',
   CloudPlatform.aliyun: '阿里',
+  CloudPlatform.liminted: '限量',
 };
 
 // 定义一个函数来从字符串获取枚举值
@@ -39,7 +41,30 @@ enum PlatformLLM {
   aliyunQwen1p51p8BChat, //  千问1.5开源本，18亿参数
   aliyunQwen1p50p5BChat, //  千问1.5开源本，5亿参数
   aliyunFaruiPlus32K,
+
+  /// 其实就是阿里云中限时限量的部分
+  limintedYiLarge, // 32k
+  limintedYiLargeTurbo, // 16K
+  limintedYiLargeRAG, // 16K
+  limintedYiMedium, // 16K
 }
+
+/// 2024-06-14 这个可以抽成1个对象即可，暂时先改限时限量版本的
+/// list 取值一定记住顺序：模型字符串(平台API参数的那个model的值)、模型名称、上下文长度数值，限时字符串、限量数值
+final Map<PlatformLLM, List> llmSpecs = {
+  PlatformLLM.limintedYiLarge: [
+    'yi-large', 'Yi-Large', 32000, "2024-12-03", 1000000 //
+  ],
+  PlatformLLM.limintedYiLargeTurbo: [
+    'yi-large-turbo', 'Yi-Large-Turbo', 16000, "2024-12-03", 1000000 //
+  ],
+  PlatformLLM.limintedYiLargeRAG: [
+    'yi-large-rag', 'Yi-Large-RAG', 16000, "2024-12-03", 1000000 //
+  ],
+  PlatformLLM.limintedYiMedium: [
+    'yi-medium', 'Yi-Medium', 16000, "2024-12-03", 1000000 //
+  ],
+};
 
 /// 定义一个Map来存储枚举值和对应的字符串表示
 /// 一般这都是拼接在url中的，取值直接 `llmNames[llmName]` 就好
@@ -74,7 +99,7 @@ final Map<PlatformLLM, String> llmNames = {
   PlatformLLM.aliyunFaruiPlus32K: '通义法睿-Plus-32K',
 };
 
-// 模型对应的分类(比如短小的基础对话、专业的知识等)
+// [暂没有用到]模型对应的分类(比如短小的基础对话、专业的知识等)
 final Map<PlatformLLM, String> llmDescriptions = {
   PlatformLLM.baiduErnieSpeed8K:
       'ERNIE Speed是百度2024年最新发布的自研高性能大语言模型，通用能力优异，适合作为基座模型进行精调，更好地处理特定场景问题，同时具备极佳的推理性能。\n\nERNIE-Speed-8K是模型的一个版本，上下文窗口为8K。',

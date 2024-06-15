@@ -12,6 +12,10 @@ class ChatMessage {
   final bool isFromUser; // 是否来自用户
   final String? avatarUrl; // 头像URL
   final bool? isPlaceholder; // 是否是等待响应时的占位消息
+  /// 2024-06-15 限时限量有token限制，所以存放每次对话的token消耗
+  final int? inputTokens;
+  final int? outputTokens;
+  final int? totalTokens;
 
   ChatMessage({
     required this.messageId,
@@ -20,6 +24,9 @@ class ChatMessage {
     required this.isFromUser,
     this.avatarUrl,
     this.isPlaceholder,
+    this.inputTokens,
+    this.outputTokens,
+    this.totalTokens,
   });
 
   Map<String, dynamic> toMap() {
@@ -30,6 +37,9 @@ class ChatMessage {
       'is_from_user': isFromUser,
       'avatar_url': avatarUrl,
       'is_placeholder': isPlaceholder,
+      'input_tokens': inputTokens,
+      'output_tokens': outputTokens,
+      'total_tokens': totalTokens,
     };
   }
 
@@ -45,6 +55,9 @@ class ChatMessage {
       isFromUser: bool.parse(map['is_from_user']),
       avatarUrl: map['avatar_url'] as String?,
       isPlaceholder: bool.tryParse(map['is_placeholder']),
+      inputTokens: int.tryParse(map['input_tokens']),
+      outputTokens: int.tryParse(map['output_tokens']),
+      totalTokens: int.tryParse(map['total_tokens']),
     );
   }
 
@@ -55,6 +68,9 @@ class ChatMessage {
         isFromUser: bool.parse(json["is_from_user"]),
         avatarUrl: json["avatar_url"],
         isPlaceholder: bool.tryParse(json["is_placeholder"]),
+        inputTokens: int.tryParse(json["input_tokens"]),
+        outputTokens: int.tryParse(json["output_tokens"]),
+        totalTokens: int.tryParse(json["total_tokens"]),
       );
 
   Map<String, dynamic> toJson() => {
@@ -64,6 +80,9 @@ class ChatMessage {
         "is_from_user": isFromUser,
         "avatar_url": avatarUrl,
         "is_placeholder": isPlaceholder,
+        "input_tokens": inputTokens,
+        "output_tokens": outputTokens,
+        "total_tokens": totalTokens,
       };
 
   @override
@@ -77,7 +96,10 @@ class ChatMessage {
      "date_time": "$dateTime", 
      "is_from_user": "$isFromUser", 
      "avatar_url": "$avatarUrl", 
-     "is_placeholder":"$isPlaceholder"
+     "is_placeholder":"$isPlaceholder",
+     "input_tokens":"$inputTokens",
+     "output_tokens":"$outputTokens",
+     "total_tokens":"$totalTokens"
     }
     ''';
   }
