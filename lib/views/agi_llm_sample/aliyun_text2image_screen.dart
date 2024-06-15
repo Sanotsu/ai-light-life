@@ -108,7 +108,7 @@ class _AliyunText2ImageScreenState extends State<AliyunText2ImageScreen>
         return Container(
           width: double.infinity,
           height: double.infinity,
-          color: Colors.black.withOpacity(0.5),
+          color: Colors.black.withOpacity(0.8),
           child: const Center(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
@@ -696,7 +696,7 @@ class _AliyunText2ImageScreenState extends State<AliyunText2ImageScreen>
           TextField(
             controller: _promptController,
             decoration: InputDecoration(
-              hintText: '描述画面的提示词信息。支持中英文，长度不超过500个字符。',
+              hintText: '描述画面的提示词信息。支持中英文，不超过500个字符。\n比如：“一只展翅翱翔的狸花猫”',
               hintStyle: TextStyle(fontSize: 12.sp),
               border: const OutlineInputBorder(), // 添加边框
             ),

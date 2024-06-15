@@ -3,7 +3,7 @@ enum CloudPlatform {
   baidu,
   tencent,
   aliyun,
-  liminted, // 限时限量的测试
+  limited, // 限时限量的测试
 }
 
 // 模型对应的中文名
@@ -11,7 +11,7 @@ final Map<CloudPlatform, String> cpNames = {
   CloudPlatform.baidu: '百度',
   CloudPlatform.tencent: '腾讯',
   CloudPlatform.aliyun: '阿里',
-  CloudPlatform.liminted: '限量',
+  CloudPlatform.limited: '限量',
 };
 
 // 定义一个函数来从字符串获取枚举值
@@ -43,28 +43,235 @@ enum PlatformLLM {
   aliyunFaruiPlus32K,
 
   /// 其实就是阿里云中限时限量的部分
-  limintedYiLarge, // 32k
-  limintedYiLargeTurbo, // 16K
-  limintedYiLargeRAG, // 16K
-  limintedYiMedium, // 16K
+  limitedQwenMax, // 8k，6k输入
+  limitedQwenMax0428, // 8k，6k输入
+  limitedQwenLong, // 10000k
+  limitedQwenMaxLongContext, // 28k
+  limitedQwenPlus, // 32k
+  limitedQwenTurbo, // 8k
+
+  limitedBaichuan2Turbo, // 8k
+  limitedBaichuan2Turbo192K, // 192k
+
+  limitedBaichuan27BChatV1, // 4k
+  limitedBaichuan213BChatV1, // 4k
+  limitedBaichuan7BV1, // 4k
+
+  limitedMoonshotV18K, // 8k
+  limitedMoonshotV132K, // 32k
+  limitedMoonshotV1128K, // 128k
+
+  limitedLLaMa38B, // 8k
+  limitedLLaMa370B, // 128k
+  limitedLLaMa213B, // 128k
+
+  limitedChatGLM26B, // 8k
+  limitedChatGLM36B, // 8k
+
+  limitedYiLarge, // 32k
+  limitedYiLargeTurbo, // 16K
+  limitedYiLargeRAG, // 16K
+  limitedYiMedium, // 16K
 }
 
-/// 2024-06-14 这个可以抽成1个对象即可，暂时先改限时限量版本的
-/// list 取值一定记住顺序：模型字符串(平台API参数的那个model的值)、模型名称、上下文长度数值，限时字符串、限量数值
-final Map<PlatformLLM, List> llmSpecs = {
-  PlatformLLM.limintedYiLarge: [
-    'yi-large', 'Yi-Large', 32000, "2024-12-03", 1000000 //
-  ],
-  PlatformLLM.limintedYiLargeTurbo: [
-    'yi-large-turbo', 'Yi-Large-Turbo', 16000, "2024-12-03", 1000000 //
-  ],
-  PlatformLLM.limintedYiLargeRAG: [
-    'yi-large-rag', 'Yi-Large-RAG', 16000, "2024-12-03", 1000000 //
-  ],
-  PlatformLLM.limintedYiMedium: [
-    'yi-medium', 'Yi-Medium', 16000, "2024-12-03", 1000000 //
-  ],
+// 限时限量的对话模型(比底部的示例那个简单点)
+class ChatLLMSpec {
+  // 模型字符串(平台API参数的那个model的值)、模型名称、上下文长度数值，到期时间、限量数值，
+  /// 收费输入时百万token价格价格，输出时百万token价格(限时免费没写价格就先写0)
+  final String model;
+  final String name;
+  final int contextLength;
+  final DateTime deadline;
+  final int freeAmount;
+  final double inputPrice; // 每千token单价
+  final double outputPrice;
+
+  ChatLLMSpec(this.model, this.name, this.contextLength, this.deadline,
+      this.freeAmount, this.inputPrice, this.outputPrice);
+}
+
+// 2024-06-15 阿里云的限时限量都是这两个值，放在外面好了
+final dt1 = DateTime.parse("2024-07-04");
+const num1 = 400 * 10000;
+final dt2 = DateTime.parse("2024-12-02");
+const num2 = 100 * 10000;
+
+// 2024-06-15 后续应该放到配置文件，或者用户导入（自行输入，那就要配置平台、密钥等，这就比较麻烦点了）
+final Map<PlatformLLM, ChatLLMSpec> newLLMSpecs = {
+  // 通义千问
+  PlatformLLM.limitedQwenMax:
+      ChatLLMSpec("qwen-max", '通义千问-Max_阿里云', 8 * 1000, dt1, num1, 0.04, 0.12),
+  PlatformLLM.limitedQwenMax0428: ChatLLMSpec(
+      "qwen-max-0428", '通义千问-Max-0428_阿里云', 8 * 1000, dt1, num2, 0.04, 0.12),
+  PlatformLLM.limitedQwenPlus: ChatLLMSpec(
+      'qwen-plus', '通义千问-Plus_阿里云', 32 * 1000, dt1, num1, 0.004, 0.012),
+  PlatformLLM.limitedQwenTurbo: ChatLLMSpec(
+      'qwen-turbo', '通义千问-Turbo_阿里云', 8 * 1000, dt1, num1, 0.002, 0.006),
+  PlatformLLM.limitedQwenLong: ChatLLMSpec(
+      "qwen-long", '通义千问-长文_阿里云', 10000 * 1000, dt1, num1, 0.04, 0.12),
+  PlatformLLM.limitedQwenMaxLongContext: ChatLLMSpec('qwen-max-longcontext',
+      '通义千问-Max-30K_阿里云', 28 * 1000, dt1, num2, 0.04, 0.12),
+
+  // 百川
+  PlatformLLM.limitedBaichuan2Turbo: ChatLLMSpec('baichuan2-turbo',
+      'Baichuan2-Turbo_百川', 4 * 1000, dt2, num2, 0.008, 0.008),
+  PlatformLLM.limitedBaichuan2Turbo192K: ChatLLMSpec('baichuan2-turbo-192k',
+      'Baichuan2-Turbo-192k_百川', 192 * 1000, dt2, num2, 0.008, 0.008),
+
+  // 百川开源版
+  PlatformLLM.limitedBaichuan27BChatV1: ChatLLMSpec('baichuan2-7b-chat-v1',
+      'Baichuan2-7B_百川', 4 * 1000, dt2, num2, 0.008, 0.008),
+  PlatformLLM.limitedBaichuan213BChatV1: ChatLLMSpec('baichuan2-13b-chat-v1',
+      'Baichuan2-开源版-13B_百川', 4 * 1000, dt2, num2, 0.008, 0.008),
+  PlatformLLM.limitedBaichuan7BV1: ChatLLMSpec('baichuan-7b-v1',
+      'Baichuan2-开源版-7B_百川', 4 * 1000, dt2, num2, 0.008, 0.008),
+
+  // 月之暗面
+  PlatformLLM.limitedMoonshotV18K: ChatLLMSpec('moonshot-v1-8k',
+      'Moonshot-v1-8K_月之暗面', 8 * 1000, dt2, num2, 0.008, 0.008),
+  PlatformLLM.limitedMoonshotV132K: ChatLLMSpec('moonshot-v1-32k',
+      'Moonshot-v1-32K_月之暗面', 32 * 1000, dt2, num2, 0.008, 0.008),
+  PlatformLLM.limitedMoonshotV1128K: ChatLLMSpec('moonshot-v1-128k',
+      'Moonshot-v1-128K_月之暗面', 128 * 1000, dt2, num2, 0.008, 0.008),
+
+  // LLaMa
+  PlatformLLM.limitedLLaMa38B: ChatLLMSpec(
+      'llama3-8b-instruct', 'LLaMa3-8B_Meta', 8 * 1000, dt2, num2, 0.1, 0.1),
+  PlatformLLM.limitedLLaMa370B: ChatLLMSpec(
+      'llama3-70b-instruct', 'LLaMa3-70B_Meta', 8 * 1000, dt2, num2, 0.1, 0.1),
+  PlatformLLM.limitedLLaMa213B: ChatLLMSpec(
+      'llama2-13b-chat-v2', 'Llama2-13B_Meta', 8 * 1000, dt2, num2, 0.1, 0.1),
+
+  // 智谱
+  PlatformLLM.limitedChatGLM26B: ChatLLMSpec(
+      'chatglm-6b-v2', 'ChatGLM2-6B_智谱', 8 * 1000, dt2, num2, 0.006, 0.006),
+  PlatformLLM.limitedChatGLM36B: ChatLLMSpec(
+      'chatglm3-6b', 'ChatGLM3-开源版-6B_智谱', 8 * 1000, dt2, num2, 0.006, 0.006),
+
+  // 零一万物
+  PlatformLLM.limitedYiLarge:
+      ChatLLMSpec('yi-large', 'Yi-Large_零一万物', 32000, dt2, num2, 0, 0),
+  PlatformLLM.limitedYiLargeTurbo: ChatLLMSpec(
+      'yi-large-turbo', 'Yi-Large-Turbo_零一万物', 16000, dt2, num2, 0, 0),
+  PlatformLLM.limitedYiLargeRAG:
+      ChatLLMSpec('yi-large-rag', 'Yi-Large-RAG_零一万物', 16000, dt2, num2, 1, 1),
+  PlatformLLM.limitedYiMedium:
+      ChatLLMSpec('yi-medium', 'Yi-Medium_零一万物', 16000, dt2, num2, 1, 1),
 };
+
+/// 2024-06-14 这个可以抽成1个对象即可，暂时先改限时限量版本的
+/// list 取值一定记住顺序：模型字符串(平台API参数的那个model的值)、模型名称、上下文长度数值，限时字符串、限量数值，
+/// 收费输入时百万token价格价格，输出时百万token价格(限时免费没写价格就先写0)
+// final Map<PlatformLLM, List> llmSpecs = {
+//   // 通义千问
+//   PlatformLLM.limitedQwenMax: [
+//     'qwen-max', '通义千问-Max', 8 * 1000, "2024-07-05", 4000000,
+//     // 输入输出价格（千token*1000=百万token价格）
+//     0.04 * 1000, 0.12 * 1000,
+//   ],
+//   PlatformLLM.limitedQwenMax0428: [
+//     'qwen-max-0428', '通义千问-Max-0428', 8 * 1000, "2024-07-05", 1000000,
+//     // 输入输出价格（千token*1000=百万token价格）
+//     0.04 * 1000, 0.12 * 1000,
+//   ],
+//   PlatformLLM.limitedQwenLong: [
+//     'qwen-long', 'Qwen-Long', 10000 * 1000, "2024-07-05", 4000000, //
+//     0.0005 * 1000, 0.002 * 1000,
+//   ],
+//   PlatformLLM.limitedQwenMaxLongContext: [
+//     'qwen-max-longcontext', '通义千问-Max-30K', 28 * 1000, "2024-07-05", 1000000, //
+//     0.04 * 1000, 0.12 * 1000,
+//   ],
+//   PlatformLLM.limitedQwenPlus: [
+//     'qwen-plus', '通义千问-Plus', 32 * 1000, "2024-07-05", 4000000, //
+//     0.004 * 1000, 0.012 * 1000,
+//   ],
+//   PlatformLLM.limitedQwenTurbo: [
+//     'qwen-turbo', '通义千问-Turbo', 8 * 1000, "2024-07-05", 4000000, //
+//     0.002 * 1000, 0.006 * 1000,
+//   ],
+
+//   // 百川
+//   PlatformLLM.limitedBaichuan2Turbo: [
+//     'baichuan2-turbo', 'Baichuan2-Turbo', 4 * 1000, "2024-12-03", 1000000, //
+//     0.008 * 1000, 0.008 * 1000,
+//   ],
+//   PlatformLLM.limitedBaichuan2Turbo192K: [
+//     'baichuan2-turbo-192k', 'Baichuan2-Turbo-192k', 192 * 1000, "2024-12-03",
+//     1000000, //
+//     0.008 * 1000, 0.008 * 1000,
+//   ],
+
+//   // 百川开源版
+//   PlatformLLM.limitedBaichuan27BChatV1: [
+//     'baichuan2-7b-chat-v1', '百川2-7B', 4 * 1000, "2024-12-02", 1000000, //
+//     0.008 * 1000, 0.008 * 1000,
+//   ],
+//   PlatformLLM.limitedBaichuan213BChatV1: [
+//     'baichuan2-13b-chat-v1', 'Baichuan2-开源版-13B', 4 * 1000, "2024-12-02",
+//     1000000, //
+//     0.008 * 1000, 0.008 * 1000,
+//   ],
+//   PlatformLLM.limitedBaichuan7BV1: [
+//     'baichuan-7b-v1', 'Baichuan2-开源版-7B', 4 * 1000, "2024-12-02", 1000000, //
+//     0.008 * 1000, 0.008 * 1000,
+//   ],
+
+//   // 月之暗面
+//   PlatformLLM.limitedMoonshotV18K: [
+//     'moonshot-v1-8k', 'Moonshot-v1-8K', 8 * 1000, "2024-12-03", 1000000, //
+//     0.008 * 1000, 0.008 * 1000,
+//   ],
+//   PlatformLLM.limitedMoonshotV132K: [
+//     'moonshot-v1-32k', 'Moonshot-v1-32K', 32 * 1000, "2024-12-03", 1000000, //
+//     0.008 * 1000, 0.008 * 1000,
+//   ],
+//   PlatformLLM.limitedMoonshotV1128K: [
+//     'moonshot-v1-128k', 'Moonshot-v1-128K', 128 * 1000, "2024-12-03",
+//     1000000, //
+//     0.008 * 1000, 0.008 * 1000,
+//   ],
+
+//   // LLaMa
+//   PlatformLLM.limitedLLaMa38B: [
+//     'llama3-8b-instruct', 'LLaMa3-8B', 8 * 1000, "2024-12-02", 1000000, //
+//     0.1 * 1000, 0.1 * 1000,
+//   ],
+//   PlatformLLM.limitedLLaMa370B: [
+//     'llama3-70b-instruct', 'LLaMa3-70B', 8 * 1000, "2024-12-09", 1000000, //
+//     0.1 * 1000, 0.1 * 1000,
+//   ],
+//   PlatformLLM.limitedLLaMa213B: [
+//     'llama2-13b-chat-v2', 'Llama2-13B', 8 * 1000, "2024-12-02", 1000000, //
+//     0.1 * 1000, 0.1 * 1000,
+//   ],
+
+//   // 智谱
+//   PlatformLLM.limitedChatGLM26B: [
+//     'chatglm-6b-v2', 'ChatGLM2-6B', 8 * 1000, "2024-12-02", 1000000, //
+//     0.006 * 1000, 0.006 * 1000,
+//   ],
+//   PlatformLLM.limitedChatGLM36B: [
+//     'chatglm3-6b', 'ChatGLM3-开源版-6B', 8 * 1000, "2024-12-02", 1000000, //
+//     0.006 * 1000, 0.006 * 1000,
+//   ],
+
+//   // 零一万物
+//   PlatformLLM.limitedYiLarge: [
+//     'yi-large', 'Yi-Large', 32000, "2024-12-03", 1000000, //
+//     0 * 1000, 0 * 1000,
+//   ],
+//   PlatformLLM.limitedYiLargeTurbo: [
+//     'yi-large-turbo', 'Yi-Large-Turbo', 16000, "2024-12-03", 1000000, //
+//     0 * 1000, 0 * 1000,
+//   ],
+//   PlatformLLM.limitedYiLargeRAG: [
+//     'yi-large-rag', 'Yi-Large-RAG', 16000, "2024-12-03", 1000000 //
+//   ],
+//   PlatformLLM.limitedYiMedium: [
+//     'yi-medium', 'Yi-Medium', 16000, "2024-12-03", 1000000 //
+//   ],
+// };
 
 /// 定义一个Map来存储枚举值和对应的字符串表示
 /// 一般这都是拼接在url中的，取值直接 `llmNames[llmName]` 就好

@@ -48,8 +48,8 @@ class _CommonLimitedChatScreenState extends State<CommonLimitedChatScreen> {
   /// 级联选择效果：云平台-模型名
   /// 2024-06-15 这里限量的，暂时都是阿里云平台的，但单独取名limited？？？
   /// 也没有其他可修改的地方
-  CloudPlatform selectedPlatform = CloudPlatform.liminted;
-  PlatformLLM selectedLlm = PlatformLLM.limintedYiLarge;
+  CloudPlatform selectedPlatform = CloudPlatform.limited;
+  PlatformLLM selectedLlm = PlatformLLM.limitedYiLarge;
 
   // AI是否在思考中(如果是，则不允许再次发送)
   bool isBotThinking = false;
@@ -94,6 +94,20 @@ class _CommonLimitedChatScreenState extends State<CommonLimitedChatScreen> {
     // "一个长方体的棱长和是144厘米，它的长、宽、高之比是4:3:2，长方体的体积是多少？",
   ];
 
+  @override
+  void initState() {
+    super.initState();
+
+    // 找到还没超时的大模型，取第一个作为预设的
+    setState(() {
+      selectedLlm = PlatformLLM.values
+          .where((m) =>
+              m.name.startsWith(selectedPlatform.name) &&
+              newLLMSpecs[m]!.deadline.isAfter(DateTime.now()))
+          .first;
+    });
+  }
+
   /// 获取指定对话列表
   _getChatInfo(String chatId) async {
     print("调用了getChatInfo----------");
@@ -110,9 +124,9 @@ class _CommonLimitedChatScreenState extends State<CommonLimitedChatScreen> {
         // 如果有存是哪个模型，也默认选中该模型
         // ？？？2024-06-11 虽然同一个对话现在可以切换平台和模型了，但这里只是保留第一次对话取的值
         // 后面对话过程中切换平台和模型，只会在该次对话过程中有效
-        var tempLlms = llmSpecs.entries
+        var tempLlms = newLLMSpecs.entries
             // 数据库存的模型名是平台API参数的那个model的值
-            .where((e) => e.value[0] == list.first.llmName)
+            .where((e) => e.value.model == list.first.llmName)
             .toList();
 
         if (tempLlms.isNotEmpty) {
@@ -185,7 +199,7 @@ class _CommonLimitedChatScreenState extends State<CommonLimitedChatScreen> {
         gmtCreate: DateTime.now(),
         messages: messages,
         // 2026-06-06 这里记录的也是各平台原始的大模型名称
-        llmName: llmSpecs[selectedLlm]![0],
+        llmName: newLLMSpecs[selectedLlm]!.model,
         cloudPlatformName: selectedPlatform.name,
         // 2026-06-06 对话历史默认带上类别
         chatType: "aigc",
@@ -224,7 +238,7 @@ class _CommonLimitedChatScreenState extends State<CommonLimitedChatScreen> {
 
     // 等待请求响应
     CommonRespBody temp;
-    var llmName = llmSpecs[selectedLlm]![0];
+    var llmName = newLLMSpecs[selectedLlm]!.model;
 
     print("显示的模型名称!----$llmName");
     // 2024-06-06 ??? 这里一定要确保存在模型名称，因为要作为http请求参数
@@ -232,7 +246,7 @@ class _CommonLimitedChatScreenState extends State<CommonLimitedChatScreen> {
     /// 2024-06-15 限时限量的可能都是收费的，本来就慢，所以默认就流式，不用切换
     // if (isStream) {}
 
-    if (selectedPlatform == CloudPlatform.liminted) {
+    if (selectedPlatform == CloudPlatform.limited) {
       temp = await getAliyunLimitedAigcCommonResp(msgs, llmName);
     } else {
       temp = await getAliyunLimitedAigcCommonResp(msgs, llmName);
@@ -254,8 +268,10 @@ class _CommonLimitedChatScreenState extends State<CommonLimitedChatScreen> {
   }
 
   /// 2024-05-31 暂时不根据token的返回来说了，临时直接显示整个对话不超过8千字
+  /// 限量的有放在对象里面
   bool isMessageTooLong() =>
-      messages.fold(0, (sum, msg) => sum + msg.text.length) > 8000;
+      messages.fold(0, (sum, msg) => sum + msg.text.length) >
+      newLLMSpecs[selectedLlm]!.contextLength;
 
   /// 最后一条大模型回复如果不满意，可以重新生成(中间的不行，因为后续的问题是关联上下文的)
   regenerateLatestQuestion() {
@@ -333,7 +349,7 @@ class _CommonLimitedChatScreenState extends State<CommonLimitedChatScreen> {
   buildAppbarArea() {
     return AppBar(
       title: Text(
-        '智能对话(限时限量版本)',
+        'AI 聊天(限时限量)',
         style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold),
       ),
       actions: [
@@ -653,21 +669,28 @@ class _CommonLimitedChatScreenState extends State<CommonLimitedChatScreen> {
             child: DropdownButton<PlatformLLM?>(
               value: selectedLlm,
               isDense: true,
-              alignment: AlignmentDirectional.centerEnd,
+              alignment: AlignmentDirectional.bottomEnd,
+              menuMaxHeight: 300.sp,
               items: PlatformLLM.values
-                  .where((m) => m.name.startsWith(selectedPlatform.name))
+                  .where((m) =>
+                      m.name.startsWith(selectedPlatform.name) &&
+                      newLLMSpecs[m]!.deadline.isAfter(DateTime.now()))
                   .map((e) => DropdownMenuItem<PlatformLLM>(
                         value: e,
-                        alignment: AlignmentDirectional.center,
+                        alignment: AlignmentDirectional.centerEnd,
                         child: Text(
-                          llmSpecs[e]![1],
-                          style: TextStyle(fontSize: 11.sp, color: Colors.blue),
+                          "${newLLMSpecs[e]!.name}_${DateFormat(constDateFormat).format(newLLMSpecs[e]!.deadline)}到期",
+                          style: TextStyle(fontSize: 10.sp, color: Colors.blue),
                         ),
                       ))
                   .toList(),
               onChanged: (val) {
                 setState(() {
                   selectedLlm = val!;
+                  // 2024-06-15 切换模型应该新建对话，因为上下文丢失了。
+                  // 建立新对话就是把已有的对话清空就好(因为保存什么的在发送消息时就处理了)
+                  chatSession = null;
+                  messages.clear();
                 });
               },
             ),
@@ -692,7 +715,7 @@ class _CommonLimitedChatScreenState extends State<CommonLimitedChatScreen> {
   /// 直接进入对话页面，展示预设问题的区域
   buildDefaultQuestionArea() {
     return [
-      const Text("你可以试着问我(对话总长度建议不超过8000字)："),
+      Text("你可以试着问我(对话总长度不宜超过${newLLMSpecs[selectedLlm]!.contextLength}字)："),
       Expanded(
         flex: 2,
         child: ListView.builder(

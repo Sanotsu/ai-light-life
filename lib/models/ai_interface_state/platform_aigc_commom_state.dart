@@ -442,7 +442,11 @@ class CommonRespBody {
     }
     // 阿里的基础消息
     if (json["output"] != null) {
+      // 2024-06-15 阿里的也有2种类型:一是一般text的格式,另一种是message的格式,理论上2者不会同时存在
       var temp = AliyunOutput.fromJson(json["output"]);
+      if (temp.text != null) {
+        customReplyText = temp.text!;
+      }
       if (temp.choices != null && temp.choices!.isNotEmpty) {
         customReplyText = temp.choices!.first.message.content;
       }
