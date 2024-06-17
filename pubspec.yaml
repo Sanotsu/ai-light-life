@@ -1,5 +1,5 @@
-name: free_brief_accounting
-description: "一个包含极简的记账功能，和简单的AI对话功能的flutter应用。"
+name: ai_light_life
+description: "一个包含极简的记账、幸运转盘随机菜品，和简单的AI对话、文生图、图像理解等功能的flutter应用。"
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: "none" # Remove this line if you wish to publish to pub.dev

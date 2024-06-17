@@ -37,7 +37,7 @@ class AppCatchError {
       SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp])
           .then((_) async {
         runApp(
-          const BriefAccountingApp(),
+          const AILightLifeApp(),
         );
       });
     }, (error, stack) => catchError(error, stack));
@@ -68,8 +68,8 @@ class AppCatchError {
   }
 }
 
-class BriefAccountingApp extends StatelessWidget {
-  const BriefAccountingApp({super.key});
+class AILightLifeApp extends StatelessWidget {
+  const AILightLifeApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -80,7 +80,7 @@ class BriefAccountingApp extends StatelessWidget {
       builder: (_, widget) {
         return MaterialApp(
           navigatorKey: navigatorKey,
-          title: 'free_brief_accounting',
+          title: 'ai_light_life',
           debugShowCheckedModeBanner: false,
           // 应用导航的观察者，导航有变化的时候可以做一些事？
           // navigatorObservers: [routeObserver],

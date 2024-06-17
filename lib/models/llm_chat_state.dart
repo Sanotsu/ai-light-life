@@ -1,7 +1,8 @@
 import 'dart:convert';
 
-import 'package:free_brief_accounting/common/constants.dart';
 import 'package:intl/intl.dart';
+
+import '../common/constants.dart';
 
 /// 人机对话的每一条消息的结果
 /// 对话页面就是包含一系列时间顺序排序后的对话消息的list

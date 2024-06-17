@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:free_brief_accounting/common/constants.dart';
 import 'package:intl/intl.dart';
 
+import '../../../common/constants.dart';
 import '../../../models/llm_chat_state.dart';
 
 class MessageItem extends StatelessWidget {

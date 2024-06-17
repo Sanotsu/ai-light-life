@@ -13,7 +13,7 @@
     <!-- <uses-permission android:name="android.permission.READ_MEDIA_*"/> -->
     <application
         android:requestLegacyExternalStorage="true" 
-        android:label="AI聊天与记账"
+        android:label="AI Light Life"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

@@ -376,6 +376,7 @@ _这个其实是之前(2024-04-09)就单独开发好的 app 了，功能融合�
   - feat: 合并了之前的 flutter_random_dish 项目的功能。
     - todo: 数据库文件还是分开的，要何在一起吗？
   - doc: 更新 readme 文件。
+  - rename: 重命名了整个项目名称。
 
 ### TODO
 
@@ -395,3 +396,5 @@ _这个其实是之前(2024-04-09)就单独开发好的 app 了，功能融合�
   - 某个问题访问 API 出错了，可以点击重试按钮快速重试
   - 回答使用符合 md 和代码等样式
     - 2024-05-31 基本可以，还可以细节调整
+
+flutter build apk --split-per-abi --output=./AILightLife-release.apk
