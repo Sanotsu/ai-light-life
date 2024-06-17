@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'accounting/index.dart';
 import 'agi_llm_sample/index.dart';
 import 'backup_and_restore/index.dart';
+import 'random_dish/dish_wheel_index.dart';
 
 /// 主页面
 
@@ -22,6 +23,7 @@ class _HomePageState extends State<HomePage> {
   static const List<Widget> _widgetOptions = <Widget>[
     AgiLlmSample(),
     BillItemIndex(),
+    DishWheelIndex(),
   ];
 
   void _onItemTapped(int index) {
@@ -96,11 +98,15 @@ class _HomePageState extends State<HomePage> {
           items: const <BottomNavigationBarItem>[
             BottomNavigationBarItem(
               icon: Icon(Icons.bolt),
-              label: "智能对话",
+              label: "智能助手",
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.receipt),
               label: "极简记账",
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.restaurant_menu),
+              label: "随机菜品",
             ),
           ],
           currentIndex: _selectedIndex,

@@ -11,6 +11,7 @@ import 'package:path_provider/path_provider.dart';
 import '../../models/brief_accounting_state.dart';
 import '../../models/llm_chat_state.dart';
 import '../../models/llm_text2image_state.dart';
+import '../constants.dart';
 import 'ddl_brief_accounting.dart';
 
 // 导出表文件临时存放的文件夹
@@ -43,7 +44,6 @@ class DBHelper {
   Future<Database> initializeDB() async {
     // 获取Android和iOS存储数据库的目录路径(用户看不到，在Android/data/……里看不到)。
     // Directory directory = await getApplicationDocumentsDirectory();
-    // String path = "${directory.path}/${DietaryDdl.databaseName}";
 
     // IOS不支持这个方法，所以可能取不到这个地址
     Directory? directory2 = await getExternalStorageDirectory();

@@ -1,13 +1,113 @@
-# free_brief_accounting
+# AI Light Life
+
+- [AI Light Life](#ai-light-life)
+  - [说明](#说明)
+  - [项目版本](#项目版本)
+  - [项目依赖](#项目依赖)
+  - [Part1: 记账部分 brief\_accounting](#part1-记账部分-brief_accounting)
+    - [核心想法](#核心想法)
+    - [页面设计](#页面设计)
+  - [Part2: AI 大模型部分 agi\_llm\_sample](#part2-ai-大模型部分-agi_llm_sample)
+    - [核心想法](#核心想法-1)
+    - [页面设计](#页面设计-1)
+  - [Part3: 随机菜品 random\_dish](#part3-随机菜品-random_dish)
+    - [使用说明](#使用说明)
+    - [设计简述](#设计简述)
+    - [导入的菜品 json 文件格式示例](#导入的菜品-json-文件格式示例)
+  - [开发过程](#开发过程)
+    - [开发记录](#开发记录)
+    - [TODO](#todo)
+
+## 说明
+
+一些我自己可能常常用的到的小功能，比如记账、菜谱、AI chat 等等
+
+一开始单纯想做个适合自己的非常简陋的记账 app，2024-05-30 添加了一个基于免费的大模型 AI 对话，应用名就不好说了:
+
+- 2024-05-30: Cost and AI Chat (AI 聊天和极简记账(智能对话和记账))
+- 2024-06-14: Light Life (简单生活?)
+- 2024-06-17: AI Light Life (智能轻生活?)
+
+## 项目版本
+
+- `0.1.x`
+  - 基本完成了极简记账的核心功能；
+- `0.2.x`
+  - 基本完成了极简 AI 对话的核心功能；
+- `0.3.x`
+  - AI 对话部分整合了百度、腾讯、阿里几个免费使用的大模型 API，可简单切换；
+  - 基本可简单使用阿里的通义万相来文本生成图片；
+  - 基本可简单使用阿里云平台的 Fuyu-8B 模型来完成图像理解功能；
+- `0.4.x`
+  - 添加幸运转盘获取随机菜品的功能；
+
+## 项目依赖
+
+2024-05-27 使用最新 flutter 版本：
+
+```sh
+$ flutter --version
+Flutter 3.22.1 • channel stable • https://github.com/flutter/flutter.git
+Framework • revision a14f74ff3a (4 天前) • 2024-05-22 11:08:21 -0500
+Engine • revision 55eae6864b
+Tools • Dart 3.4.1 • DevTools 2.34.3
+```
+
+主要的工具库:
+
+注意，我个人是想着尽可能多的学习使用 flutter 的各项库，所以可能这些依赖并不一定是核心功能必要的。
+
+```yaml
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # The following adds the Cupertino Icons font to your application.
+  # Use with the CupertinoIcons class for iOS style icons.
+  cupertino_icons: ^1.0.2
+  sqflite: ^2.3.3+1 # sqlite数据库工具库
+  path_provider: ^2.1.3 # 获取主机平台文件系统上的常用位置
+  path: ^1.9.0 # 基于字符串的路径操作库
+  flutter_easyloading: ^3.0.5 #  loading/toast 小部件
+  flutter_screenutil: ^5.9.1 # 适配屏幕和字体大小的插件
+  intl: ^0.19.0 # 国际化/本地化处理库
+  flutter_localizations:
+    sdk: flutter
+  collection: ^1.18.0 # 集合相关的适用工具库
+  bottom_picker: ^2.7.0 # 简洁，但不支持仅年月
+  month_picker_dialog: ^3.0.0 # 支持仅年月，但是是弹窗，和原始组件类似
+  syncfusion_flutter_charts: ^25.2.5 # 图表库
+  flutter_form_builder: ^9.3.0 # 表单组件
+  form_builder_validators: ^10.0.1 # 表单验证
+  form_builder_file_picker: ^4.1.0 # 表单中选择文件
+  uuid: ^4.4.0 # uuid
+  flutter_markdown: ^0.7.2 # 使用md格式显示大模型的响应
+  dio: ^5.4.3+1 # http client # http client
+  connectivity_plus: ^6.0.3 # 用于发现可以使用的网络连接类型
+  pretty_dio_logger: ^1.3.1 # Dio 拦截器，它以漂亮、易于阅读的格式记录网络调用。
+  crypto: ^3.0.3 # Dart 的一组加密哈希函数。
+  # file_picker: ^8.0.3 # 备份恢复是选择文件路径(v8版本和上面表单中选择文件的库有冲突)
+  file_picker: ^5.5.0
+  permission_handler: ^11.3.1 # 获取设备各项权限
+  archive: ^3.6.1 # 解压缩文件
+  device_info_plus: ^10.1.0 # 获取设备信息
+  animated_text_kit: ^4.2.2 # 动画文本特效工具，上次更新2022-06-05 但用户多
+  toggle_switch: ^2.3.0 # 第三方的切换按钮
+  cached_network_image: ^3.3.1 # 缓存网络图片
+  image_gallery_saver: ^2.0.3 # 保存图片到图库(安卓9及以下无效)
+  photo_view: ^0.15.0 # 图片预览
+  url_launcher: ^6.3.0 # 打开url
+  carousel_slider: ^4.2.1 # 轮播滑块小部件
+  multi_select_flutter: ^4.1.3 # 一个用于以多种方式创建多选小部件的包
+  image_picker: ^1.1.2 # 从设备选图片或者拍照
+  flutter_fortune_wheel: ^1.3.1 # 幸运大转盘
+```
+
+<!-- 下面是开发或整合到本应用的时间顺序，不算分类 -->
+
+## Part1: 记账部分 brief_accounting
 
 极度简单的支出流水账记录……
-
-2024-05-30 添加了一个基于免费的大模型 AI 对话，应用名不好说了
-
-- 中文：AI 聊天和极简记账(智能对话和记账)；英文 Cost and AI Chat
-- 2024-06-14 Light Life
-
-## Getting Started
 
 虽然名字是记账，但实际上就是一些流水账(laundry list)
 
@@ -27,7 +127,7 @@
 
 ```sql
 CREATE TABLE "income_list" (
-	"income_id"	    INTEGER NOT NULL,
+	"income_id" INTEGER NOT NULL,
 	"date"	    TEXT,
 	"category"	TEXT,
 	"item"	    TEXT,
@@ -36,7 +136,7 @@ CREATE TABLE "income_list" (
 );
 
 CREATE TABLE "expend_list" (
-	"expend_id"	    INTEGER,
+	"expend_id" INTEGER,
 	"date"	    TEXT,
 	"category"	TEXT,
 	"item"	    TEXT,
@@ -45,19 +145,18 @@ CREATE TABLE "expend_list" (
 );
 ```
 
-=>
-再简单一点，只有一个表，用`type`表示收入和支出；
-再加一个`gmt_modified`，排序时联合`date`栏位共同排序避免和实际新增记录时不一致
+=> 再简单一点，只有一个表，用 `type` 表示收入和支出；  
+再加一个 `gmt_modified` ，排序时联合 `date` 栏位共同排序避免和实际新增记录时不一致:
 
 ```sql
 CREATE TABLE "bill_item_list" (
-	"bill_item_id"	TEXT, 		-- 账单条目编号(万一多账本有bill_id呢)
-	"item_type"		INTEGER,	-- 0 收入；1 支出
-	"date"	    	TEXT,		-- yyyy-MM-dd 年月日即可
-	"category"		TEXT,		-- 支出或收入的大分类(比如支出的：通勤、医疗、饮食……)
-	"item"	    	TEXT,		-- 支出或收入的细项目(比如饮食的晚餐吃快餐) 还可以有细节就再多个detail表
-	"value"	    	REAL,		-- 支出或收入的具体数值
-	"gmt_modified"	TEXT,		-- 记录的创建或者修改时间
+	"bill_item_id"  TEXT, 		-- 账单条目编号(万一多账本有bill_id呢)
+	"item_type"     INTEGER,	-- 0 收入；1 支出
+	"date"          TEXT,		-- yyyy-MM-dd 年月日即可
+	"category"      TEXT,		-- 支出或收入的大分类(比如支出的：通勤、医疗、饮食……)
+	"item"          TEXT,		-- 支出或收入的细项目(比如饮食的晚餐吃快餐) 还可以有细节就再多个detail表
+	"value"         REAL,		-- 支出或收入的具体数值
+	"gmt_modified"  TEXT,		-- 记录的创建或者修改时间
 	PRIMARY KEY("bill_item_id")
 );
 ```
@@ -80,46 +179,144 @@ CREATE TABLE "bill_item_list" (
 - 导入/导出：因为是 app 内置的 sqlite 中，所以导出备份比较重要
   - 方便导入导出，都 json 格式好了，不要什么 excel、pdf 之类的了，不好处理。
 
-### 依赖版本
+## Part2: AI 大模型部分 agi_llm_sample
 
-2024-05-27 使用最新 flutter 版本：
+### 核心想法
 
-```sh
-$ flutter --version
-Flutter 3.22.1 • channel stable • https://github.com/flutter/flutter.git
-Framework • revision a14f74ff3a (4 天前) • 2024-05-22 11:08:21 -0500
-Engine • revision 55eae6864b
-Tools • Dart 3.4.1 • DevTools 2.34.3
+其实就是一些免费使用的国内大模型 API 的简单调用，查看效果而已。
+
+用户和 AI 进行对话后，为了能查询历史记录，就把对话内容存入 sqlite，基本表结构：
+
+```sql
+-- 2024-06-01 新增AI对话留存
+--   图像理解也有对话，所以新加一个对话类型栏位：aigc、image2text、text2image……
+--   i2t_image_path 指图像理解时被参考的图片地址(应该是应用缓存的图片地址)
+CREATE TABLE "chat_history" (
+  uuid                TEXT    NOT NULL,
+  title               TEXT    NOT NULL,
+  gmt_create          TEXT    NOT NULL,
+  messages            TEXT    NOT NULL,
+  llm_name            TEXT    NOT NULL,
+  yun_platform_name   TEXT,
+  i2t_image_path      TEXT,
+  chat_type           TEXT    NOT NULL,
+  PRIMARY KEY("uuid")
+);
+
+-- 2024-06-13 新增文生图简单内容流程
+CREATE TABLE "text2image_history" (
+  request_id      TEXT    NOT NULL,
+  prompt          TEXT    NOT NULL,
+  negative_prompt TEXT,
+  style           TEXT    NOT NULL,
+  image_urls      TEXT,
+  gmt_create      TEXT    NOT NULL,
+  PRIMARY KEY("request_id")
+);
 ```
 
-主要的工具库:
+### 页面设计
 
-```yaml
-sqflite: ^2.3.3+1 # sqlite数据库工具库
-path_provider: ^2.1.3 # 获取主机平台文件系统上的常用位置
-path: ^1.9.0 # 基于字符串的路径操作库
-flutter_easyloading: ^3.0.5 #  loading/toast 小部件
-flutter_screenutil: ^5.9.1 # 适配屏幕和字体大小的插件
-intl: ^0.19.0 # 国际化/本地化处理库
-flutter_localizations:
-  sdk: flutter
-collection: ^1.18.0 # 集合相关的适用工具库
-bottom_picker: ^2.7.0 # 简洁，但不支持仅年月
-month_picker_dialog: ^3.0.0 # 支持仅年月，但是是弹窗，和原始组件类似
-syncfusion_flutter_charts: ^25.2.5 # 图表库
-flutter_form_builder: ^9.3.0 # 表单组件
-form_builder_validators: ^10.0.1 # 表单验证
-uuid: ^4.4.0 # uuid生成器
-flutter_markdown: ^0.7.1 # 使用md格式显示大模型的响应
-dio: ^5.4.3+1 # http client
-pretty_dio_logger: ^1.3.1 # Dio 拦截器，它以漂亮、易于阅读的格式记录网络调用。
-connectivity_plus: ^6.0.3 # 用于发现可以使用的网络连接类型
-crypto: ^3.0.3 # Dart 的一组加密哈希函数。
-file_picker: ^8.0.3 # 备份恢复是选择文件路径
-permission_handler: ^11.3.1 # 获取内部存储读取写入权限
-archive: ^3.6.1 # 解压缩文件
-device_info_plus: ^10.1.0 # 获取设备信息
+就两层：外层提供文生文、文生图、图生文的选项，内层显示对应的对话列表即可。
+
+## Part3: 随机菜品 random_dish
+
+_这个其实是之前(2024-04-09)就单独开发好的 app 了，功能融合，就直接复制到这里来。_
+
+给不知道每天吃什么的选择困难症患者，指一条参考选项：随机选择一道菜。
+
+如果你关于吃什么，已经习惯了：**随便、不知道、好麻烦、你做主、看运气** 等说法，不妨试一试。
+
+当然，最后是点外卖还是自己做甚至选了依旧不吃，还是看自己的决定。
+
+### 使用说明
+
+如下图：
+
+- 主体是一个转盘，可以选择餐次和重新生成随机菜品。
+- 点击转盘即可开始旋转，3 秒后停止，显示结果，旋转时按钮都不可点击。
+- 点击选中结果可以跳转到该菜品详情页。
+- 如果菜品详情有视频地址，可以打开对应 url；如果菜谱有上传图片(仅支持单张本地图片和使用相机拍照)，可以缩放查看。
+
+![screenshot_1](./_md_pics/screenshot_1.jpg)
+
+- 当然核心还是菜品的数量，默认是文字列表显示，仅仅为了节约流量。
+- 点击上方“grid”图标(第一个)可以切换到有预览图的卡片列表，如果图片大注意流量消耗。
+- 在列表中点击某一个可以进入详情页(如上)，长按可以删除指定菜品。
+- 点击上方“upload”图标(第二个)可以导入菜品 json 文件(格式见下面相关内容，其中图片时本地图片的地址则暂未考虑)。
+- 当然，也可以自行一个个手动添加菜品。
+
+![screenshot_2](./_md_pics/screenshot_2.jpg)
+
+### 设计简述
+
+1. 主体只有简单的一张菜品表:
+   ```sql
+   CREATE TABLE "dish" (
+     dish_id           TEXT      NOT NULL PRIMARY KEY,
+     dish_name         TEXT      NOT NULL,
+     description       TEXT,
+     photos            TEXT,
+     videos            TEXT,
+     tags              TEXT,
+     meal_categories   TEXT,
+     recipe            TEXT,
+     recipe_picture    TEXT,
+     UNIQUE(dish_name,tags)
+   );
+   ```
+2. 把一天分成几个时间段，打开 app 时，显示该时间段的随机 10 个菜品
+   1. 如果不满意，可以切换时间段和重新随机 10 个菜品
+3. 点击转盘开始旋转，3 秒后选中某个菜品。
+   1. 点击该菜品，进入菜品详情，查看图片和菜谱等信息。
+4. 可以自行维护菜品列表，导入规范的 json 文件，或者自行添加菜品。
+   1. json 文件格式参看下面，注意**导入的 tags 和 meal_categories 不在预设中，有修改后则不会显示**
+   2. 具体 tags，比如凉菜、汤菜、煎、炒、烹、炸、焖、溜、熬、炖、汆等
+   3. 具体 meal_categories，比如 早餐、晚餐、午餐、夜宵、甜点、主食等
+5. TODO(不一定会做)：
+   1. 为了随机的乐观性，可以多一张 random_record 随机记录表。
+   2. 某个时间段随机过了，就不允许再随机了。
+   3. 可以查看随机过的菜品记录。
+   4. ……
+   ```txt random_record
+   random_record_id
+   date
+   meal_category
+   dish_id
+   ……
+   ```
+
+### 导入的菜品 json 文件格式示例
+
+```json
+[
+  {
+    "dish_name": "回锅肉",
+    "description": "此菜色味俱佳，肉鲜而香，是四川省家喻户晓的传统菜，地方风味很强。",
+    "tags": "川菜,家常菜,肉菜,麻辣鲜香",
+    "meal_categories": "午餐,晚餐,夜宵",
+    "images": [
+      "http://www.djy.gov.cn/dyjgb_rmzfwz/uploads/20191014154045sde1q1ajz3d.jpg",
+      "https://i3.meishichina.com/atta/recipe/2019/04/18/20190418155556766674398811368081.jpg?x-oss-process=style/p800"
+    ],
+    "videos": ["https://www.bilibili.com/video/BV1eA4m1L7QY/"],
+    "recipe": [
+      "原料：\n猪肉500克，蒜苗150克，化猪油40克，盐1克，郫县豆瓣50克，甜酱25克，红白酱油25克，生姜15克，葱20克，花椒10余粒。",
+      "作法：\n1. 把带皮的肥瘦相连的猪肉洗干净。",
+      "2. 锅内放开水置旺火上，下猪肉和葱、姜、花椒；将熟肉煮熟不煮𤆵；在煮肉过程中撇去汤面浮沫。蒜苗洗净切2.6厘米(约八分)长节。豆瓣剁细。",
+      "3. 将捞起的猪肉敞干水汽，在还有余热时切成约0.3厘米(约一分)厚的连皮肉片。",
+      "4. 炒锅置中火上，放入猪肉，油烧至五成热时下肉片，同事放微量盐炒均匀；炒至肉片出油时铲在锅边，相继放豆瓣、甜酱在油中炒出香味即与肉共同炒匀，然后放蒜苗合炒；蒜苗炒熟但不要炒蔫，再放酱油炒匀起锅即成。",
+      "附 注：\n1.在肉汤中加适量新鲜蔬菜同煮，可增加一样汤菜。",
+      "2.根据爱好，菜内可加豆豉炒。",
+      "3.如无红酱油可用白糖代替。"
+    ],
+    "recipe_picture": "https://demo.image.com" // 菜谱只支持单张图片
+  },
+  { …… }
+]
 ```
+
+## 开发过程
 
 ### 开发记录
 
@@ -130,21 +327,21 @@ device_info_plus: ^10.1.0 # 获取设备信息
 - 2024-05-26
   - 基本完成月度年度统计基础柱状图展示和相关组件的占位
 - 2024-04-27
-  - feat:完成账单条目的新增和修改功能;chore:升级 flutter 为 3.22.1,相关依赖库为当前最新.
+  - feat: 完成账单条目的新增和修改功能; chore: 升级 flutter 为 3.22.1, 相关依赖库为当前最新.
 - 2024-05-28
-  - 账单条目关键字查询时切换到新的列表展示;feat:完成带月统计值的列表展示在有多个月数据时滚动到某个月就加载某个月的总计.
-  - perf:优化了图表页面的相关方法，重复度高的代码抽成了公共组件或方法。
-  - perf:优化了账单项目列表主页面、编辑项次表单页面的相关方法和细节。
+  - 账单条目关键字查询时切换到新的列表展示; feat: 完成带月统计值的列表展示在有多个月数据时滚动到某个月就加载某个月的总计.
+  - perf: 优化了图表页面的相关方法，重复度高的代码抽成了公共组件或方法。
+  - perf: 优化了账单项目列表主页面、编辑项次表单页面的相关方法和细节。
 - 2024-05-29
   - 修正了一些细节；将新增账单项次放到账单列表页面中，调整账单项次表单页面；添加分类选择底部弹窗组件(暂未用到)。
   - 重新调整了账单管理模块的结构，新增 AGI LLM 模块用于对话的组件框架。
 - 2024-05-30
-  - feat:调价了基于 dio 的通用 http client 工具类；构建了 Ernie 和 huanyuan 模型的 model 以及基础查询函数。
+  - feat: 调价了基于 dio 的通用 http client 工具类；构建了 Ernie 和 huanyuan 模型的 model 以及基础查询函数。
 - 2024-05-31
-  - feat:基本可以正常使用大模型进行对话了。
-  - fix:优化了 AI 对话框的显示细节，完善了一些其他功能细节。
+  - feat: 基本可以正常使用大模型进行对话了。
+  - fix: 优化了 AI 对话框的显示细节，完善了一些其他功能细节。
 - 2024-06-03
-  - feat:添加了保存 AI 对话记录到本地数据库，可重新读取并继续提问。
+  - feat: 添加了保存 AI 对话记录到本地数据库，可重新读取并继续提问。
 - 2024-06-04
   - feat：添加了内部 sqlite 数据的备份恢复功能。
   - feat: 账单统计部分添加了分类统计甜甜圈图。
@@ -153,16 +350,16 @@ device_info_plus: ^10.1.0 # 获取设备信息
   - fix: 再度修正备份时内部存储管理权限的授权问题，Android14 已正常。
   - feat: 最后一个大模型回复不满意可以点击重新生成；在 appbar 添加“新建对话”按钮；调整标题固定显示在对话正文顶部，点击修改图标可修改。
 - 2024-06-06
-  - refactor: 添加了阿里云、腾讯、百度通用的基础 aigc 的 http 请求和响应对应的 model;feat:阿里云通义千问开源版本一个模型接口测试可用。
+  - refactor: 添加了阿里云、腾讯、百度通用的基础 aigc 的 http 请求和响应对应的 model; feat: 阿里云通义千问开源版本一个模型接口测试可用。
 - 2024-06-07
-  - refactor:重构了通用 aigc 请求 api 和 model 的使用，整理了对应文件命名和文件夹结构等。
-  - fix:简单调整了 llm 名称变量命令、对话主页面的入口按钮样式等。
+  - refactor: 重构了通用 aigc 请求 api 和 model 的使用，整理了对应文件命名和文件夹结构等。
+  - fix: 简单调整了 llm 名称变量命令、对话主页面的入口按钮样式等。
 - 2024-06-11
-  - feat:添加了 AI 对话的流式请求响应的处理;fix:api 还是拆回 3 个平台各自一个文件。
-  - fix:将云平台切换、大模型切换、文生文的流式请求、最近对话统一放在了 AI 对话页面中。
+  - feat: 添加了 AI 对话的流式请求响应的处理; fix:api 还是拆回 3 个平台各自一个文件。
+  - fix: 将云平台切换、大模型切换、文生文的流式请求、最近对话统一放在了 AI 对话页面中。
 - 2024-06-12
   - fix: AI 对话页面删除历史对话为当前对话时，返回初始对话状态；点击历史对话会替换当前对话而不是新开页面；其他显示细节。
-  - feat:基本完成了阿里的通义万相-文本生成图像的基础使用页面。
+  - feat: 基本完成了阿里的通义万相-文本生成图像的基础使用页面。
 - 2024-06-13
   - fix: 调整了通义万相-文本生图页面的细节，修正了循环检查任务状态的逻辑。
   - feat: 新加通义万相-文本生图的简单历史记录留存，简单数据保持到本地数据库。
@@ -175,8 +372,12 @@ device_info_plus: ^10.1.0 # 获取设备信息
   - feat: 添加了 AI 对话限时限量测试版本的基础页面。
     - 【done】todo: 切换模型应该新建对话，因为上下文丢失了。
   - feat: 添加了阿里云中限时限量的对话模型可选列表。
+- 2024-06-17
+  - feat: 合并了之前的 flutter_random_dish 项目的功能。
+    - todo: 数据库文件还是分开的，要何在一起吗？
+  - doc: 更新 readme 文件。
 
-### todo
+### TODO
 
 - 账单管理
   - 分类占比饼图等其他统计图

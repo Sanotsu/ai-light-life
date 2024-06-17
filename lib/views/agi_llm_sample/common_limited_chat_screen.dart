@@ -11,7 +11,7 @@ import '../../apis/aliyun_apis.dart';
 import '../../common/components/tool_widget.dart';
 import '../../common/constants.dart';
 import '../../models/common_llm_info.dart';
-import '../../common/utils/db_helper.dart';
+import '../../common/db_tools/db_helper.dart';
 import '../../models/ai_interface_state/platform_aigc_commom_state.dart';
 import '../../models/llm_chat_state.dart';
 

@@ -13,16 +13,19 @@ import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../common/components/tool_widget.dart';
-import '../../common/utils/db_helper.dart';
+import '../../common/db_tools/db_dish_helper.dart';
+import '../../common/db_tools/db_helper.dart';
 import '../../models/brief_accounting_state.dart';
+import '../../models/dish.dart';
 import '../../models/llm_chat_state.dart';
+import '../../models/llm_text2image_state.dart';
 
 ///
 /// 2023-12-26 备份恢复还可以优化，就暂时不做
 ///
 ///
 // 全量备份导出的文件的前缀(_时间戳.zip)
-const ZIP_FILE_PREFIX = "AI对话和记账全量备份_";
+const ZIP_FILE_PREFIX = "智能轻生活全量数据备份_";
 // 导出文件要压缩，临时存放的地址
 const ZIP_TEMP_DIR_AT_EXPORT = "temp_zip";
 const ZIP_TEMP_DIR_AT_UNZIP = "temp_de_zip";
@@ -37,6 +40,7 @@ class BackupAndRestore extends StatefulWidget {
 
 class _BackupAndRestoreState extends State<BackupAndRestore> {
   final DBHelper _dbHelper = DBHelper();
+  final DBDishHelper _dbDishHelper = DBDishHelper();
 
   bool isLoading = false;
 
@@ -429,11 +433,21 @@ class _BackupAndRestoreState extends State<BackupAndRestore> {
 
       // 根据不同文件名，构建不同的数据
       if (filename == "ba_bill_item.json") {
-        var temp = jsonMapList.map((e) => BillItem.fromMap(e)).toList();
-        await _dbHelper.insertBillItemList(temp);
+        await _dbHelper.insertBillItemList(
+          jsonMapList.map((e) => BillItem.fromMap(e)).toList(),
+        );
       } else if (filename == "ba_chat_history.json") {
-        var temp = jsonMapList.map((e) => ChatSession.fromMap(e)).toList();
-        await _dbHelper.insertChatList(temp);
+        await _dbHelper.insertChatList(
+          jsonMapList.map((e) => ChatSession.fromMap(e)).toList(),
+        );
+      } else if (filename == "ba_text2image_history.json") {
+        await _dbHelper.insertTextToImageResultList(
+          jsonMapList.map((e) => TextToImageResult.fromMap(e)).toList(),
+        );
+      } else if (filename == "ba_dish.json") {
+        await _dbDishHelper.insertDishList(
+          jsonMapList.map((e) => Dish.fromMap(e)).toList(),
+        );
       }
     }
   }

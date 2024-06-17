@@ -4,6 +4,9 @@ class BriefAccountingDdl {
   // db名称
   static String databaseName = "brief_accounting.db";
 
+  // db名称
+  // static String databaseName = "embedded_brief_accounting.db";
+
 // 账单条目表
   static const tableNameOfBillItem = 'ba_bill_item';
 
