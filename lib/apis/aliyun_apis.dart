@@ -4,9 +4,7 @@ import 'dart:convert';
 
 import '../dio_client/cus_http_client.dart';
 import '../dio_client/cus_http_request.dart';
-import '../models/ai_interface_state/platform_aigc_commom_state.dart';
 import '../models/ai_interface_state/aliyun_text2image_state.dart';
-import '../models/common_llm_info.dart';
 import '_self_keys.dart';
 
 /// 阿里平台通用aigc的请求地址
@@ -24,151 +22,153 @@ var aliyunAigcUrl =
      request_id: "4d9a188f-39ee-9c1b-839c-6ad961b211af"
 }
 */
-Future<CommonRespBody> getAliyunAigcCommonResp(
-  List<CommonMessage> messages, {
-  String? model,
-}) async {
-  // 如果有传模型名称，就用传递的；没有就默认的
-  model = model ?? llmModels[PlatformLLM.aliyunQwen1p8BChat]!;
+// 【暂未用到】
+// Future<CommonRespBody> getAliyunAigcCommonResp(
+//   List<CommonMessage> messages, {
+//   String? model,
+// }) async {
+//   // 如果有传模型名称，就用传递的；没有就默认的
+//   model = model ?? llmModels[PlatformLLM.aliyunQwen1p8BChatFREE]!;
 
-  var body = CommonReqBody(
-    model: model,
-    input: AliyunInput(messages: messages),
-    parameters: AliyunParameters(resultFormat: "message"),
-  );
+//   var body = CommonReqBody(
+//     model: model,
+//     input: AliyunInput(messages: messages),
+//     parameters: AliyunParameters(resultFormat: "message"),
+//   );
 
-  var start = DateTime.now().millisecondsSinceEpoch;
+//   var start = DateTime.now().millisecondsSinceEpoch;
 
-  var respData = await HttpUtils.post(
-    path: aliyunAigcUrl,
-    method: HttpMethod.post,
-    headers: {
-      // "X-DashScope-SSE": "enable", // 不开启 SSE 响应
-      "Content-Type": "application/json",
-      "Authorization": "Bearer $ALIYUN_API_KEY",
-    },
-    // 可能是因为头的content type设定，这里直接传类实例即可，传toJson也可
-    data: body,
-  );
+//   var respData = await HttpUtils.post(
+//     path: aliyunAigcUrl,
+//     method: HttpMethod.post,
+//     headers: {
+//       // "X-DashScope-SSE": "enable", // 不开启 SSE 响应
+//       "Content-Type": "application/json",
+//       "Authorization": "Bearer $ALIYUN_API_KEY",
+//     },
+//     // 可能是因为头的content type设定，这里直接传类实例即可，传toJson也可
+//     data: body,
+//   );
 
-  print("===============$respData");
+//   print("===============$respData");
 
-  var end = DateTime.now().millisecondsSinceEpoch;
+//   var end = DateTime.now().millisecondsSinceEpoch;
 
-  print("2222222222xxxxxxxxxxxxxxxxx${(end - start) / 1000} 秒");
+//   print("2222222222xxxxxxxxxxxxxxxxx${(end - start) / 1000} 秒");
 
-  ///？？？ 2024-06-11 阿里云请求报错，会进入dio的错误拦截器，这里ret就是个null了
-  if (respData.runtimeType == String) {
-    respData = json.decode(respData);
-  }
+//   ///？？？ 2024-06-11 阿里云请求报错，会进入dio的错误拦截器，这里ret就是个null了
+//   if (respData.runtimeType == String) {
+//     respData = json.decode(respData);
+//   }
 
-  // 响应是json格式
-  return CommonRespBody.fromJson(respData ?? "{}");
-}
+//   // 响应是json格式
+//   return CommonRespBody.fromJson(respData ?? "{}");
+// }
 
-/// 限量的查询，为了避免麻烦，模型参数
-Future<CommonRespBody> getAliyunLimitedAigcCommonResp(
-  List<CommonMessage> messages,
-  String? model,
-) async {
-  /// 2024-06-16 阿里云中限量的零一万物没有看到流式的入参数，也没有resultFormat等参数
-  /// 又因为 parameters 不可为空，这里传一个占位的
-  var body = CommonReqBody(
-    model: model,
-    input: AliyunInput(messages: messages),
-    parameters: AliyunParameters(topP: 0.7),
-  );
+// /// 限量的查询，为了避免麻烦，模型参数【暂未用到】
+// Future<CommonRespBody> getAliyunLimitedAigcCommonResp(
+//   List<CommonMessage> messages,
+//   String? model,
+// ) async {
+//   /// 2024-06-16 阿里云中限量的零一万物没有看到流式的入参数，也没有resultFormat等参数
+//   /// 又因为 parameters 不可为空，这里传一个占位的
+//   var body = CommonReqBody(
+//     model: model,
+//     input: AliyunInput(messages: messages),
+//     parameters: AliyunParameters(topP: 0.7),
+//   );
 
-  var start = DateTime.now().millisecondsSinceEpoch;
+//   var start = DateTime.now().millisecondsSinceEpoch;
 
-  var respData = await HttpUtils.post(
-    path: aliyunAigcUrl,
-    method: HttpMethod.post,
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": "Bearer $ALIYUN_API_KEY",
-    },
-    // 可能是因为头的content type设定，这里直接传类实例即可，传toJson也可
-    data: body,
-  );
+//   var respData = await HttpUtils.post(
+//     path: aliyunAigcUrl,
+//     method: HttpMethod.post,
+//     headers: {
+//       "Content-Type": "application/json",
+//       "Authorization": "Bearer $ALIYUN_API_KEY",
+//     },
+//     // 可能是因为头的content type设定，这里直接传类实例即可，传toJson也可
+//     data: body,
+//   );
 
-  print("limited===============$respData");
+//   print("limited===============$respData");
 
-  var end = DateTime.now().millisecondsSinceEpoch;
+//   var end = DateTime.now().millisecondsSinceEpoch;
 
-  print("2222222222xxxxxxxxxxxxxxxxx${(end - start) / 1000} 秒");
+//   print("2222222222xxxxxxxxxxxxxxxxx${(end - start) / 1000} 秒");
 
-  ///？？？ 2024-06-11 阿里云请求报错，会进入dio的错误拦截器，这里ret就是个null了
-  if (respData.runtimeType == String) {
-    respData = json.decode(respData);
-  }
+//   ///？？？ 2024-06-11 阿里云请求报错，会进入dio的错误拦截器，这里ret就是个null了
+//   if (respData.runtimeType == String) {
+//     respData = json.decode(respData);
+//   }
 
-  // 响应是json格式
-  return CommonRespBody.fromJson(respData ?? {});
-}
+//   // 响应是json格式
+//   return CommonRespBody.fromJson(respData ?? {});
+// }
 
-Future<List<CommonRespBody>> getAliyunAigcStreamCommonResp(
-  List<CommonMessage> messages, {
-  String? model,
-}) async {
-  // 如果有传模型名称，就用传递的；没有就默认的
-  model = model ?? llmModels[PlatformLLM.aliyunQwen1p8BChat]!;
+// // 【暂未用到】
+// Future<List<CommonRespBody>> getAliyunAigcStreamCommonResp(
+//   List<CommonMessage> messages, {
+//   String? model,
+// }) async {
+//   // 如果有传模型名称，就用传递的；没有就默认的
+//   model = model ?? llmModels[PlatformLLM.aliyunQwen1p8BChatFREE]!;
 
-  var body = CommonReqBody(
-    model: model,
-    input: AliyunInput(messages: messages),
-    parameters: AliyunParameters(
-      resultFormat: "message",
-      incrementalOutput: true,
-    ),
-  );
+//   var body = CommonReqBody(
+//     model: model,
+//     input: AliyunInput(messages: messages),
+//     parameters: AliyunParameters(
+//       resultFormat: "message",
+//       incrementalOutput: true,
+//     ),
+//   );
 
-  var start = DateTime.now().millisecondsSinceEpoch;
+//   var start = DateTime.now().millisecondsSinceEpoch;
 
-  var respData = await HttpUtils.post(
-    path: aliyunAigcUrl,
-    method: HttpMethod.post,
-    headers: {
-      "X-DashScope-SSE": "enable", // 开启SSE
-      "Content-Type": "application/json",
-      "Authorization": "Bearer $ALIYUN_API_KEY",
-    },
-    // 可能是因为头的content type设定，这里直接传类实例即可，传toJson也可
-    data: body,
-  );
+//   var respData = await HttpUtils.post(
+//     path: aliyunAigcUrl,
+//     method: HttpMethod.post,
+//     headers: {
+//       "X-DashScope-SSE": "enable", // 开启SSE
+//       "Content-Type": "application/json",
+//       "Authorization": "Bearer $ALIYUN_API_KEY",
+//     },
+//     // 可能是因为头的content type设定，这里直接传类实例即可，传toJson也可
+//     data: body,
+//   );
 
-  print("aliyun的SSE-----------$respData");
+//   print("aliyun的SSE-----------$respData");
 
-  // 使用正则表达式匹配所有以"data:{"开头的字符串
-  final regex = RegExp(r'.*data:\{".*}', multiLine: true);
-  final matches = regex.allMatches(respData);
+//   // 使用正则表达式匹配所有以"data:{"开头的字符串
+//   final regex = RegExp(r'.*data:\{".*}', multiLine: true);
+//   final matches = regex.allMatches(respData);
 
-  print("===============matches $matches");
+//   print("===============matches $matches");
 
-  // 提取匹配到的字符串并添加到数组中
-  List<String> dataArray = [];
-  for (final match in matches) {
-    // 替换"data:"为空字符串(看结果data后面的冒号没有空格)
-    final replacedString = match.group(0)!.replaceAll(RegExp(r'data:'), '');
-    dataArray.add(replacedString);
-  }
+//   // 提取匹配到的字符串并添加到数组中
+//   List<String> dataArray = [];
+//   for (final match in matches) {
+//     // 替换"data:"为空字符串(看结果data后面的冒号没有空格)
+//     final replacedString = match.group(0)!.replaceAll(RegExp(r'data:'), '');
+//     dataArray.add(replacedString);
+//   }
 
-  List<CommonRespBody> list =
-      dataArray.map((e) => CommonRespBody.fromJson(json.decode(e))).toList();
+//   List<CommonRespBody> list =
+//       dataArray.map((e) => CommonRespBody.fromJson(json.decode(e))).toList();
 
-  // 输出提取到的数据，或者进行其他操作
+//   // 输出提取到的数据，或者进行其他操作
 
-  print("===============$respData");
+//   print("===============$respData");
 
-  var end = DateTime.now().millisecondsSinceEpoch;
+//   var end = DateTime.now().millisecondsSinceEpoch;
 
-  print("1111111111xxxxxxxxxxxxxxxxx${(end - start) / 1000} 秒");
-  print(dataArray);
-  print(list);
+//   print("1111111111xxxxxxxxxxxxxxxxx${(end - start) / 1000} 秒");
+//   print(dataArray);
+//   print(list);
 
-  // 响应是json格式
-  return list;
-}
+//   // 响应是json格式
+//   return list;
+// }
 
 ///
 /// 文生图任务提交 POST https://dashscope.aliyuncs.com/api/v1/services/aigc/text2image/image-synthesis

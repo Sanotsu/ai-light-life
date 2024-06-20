@@ -118,12 +118,22 @@ class HttpRequest {
       // HttpException httpException = error.error;
       HttpException httpException = error.error as HttpException;
 
-      // print("这里是执行HttpRequest的request()方法在报错:");
+      print("这里是执行HttpRequest的request()方法在报错:");
+      print(httpException);
+      print(httpException.code);
+      print(httpException.msg);
+      print(showErrorMessage);
+      print("========================");
+
       // print("code:${httpException.code}");
       // print("msg:${httpException.msg}");
       if (showErrorMessage) {
         EasyLoading.showToast(httpException.msg);
       }
+
+      // 2024-06-20 这里还是要把错误抛出去，在请求的API处方便trycatch拦截处理
+      // 否则接口处就只看到一个null了
+      throw httpException;
     } finally {
       if (showLoading) {
         EasyLoading.dismiss();

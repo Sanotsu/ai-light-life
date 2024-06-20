@@ -5,30 +5,43 @@ import 'package:flutter/services.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:intl/intl.dart';
+import 'package:toggle_switch/toggle_switch.dart';
 import 'package:uuid/uuid.dart';
 
-import '../../apis/aliyun_apis.dart';
+import '../../apis/common_chat_apis.dart';
 import '../../common/components/tool_widget.dart';
 import '../../common/constants.dart';
-import '../../models/common_llm_info.dart';
 import '../../common/db_tools/db_helper.dart';
+import '../../models/common_llm_info.dart';
 import '../../models/ai_interface_state/platform_aigc_commom_state.dart';
 import '../../models/llm_chat_state.dart';
 
+import '../../services/cus_get_storage.dart';
+import 'cus_llm_config/user_cus_model_stepper.dart';
 import 'widgets/message_item.dart';
 
+/// 2024-06-20
+/// 现在主要有3个进入对话聊天页面的地方：
+///   1是预设的使用我的appid和key的默认的文生文，此时使用预设的官方免费的模型
+///   2是预设的使用我的appid和key的【限时限量】的文生文，此时使用limited开头的那些模型
+///   3是用户自行配置的appid和key，此时使用少数几个付费的模型(不是limited开始也不是FREE结尾的模型)
+/// 但其他对话的内容，包括展示、保存等，其实是一样的
 ///
-/// 2024-06-15 阿里云上限时限量的llm使用
-/// 应该专门存一个记录已用token的逻辑(但这个只能本地限制了)
-///
-class CommonLimitedChatScreen extends StatefulWidget {
-  const CommonLimitedChatScreen({super.key});
+class OneChatScreen extends StatefulWidget {
+  // 默认只展示FREE结尾的免费模型，且不用用户配置
+
+  // 理论上不会两者同时传true的(因为我没法简单知道用户配置的限时限量是多少)
+  // 是否是用户自行配置；如果是，展示非limited开始和FREE结尾的模型
+  final bool? isUserConfig;
+  // 是否是显示限量测试；如果是，就不用展示平台、只展示limited开始的模型
+  final bool? isLimitedTest;
+  const OneChatScreen({super.key, this.isUserConfig, this.isLimitedTest});
 
   @override
-  State createState() => _CommonLimitedChatScreenState();
+  State createState() => _OneChatScreenState();
 }
 
-class _CommonLimitedChatScreenState extends State<CommonLimitedChatScreen> {
+class _OneChatScreenState extends State<OneChatScreen> {
   final DBHelper _dbHelper = DBHelper();
 
   // 人机对话消息滚动列表
@@ -54,9 +67,10 @@ class _CommonLimitedChatScreenState extends State<CommonLimitedChatScreen> {
   // AI是否在思考中(如果是，则不允许再次发送)
   bool isBotThinking = false;
 
-  // 2024-06-11 默认使用流式请求，更快;但是同样的问题，流式使用的token会比非流式更多
+  /// 2024-06-11 默认使用流式请求，更快;但是同样的问题，流式使用的token会比非流式更多
   /// 2024-06-15 限时限量的可能都是收费的，本来就慢，所以默认就流式，不用切换
-  // bool isStream = true;
+  /// 2024-06-20 流式使用的token太多了，还是默认更省的
+  bool isStream = false;
 
   // 默认进入对话页面应该就是啥都没有，然后根据这空来显示预设对话
   List<ChatMessage> messages = [];
@@ -98,14 +112,86 @@ class _CommonLimitedChatScreenState extends State<CommonLimitedChatScreen> {
   void initState() {
     super.initState();
 
-    // 找到还没超时的大模型，取第一个作为预设的
-    setState(() {
-      selectedLlm = PlatformLLM.values
-          .where((m) =>
-              m.name.startsWith(selectedPlatform.name) &&
-              newLLMSpecs[m]!.deadline.isAfter(DateTime.now()))
-          .first;
-    });
+    initCusConfig();
+  }
+
+  // 进入自行配置的对话页面，看看用户配置有没有生效
+  initCusConfig() {
+    print("11111111");
+
+    // 如果是用户自行配置页面来的
+    if (widget.isUserConfig == true) {
+      var id = MyGetStorage().getCusAppId();
+      var key = MyGetStorage().getCusAppKey();
+      var name = MyGetStorage().getCusLlmName();
+      var pf = MyGetStorage().getCusPlatform();
+
+      print("用户配置的内容：");
+      print("$id $key $name $pf");
+
+      // 找到还没超时的大模型，取第一个作为预设的
+      setState(() {
+        // 找到对应的平台和模型(因为配置的时候是用户下拉选择的，理论上这里一定存在，且只应该有一个)
+        selectedPlatform =
+            CloudPlatform.values.where((e) => e.name == pf).toList().first;
+
+        // 找到平台之后，也要找到对应选中的模型
+        selectedLlm = PlatformLLM.values.where((m) => m.name == name).first;
+      });
+    } else if (widget.isLimitedTest == true) {
+      // 找到还没超时的限时限量的大模型，取第一个作为预设的
+      setState(() {
+        selectedPlatform = CloudPlatform.limited;
+
+        selectedLlm = PlatformLLM.values
+            .where((m) =>
+                m.name.startsWith(selectedPlatform.name) &&
+                newLLMSpecs[m]!.deadline.isAfter(DateTime.now()))
+            .first;
+      });
+    } else {
+      // 找到免费的大模型，取第一个作为预设的
+      selectedPlatform = CloudPlatform.baidu;
+      setState(() {
+        selectedLlm = PlatformLLM.values
+            .where((m) =>
+                m.name.startsWith(selectedPlatform.name) &&
+                m.name.endsWith("FREE"))
+            .first;
+      });
+    }
+
+    print("配置选中后的平台和模型");
+    print("$selectedPlatform $selectedLlm");
+    print("${widget.isUserConfig} ${widget.isLimitedTest}");
+  }
+
+  //获取指定分类的历史对话
+  Future<List<ChatSession>> getHsitoryChats() async {
+    // 获取历史记录：默认查询到所有的历史对话，再根据条件过滤
+    var list = await _dbHelper.queryChatList(cateType: "aigc");
+
+    // 如果是限量的,平台只能时limited（模型也只能是limited的，应该不用判断也是）
+    if (widget.isLimitedTest == true) {
+      list = list
+          .where((e) => e.cloudPlatformName == CloudPlatform.limited.name)
+          .toList();
+    } else if (widget.isUserConfig == true) {
+      // 如果是用户配置的,平台非limited，模型非是FREE结尾
+      list = list
+          .where((e) =>
+              e.cloudPlatformName != CloudPlatform.limited.name &&
+              !e.llmName.endsWith("FREE"))
+          .toList();
+    } else {
+      // 默认就是免费的了，平台非limited，模型仅是FREE结尾
+      list = list
+          .where((e) =>
+              e.cloudPlatformName != CloudPlatform.limited.name &&
+              e.llmName.endsWith("FREE"))
+          .toList();
+    }
+    return list;
   }
 
   /// 获取指定对话列表
@@ -113,9 +199,35 @@ class _CommonLimitedChatScreenState extends State<CommonLimitedChatScreen> {
     print("调用了getChatInfo----------");
 
     // 2024-06-15 这里要过滤只是限量的部分
-    var list = (await _dbHelper.queryChatList(uuid: chatId, cateType: "aigc"))
-        .where((e) => e.cloudPlatformName == selectedPlatform.name)
-        .toList();
+    // 2024-06-20 虽然所有对话都是用同一个页面，但是带出的历史对话可能会有继续沟通的需要
+    // 此时用户可切换的平台和模型，就需要根据来源(预设、限量、用户配置)来加载了。
+    // 那么历史对话如果不是这上面的模型，继续对话就会出问题
+    // var list = (await _dbHelper.queryChatList(uuid: chatId, cateType: "aigc"))
+    //     .where((e) => e.cloudPlatformName == selectedPlatform.name)
+    //     .toList();
+    // 默认查询到所有的历史对话(这里有uuid了，应该就只有1条存在才对)
+    var list = await _dbHelper.queryChatList(uuid: chatId, cateType: "aigc");
+
+    // 如果是限量的,平台只能时limited（模型也只能是limited的，应该不用判断也是）
+    if (widget.isLimitedTest == true) {
+      list = list
+          .where((e) => e.cloudPlatformName == CloudPlatform.limited.name)
+          .toList();
+    } else if (widget.isUserConfig == true) {
+      // 如果是用户配置的,平台非limited，模型非是FREE结尾
+      list = list
+          .where((e) =>
+              e.cloudPlatformName != CloudPlatform.limited.name &&
+              !e.llmName.endsWith("FREE"))
+          .toList();
+    } else {
+      // 默认就是免费的了，平台非limited，模型仅是FREE结尾
+      list = list
+          .where((e) =>
+              e.cloudPlatformName != CloudPlatform.limited.name &&
+              e.llmName.endsWith("FREE"))
+          .toList();
+    }
 
     if (list.isNotEmpty && list.isNotEmpty) {
       setState(() {
@@ -125,12 +237,19 @@ class _CommonLimitedChatScreenState extends State<CommonLimitedChatScreen> {
         // ？？？2024-06-11 虽然同一个对话现在可以切换平台和模型了，但这里只是保留第一次对话取的值
         // 后面对话过程中切换平台和模型，只会在该次对话过程中有效
         var tempLlms = newLLMSpecs.entries
-            // 数据库存的模型名是平台API参数的那个model的值
-            .where((e) => e.value.model == list.first.llmName)
+            // 数据库存的模型名就是自定义的模型名
+            .where((e) => e.key.name == list.first.llmName)
             .toList();
 
-        if (tempLlms.isNotEmpty) {
+        // 被选中的平台也就是记录中存放的平台
+        var tempCps = CloudPlatform.values
+            .where((e) => e.name.contains(list.first.cloudPlatformName ?? ""))
+            .toList();
+
+        // 避免麻烦，两个都不为空才显示；否则还是预设的
+        if (tempLlms.isNotEmpty && tempCps.isNotEmpty) {
           selectedLlm = tempLlms.first.key;
+          selectedPlatform = tempCps.first;
         }
 
         // 查到了db中的历史记录，则需要替换成当前的(父页面没选择历史对话进来就是空，则都不会有这个函数)
@@ -198,8 +317,8 @@ class _CommonLimitedChatScreenState extends State<CommonLimitedChatScreen> {
             : messages.first.text,
         gmtCreate: DateTime.now(),
         messages: messages,
-        // 2026-06-06 这里记录的也是各平台原始的大模型名称
-        llmName: newLLMSpecs[selectedLlm]!.model,
+        // 2026-06-20 这里记录的自定义模型枚举的值，因为后续查询结果过滤有需要用来判断
+        llmName: selectedLlm.name,
         cloudPlatformName: selectedPlatform.name,
         // 2026-06-06 对话历史默认带上类别
         chatType: "aigc",
@@ -237,19 +356,30 @@ class _CommonLimitedChatScreenState extends State<CommonLimitedChatScreen> {
         .toList();
 
     // 等待请求响应
-    CommonRespBody temp;
-    var llmName = newLLMSpecs[selectedLlm]!.model;
-
-    print("显示的模型名称!----$llmName");
+    List<CommonRespBody> temp;
     // 2024-06-06 ??? 这里一定要确保存在模型名称，因为要作为http请求参数
+    var model = newLLMSpecs[selectedLlm]!.model;
+    // 是用户配置，id和key就使用用户的，不然就是我的
+    var isUserConfig = widget.isUserConfig == true ? true : false;
+    print("显示请求的模型名称!----$model");
     // 2024-06-11 如果是用户切换了“更快”或“更多”，则使用不同的请求
-    /// 2024-06-15 限时限量的可能都是收费的，本来就慢，所以默认就流式，不用切换
-    // if (isStream) {}
-
-    if (selectedPlatform == CloudPlatform.limited) {
-      temp = await getAliyunLimitedAigcCommonResp(msgs, llmName);
+    if (selectedPlatform == CloudPlatform.baidu) {
+      temp = await getBaiduAigcResp(msgs,
+          model: model, stream: isStream, isUserConfig: isUserConfig);
+    } else if (selectedPlatform == CloudPlatform.tencent) {
+      temp = await getTencentAigcResp(msgs,
+          model: model, stream: isStream, isUserConfig: isUserConfig);
+    } else if (selectedPlatform == CloudPlatform.aliyun) {
+      temp = await getAliyunAigcResp(msgs,
+          model: model, stream: isStream, isUserConfig: isUserConfig);
+    } else if (selectedPlatform == CloudPlatform.limited) {
+      // 目前限时限量的，其实也只是阿里云平台的
+      temp = await getAliyunAigcResp(msgs,
+          model: model, stream: isStream, isUserConfig: isUserConfig);
     } else {
-      temp = await getAliyunLimitedAigcCommonResp(msgs, llmName);
+      // 理论上不会存在其他的了
+      temp = await getBaiduAigcResp(msgs,
+          model: model, stream: isStream, isUserConfig: isUserConfig);
     }
 
     // 得到回复后要删除表示加载中的占位消息
@@ -258,13 +388,33 @@ class _CommonLimitedChatScreenState extends State<CommonLimitedChatScreen> {
     });
 
     // 得到AI回复之后，添加到列表中，也注明不是用户提问
-    var tempText = temp.customReplyText;
-    if (temp.errorCode != null) {
-      tempText = "API接口报错: {${temp.errorCode}: ${temp.errorMsg}}，请切换其他模型试试。";
+    var tempText = temp.map((e) => e.customReplyText).join();
+    if (temp.isNotEmpty && temp.first.errorCode != null) {
+      tempText = """接口报错:
+\ncode:${temp.first.errorCode} 
+\nmsg:${temp.first.errorMsg}
+\n请检查AppId和AppKey是否正确，或切换其他模型试试。
+""";
     }
 
-    print("限量测试的返回结果-------temp--${temp.usage}");
-    _sendMessage(tempText, isFromUser: false, usage: temp.usage);
+    // 每次对话的结果流式返回，所以是个列表，就需要累加起来
+    int inputTokens = 0;
+    int outputTokens = 0;
+    int totalTokens = 0;
+    for (var e in temp) {
+      inputTokens += e.usage?.inputTokens ?? e.usage?.promptTokens ?? 0;
+      outputTokens += e.usage?.outputTokens ?? e.usage?.completionTokens ?? 0;
+      totalTokens += e.usage?.totalTokens ?? 0;
+    }
+    // 里面的promptTokens和completionTokens是百度这个特立独行的，在上面拼到一起了
+    var a = CommonUsage(
+      inputTokens: inputTokens,
+      outputTokens: outputTokens,
+      totalTokens: totalTokens,
+    );
+
+    print("限量测试的返回结果-------temp--$a");
+    _sendMessage(tempText, isFromUser: false, usage: a);
   }
 
   /// 2024-05-31 暂时不根据token的返回来说了，临时直接显示整个对话不超过8千字
@@ -273,7 +423,100 @@ class _CommonLimitedChatScreenState extends State<CommonLimitedChatScreen> {
       messages.fold(0, (sum, msg) => sum + msg.text.length) >
       newLLMSpecs[selectedLlm]!.contextLength;
 
+  /// 构建用于下拉的平台列表(根据上层传入的值)
+  List<DropdownMenuItem<CloudPlatform?>> buildCloudPlatforms() {
+    var cps = CloudPlatform.values;
+
+    // 如果是限量的,平台只能是limited；其他的就是预设的其他3个平台
+    if (widget.isLimitedTest == true) {
+      cps = cps.where((e) => e == CloudPlatform.limited).toList();
+    } else {
+      cps = cps.where((e) => e != CloudPlatform.limited).toList();
+    }
+
+    print("cps-----$cps");
+
+    return cps.map((e) {
+      return DropdownMenuItem<CloudPlatform?>(
+        value: e,
+        alignment: AlignmentDirectional.center,
+        child: Text(
+          cpNames[e]!,
+          style: TextStyle(fontSize: 12.sp, color: Colors.blue),
+        ),
+      );
+    }).toList();
+  }
+
+  /// 当切换了云平台时，要同步切换选中的大模型
+  onCloudPlatformChanged(CloudPlatform? value) {
+    // 如果平台被切换，则更新当前的平台为选中的平台，且重置模型为符合该平台的模型的第一个
+    if (value != selectedPlatform) {
+      // 更新被选中的平台为当前选中平台
+      selectedPlatform = value ?? CloudPlatform.baidu;
+
+      // 用于显示下拉的模型，也要根据入口来
+      // 先找到符合平台的模型（？？？理论上一定不为空，为空了就是有问题的数据）
+      var temp = PlatformLLM.values
+          .where((e) => e.name.startsWith(selectedPlatform.name))
+          .toList();
+
+      // 如果是限量的,平台只能时limited（模型也只能是limited的，应该不用判断也是）
+      if (widget.isLimitedTest == true) {
+        // 目前限时限量的模型只有名称是选中的limted开头的平台这一个限制，不用二次过滤
+      } else if (widget.isUserConfig == true) {
+        // 如果是用户配置的，模型非是FREE结尾
+        temp = temp.where((e) => !e.name.endsWith("FREE")).toList();
+      } else {
+        // 默认就是免费的了，模型仅是FREE结尾
+        temp = temp.where((e) => e.name.endsWith("FREE")).toList();
+      }
+
+      setState(() {
+        selectedLlm = temp.first;
+      });
+    }
+  }
+
+  List<DropdownMenuItem<PlatformLLM>> buildPlatformLLMs() {
+    // 用于下拉的模型首先是需要以平台前缀命名的
+    var llms = PlatformLLM.values
+        .where((m) => m.name.startsWith(selectedPlatform.name));
+
+    var text = (ChatLLMSpec e) => e.name;
+
+    // 限时限量的模型， 以limited平台前缀开头的模型，且未过期
+    if (widget.isLimitedTest == true) {
+      llms = llms
+          .where((m) => newLLMSpecs[m]!.deadline.isAfter(DateTime.now()))
+          .toList();
+
+      text = (ChatLLMSpec e) =>
+          "${e.name}_${DateFormat(constDateFormat).format(e.deadline)}到期";
+    } else if (widget.isUserConfig == true) {
+      // 如果是用户配置的,模型仅是指定平台前缀+以非FREE结尾
+      llms = llms.where((m) => !m.name.endsWith("FREE")).toList();
+    } else {
+      // 默认就是免费的了，模型仅是指定平台前缀+以FREE结尾
+      llms = llms.where((m) => m.name.endsWith("FREE")).toList();
+    }
+
+    print("llms--${llms.length}---$llms");
+
+    return llms
+        .map((e) => DropdownMenuItem<PlatformLLM>(
+              value: e,
+              alignment: AlignmentDirectional.centerEnd,
+              child: Text(
+                text(newLLMSpecs[e]!),
+                style: TextStyle(fontSize: 10.sp, color: Colors.blue),
+              ),
+            ))
+        .toList();
+  }
+
   /// 最后一条大模型回复如果不满意，可以重新生成(中间的不行，因为后续的问题是关联上下文的)
+  /// 2024-06-20 限量的要计算token数量，所以不让重新生成(？？？但实际也没做累加的token的逻辑)
   regenerateLatestQuestion() {
     setState(() {
       // 将最后一条消息删除，并添加占位消息，重新发送
@@ -349,35 +592,34 @@ class _CommonLimitedChatScreenState extends State<CommonLimitedChatScreen> {
   buildAppbarArea() {
     return AppBar(
       title: Text(
-        'AI 聊天(限时限量)',
-        style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold),
+        '对话│${widget.isUserConfig == true ? '自定' : widget.isLimitedTest == true ? "限量" : "免费"}',
+        style: TextStyle(fontSize: 15.sp, fontWeight: FontWeight.bold),
       ),
       actions: [
         /// 选择“更快”就使用流式请求，否则就一般的非流式
-        /// 2024-06-15 限时限量的可能都是收费的，本来就慢，所以默认就流式，不用切换
-        // ToggleSwitch(
-        //   minHeight: 24.sp,
-        //   minWidth: 42.sp,
-        //   fontSize: 10.sp,
-        //   cornerRadius: 5.sp,
-        //   dividerMargin: 0.sp,
-        //   // isVertical: true,
-        //   // // 激活时按钮的前景背景色
-        //   // activeFgColor: Colors.black,
-        //   // activeBgColor: [Colors.green],
-        //   // // 未激活时的前景背景色
-        //   // inactiveBgColor: Colors.grey,
-        //   // inactiveFgColor: Colors.white,
-        //   initialLabelIndex: isStream ? 0 : 1,
-        //   totalSwitches: 2,
-        //   labels: const ['更快', '更多'],
-        //   // radiusStyle: true,
-        //   onToggle: (index) {
-        //     setState(() {
-        //       isStream = index == 0 ? true : false;
-        //     });
-        //   },
-        // ),
+        ToggleSwitch(
+          minHeight: 24.sp,
+          minWidth: 40.sp,
+          fontSize: 9.sp,
+          cornerRadius: 5.sp,
+          dividerMargin: 0.sp,
+          // isVertical: true,
+          // // 激活时按钮的前景背景色
+          // activeFgColor: Colors.black,
+          // activeBgColor: [Colors.green],
+          // // 未激活时的前景背景色
+          // inactiveBgColor: Colors.grey,
+          // inactiveFgColor: Colors.white,
+          initialLabelIndex: isStream ? 0 : 1,
+          totalSwitches: 2,
+          labels: const ['更快', '更省'],
+          // radiusStyle: true,
+          onToggle: (index) {
+            setState(() {
+              isStream = index == 0 ? true : false;
+            });
+          },
+        ),
         SizedBox(width: 20.sp),
 
         /// 创建新对话
@@ -396,16 +638,13 @@ class _CommonLimitedChatScreenState extends State<CommonLimitedChatScreen> {
             return IconButton(
               icon: Icon(Icons.history, size: 24.sp),
               onPressed: () async {
-                // 获取历史记录
-                var a = (await _dbHelper.queryChatList(cateType: "aigc"))
-                    .where((e) => e.cloudPlatformName == selectedPlatform.name)
-                    .toList();
-
+                // 获取历史记录：默认查询到所有的历史对话，再根据条件过滤
+                var list = await getHsitoryChats();
                 // 显示最近的对话
 
-                print("a--------$a");
+                print("list--------$list");
                 setState(() {
-                  chatHsitory = a;
+                  chatHsitory = list;
                 });
 
                 if (!mounted) return;
@@ -503,12 +742,10 @@ class _CommonLimitedChatScreenState extends State<CommonLimitedChatScreen> {
               await _dbHelper.deleteChatById(e.uuid);
 
               // 然后重新查询并更新
-              var b = (await _dbHelper.queryChatList(cateType: 'aigc'))
-                  .where((e) => e.cloudPlatformName == selectedPlatform.name)
-                  .toList();
+              var list = await getHsitoryChats();
 
               setState(() {
-                chatHsitory = b;
+                chatHsitory = list;
               });
 
               // 2024-06-11 如果删除的历史对话，就是当前对话，那就要跳到新开对话页面
@@ -577,12 +814,10 @@ class _CommonLimitedChatScreenState extends State<CommonLimitedChatScreen> {
               _dbHelper.updateChatSession(temp);
 
               // 修改成功后重新查询更新
-              var b = (await _dbHelper.queryChatList(cateType: "aigc"))
-                  .where((e) => e.cloudPlatformName == selectedPlatform.name)
-                  .toList();
+              var list = await getHsitoryChats();
 
               setState(() {
-                chatHsitory = b;
+                chatHsitory = list;
               });
             }
           });
@@ -652,11 +887,78 @@ class _CommonLimitedChatScreenState extends State<CommonLimitedChatScreen> {
     });
   }
 
+  _buildCusConfigRow(String label, String value) {
+    return Row(
+      children: [
+        Expanded(
+          flex: 1,
+          child: Text(label, style: TextStyle(fontSize: 12.sp)),
+        ),
+        Expanded(
+          flex: 4,
+          child: Text(value, style: TextStyle(fontSize: 12.sp)),
+        ),
+      ],
+    );
+  }
+
   /// 构建切换平台和模型的行
   buildPlatAndLlmRow() {
+    List<Widget> cpWidgetList = [
+      const Text("平台:"),
+      SizedBox(width: 10.sp),
+      SizedBox(
+        width: 52.sp,
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey, width: 1.0),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: DropdownButton<CloudPlatform?>(
+            value: selectedPlatform,
+            isDense: true,
+            alignment: AlignmentDirectional.center,
+            items: buildCloudPlatforms(),
+            onChanged: onCloudPlatformChanged,
+          ),
+        ),
+      ),
+    ];
+
+    /// 2024-06-20
+    /// 如果是用户配置的平台和模型(目前仅支持单个配置)、就只能使用那一个。
+    /// 所以没有切换的row，但给用户显示自己配置的平台、模型、和appid及key
+    if (widget.isUserConfig == true) {
+      return Row(children: [
+        Expanded(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildCusConfigRow("平台", selectedPlatform.name),
+              _buildCusConfigRow("模型", newLLMSpecs[selectedLlm]!.model),
+              _buildCusConfigRow("AppId", MyGetStorage().getCusAppId() ?? ""),
+              _buildCusConfigRow("AppKey", MyGetStorage().getCusAppKey() ?? ""),
+            ],
+          ),
+        ),
+        TextButton(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const UserCusModelStepper(),
+              ),
+            );
+          },
+          child: const Text("重新配置"),
+        ),
+      ]);
+    }
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
+        if (widget.isLimitedTest != true) ...cpWidgetList,
         const Text("模型:"),
         SizedBox(width: 10.sp),
         Expanded(
@@ -671,19 +973,7 @@ class _CommonLimitedChatScreenState extends State<CommonLimitedChatScreen> {
               isDense: true,
               alignment: AlignmentDirectional.bottomEnd,
               menuMaxHeight: 300.sp,
-              items: PlatformLLM.values
-                  .where((m) =>
-                      m.name.startsWith(selectedPlatform.name) &&
-                      newLLMSpecs[m]!.deadline.isAfter(DateTime.now()))
-                  .map((e) => DropdownMenuItem<PlatformLLM>(
-                        value: e,
-                        alignment: AlignmentDirectional.centerEnd,
-                        child: Text(
-                          "${newLLMSpecs[e]!.name}_${DateFormat(constDateFormat).format(newLLMSpecs[e]!.deadline)}到期",
-                          style: TextStyle(fontSize: 10.sp, color: Colors.blue),
-                        ),
-                      ))
-                  .toList(),
+              items: buildPlatformLLMs(),
               onChanged: (val) {
                 setState(() {
                   selectedLlm = val!;
@@ -809,14 +1099,15 @@ class _CommonLimitedChatScreenState extends State<CommonLimitedChatScreen> {
                       // 其中，是大模型最后一条回复，则可以重新生成
                       // 注意，还要排除占位消息
                       // 限量的没有重新生成，因为不好计算tokens总数
-                      // if ((index == messages.length - 1) &&
-                      //     messages[index].isPlaceholder != true)
-                      //   TextButton(
-                      //     onPressed: () {
-                      //       regenerateLatestQuestion();
-                      //     },
-                      //     child: const Text("重新生成"),
-                      //   ),
+                      if ((index == messages.length - 1) &&
+                          messages[index].isPlaceholder != true &&
+                          selectedPlatform != CloudPlatform.limited)
+                        TextButton(
+                          onPressed: () {
+                            regenerateLatestQuestion();
+                          },
+                          child: const Text("重新生成"),
+                        ),
                       // 点击复制该条回复
                       IconButton(
                         onPressed: () {
@@ -836,6 +1127,7 @@ class _CommonLimitedChatScreenState extends State<CommonLimitedChatScreen> {
                       if (messages[index].isPlaceholder != true)
                         Text(
                           "tokens 输入:${messages[index].inputTokens} 输出:${messages[index].outputTokens} 总计:${messages[index].totalTokens}",
+                          style: TextStyle(fontSize: 10.sp),
                         ),
                       SizedBox(width: 10.sp),
                     ],

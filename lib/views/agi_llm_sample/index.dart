@@ -5,9 +5,9 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import 'baidu_image2text_screen.dart';
-import 'common_chat_screen.dart';
 import 'aliyun_text2image_screen.dart';
-import 'common_limited_chat_screen.dart';
+import 'cus_llm_config/user_cus_model_stepper.dart';
+import 'one_chat_screen.dart';
 
 class AgiLlmSample extends StatefulWidget {
   const AgiLlmSample({super.key});
@@ -47,6 +47,20 @@ class _AgiLlmSampleState extends State<AgiLlmSample> {
           ),
         ),
         // title: const Text('智能对话'),
+        actions: [
+          TextButton(
+            // 如果在缓存中存在配置，则跳到到对话页面，如果没有，进入配置页面
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const UserCusModelStepper(),
+                ),
+              );
+            },
+            child: const Text("自行配置"),
+          ),
+        ],
       ),
       body: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -104,15 +118,15 @@ class _AgiLlmSampleState extends State<AgiLlmSample> {
           context,
           MaterialPageRoute(builder: (context) {
             if (type == 0) {
-              return const CommonChatScreen();
+              return const OneChatScreen();
             } else if (type == 1) {
               return const AliyunText2ImageScreen();
             } else if (type == 2) {
               return const BaiduImage2TextScreen();
             } else if (type == 3) {
-              return const CommonLimitedChatScreen();
+              return const OneChatScreen(isLimitedTest: true);
             } else {
-              return const CommonChatScreen();
+              return const OneChatScreen();
             }
           }),
         );

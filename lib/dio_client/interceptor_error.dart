@@ -3,28 +3,6 @@
 import 'package:dio/dio.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 
-class ErrorInterceptor2 extends QueuedInterceptor {
-  final Dio dio;
-
-  ErrorInterceptor2(this.dio);
-
-  @override
-  Future<void> onError(
-    DioException err,
-    ErrorInterceptorHandler handler,
-  ) async {
-    print('onError is called');
-    try {
-      // This should throw an error
-      await dio.fetch(err.requestOptions);
-    } catch (e) {
-      // Why cannot I catch the error here?
-      print('onError is called again');
-    }
-    handler.next(err);
-  }
-}
-
 class ErrorInterceptor extends Interceptor {
   @override
   Future<void> onError(
@@ -33,13 +11,28 @@ class ErrorInterceptor extends Interceptor {
   ) async {
     print('【onError】进入了dio的错误拦截器');
 
-    print(err);
+    print("err is :$err");
+
+    print(
+      """-----------------------
+err 详情 
+  message: ${err.message} 
+  type: ${err.type} 
+  error: ${err.error} 
+  response: ${err.response}
+  -----------------------""",
+    );
 
     /// 根据DioError创建HttpException
-    HttpException httpException = HttpException.create(err);
+    // HttpException httpException = HttpException.create(err);
+// 2024-06-20 上面的create方法有问题，暂时不用
+    HttpException httpException = HttpException(
+      code: 1000,
+      msg: err.error.toString(),
+    );
 
     /// dio默认的错误实例，如果是没有网络，只能得到一个未知错误，无法精准的得知是否是无网络的情况
-    /// 这里对于断网的情况，给一个特殊的code和msg
+    /// 这里对于断网的情况，给一个特殊的code和msg，其他可以识别处理的错误也可以订好
     if (err.type == DioExceptionType.unknown) {
       var connectivityResult = await (Connectivity().checkConnectivity());
 
@@ -64,6 +57,7 @@ class ErrorInterceptor extends Interceptor {
       error: httpException,
     );
 
+    print("往上抛的newErr：$newErr");
     super.onError(newErr, handler);
 
     // 2024-03-11 新版本要这样写了吗？？？

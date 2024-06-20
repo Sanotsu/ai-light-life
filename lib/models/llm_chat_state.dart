@@ -116,6 +116,8 @@ class ChatSession {
   // 因为该栏位需要可修改，就不能为final了
   List<ChatMessage> messages;
   // 2024-06-01 大模型名称也要记一下，说不定后续要存API的原始返回内容复用
+  // 2024-06-20 这里记录的是自定义的模型名（类似 PlatformLLM.baiduErnieSpeed8KFREE）
+  // 因为后续查询历史记录可能会用此栏位来过滤
   final String llmName; // 使用的大模型名称需要记一下吗？
   // 2024-06-06 记录了大模型名称，也记一下使用在哪个云平台
   final String? cloudPlatformName;

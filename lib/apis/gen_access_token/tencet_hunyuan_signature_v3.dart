@@ -4,17 +4,20 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:intl/intl.dart';
 
-import '../_self_keys.dart';
-
 /// 这里是生成签名的方案
 /// 内容局限在使用hunyuan-lite大模型的时候。
 /// 参看 https://github.com/TencentCloud/signature-process-demo/blob/main/signature-v3/dart/lib/app.dart
 /// 对照此处“签名示例”进行部分内容修改
 /// https://console.cloud.tencent.com/api/explorer?Product=hunyuan&Version=2023-09-01&Action=ChatCompletions
-Map<String, Object> genHunyuanLiteSignatureHeaders(String payloadString) {
+Map<String, Object> genHunyuanLiteSignatureHeaders(
+  String payloadString,
+  String id,
+  String key,
+) {
   // 密钥参数
-  const secretId = TENCENT_SECRET_ID;
-  const secretKey = TENCENT_SECRET_KEY;
+  // 2024-06-16 支持用户自行输入自己的id和key
+  var secretId = id;
+  var secretKey = key;
 
   const service = 'hunyuan';
   const host = 'hunyuan.tencentcloudapi.com';

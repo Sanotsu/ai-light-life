@@ -8,6 +8,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:form_builder_validators/form_builder_validators.dart';
+import 'package:get_storage/get_storage.dart';
 
 import 'views/home_page.dart';
 
@@ -31,16 +32,18 @@ class AppCatchError {
       }
     };
 
-    runZonedGuarded(() {
-      //受保护的代码块
-      WidgetsFlutterBinding.ensureInitialized();
-      SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp])
-          .then((_) async {
-        runApp(
-          const AILightLifeApp(),
-        );
-      });
-    }, (error, stack) => catchError(error, stack));
+    runZonedGuarded(
+      () {
+        //受保护的代码块
+        WidgetsFlutterBinding.ensureInitialized();
+        SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp])
+            .then((_) async {
+          await GetStorage.init();
+          runApp(const AILightLifeApp());
+        });
+      },
+      (error, stack) => catchError(error, stack),
+    );
   }
 
   ///对搜集的 异常进行处理  上报等等
