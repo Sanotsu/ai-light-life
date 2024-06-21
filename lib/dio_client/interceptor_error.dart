@@ -28,7 +28,7 @@ err 详情
 // 2024-06-20 上面的create方法有问题，暂时不用
     HttpException httpException = HttpException(
       code: 1000,
-      msg: err.error.toString(),
+      msg: err.error != null ? err.error.toString() : err.response.toString(),
     );
 
     /// dio默认的错误实例，如果是没有网络，只能得到一个未知错误，无法精准的得知是否是无网络的情况

@@ -2,6 +2,7 @@
 
 import '../../dio_client/cus_http_client.dart';
 import '../../dio_client/cus_http_request.dart';
+import '../dio_client/interceptor_error.dart';
 import '../models/ai_interface_state/baidu_fuyu8b_state.dart';
 import '_self_keys.dart';
 
@@ -44,87 +45,6 @@ Future<String> getAccessToken() async {
   return respData['access_token'];
 }
 
-// /// 获取百度对话请求的响应数据
-// Future<CommonRespBody> getBaiduAigcCommonResp(
-//   List<CommonMessage> messages, {
-//   String? model,
-// }) async {
-//   // 如果有传模型名称，就用传递的；没有就默认的
-//   // 百度免费的ernie-speed和ernie-lite 接口使用上是一致的，就是模型名称不一样
-//   model = model ?? llmModels[PlatformLLM.baiduErnieSpeed8KFREE]!;
-
-//   // 每次请求都要实时获取最小的token
-//   String token = await getAccessToken();
-
-//   var body = CommonReqBody(messages: messages);
-
-//   var start = DateTime.now().millisecondsSinceEpoch;
-
-//   var respData = await HttpUtils.post(
-//     path: "$baiduAigcUrl$model?access_token=$token",
-//     method: HttpMethod.post,
-//     headers: {"Content-Type": "application/json"},
-//     data: body,
-//   );
-
-//   var end = DateTime.now().millisecondsSinceEpoch;
-
-//   print("1111111111xxxxxxxxxxxxxxxxx${(end - start) / 1000} 秒");
-
-//   // 响应是json格式
-//   return CommonRespBody.fromJson(respData);
-// }
-
-// /// 获取流式响应数据
-// Future<List<CommonRespBody>> getBaiduAigcStreamCommonResp(
-//   List<CommonMessage> messages, {
-//   String? model,
-// }) async {
-//   // 如果有传模型名称，就用传递的；没有就默认的
-//   // 百度免费的ernie-speed和ernie-lite 接口使用上是一致的，就是模型名称不一样
-//   model = model ?? llmModels[PlatformLLM.baiduErnieSpeed128KFREE]!;
-
-//   // 每次请求都要实时获取最小的token
-//   String token = await getAccessToken();
-
-//   var body = CommonReqBody(messages: messages, stream: true);
-
-//   var start = DateTime.now().millisecondsSinceEpoch;
-
-//   var respData = await HttpUtils.post(
-//     path: "$baiduAigcUrl$model?access_token=$token",
-//     method: HttpMethod.post,
-//     headers: {"Content-Type": "application/json"},
-//     data: body,
-//   );
-
-//   print("流失返回的数据---------$respData");
-
-//   var end = DateTime.now().millisecondsSinceEpoch;
-
-//   print("xxxxxxxxxxxxxxxxx${(end - start) / 1000} 秒");
-
-//   // 这里返回的是String，不是Map<String, dynamic>
-
-//   // 注意要手动处理拼接字符串
-//   // List<String> list =
-//   //     (respData as String).split("data:").where((e) => e.isNotEmpty).toList();
-
-//   // List jsonList =
-//   //     list.map((e) => CommonRespBody.fromJson(json.decode(e))).toList();
-
-//   List<CommonRespBody> list = (respData as String)
-//       .split("data:")
-//       .where((e) => e.isNotEmpty)
-//       .map((e) => CommonRespBody.fromJson(json.decode(e)))
-//       .toList();
-
-//   print("=======================bbbbbbbbbbbbb\n$list");
-
-//   // 响应是json格式
-//   return list;
-// }
-
 /// 获取Fuyu-8B图像理解的响应结果
 Future<BaiduFuyu8BResp> getBaiduFuyu8BResp(String prompt, String image) async {
   // 每次请求都要实时获取最小的token
@@ -132,20 +52,36 @@ Future<BaiduFuyu8BResp> getBaiduFuyu8BResp(String prompt, String image) async {
 
   var body = BaiduFuyu8BReq(prompt: prompt, image: image);
 
-  var start = DateTime.now().millisecondsSinceEpoch;
+  try {
+    var start = DateTime.now().millisecondsSinceEpoch;
 
-  var respData = await HttpUtils.post(
-    path: "$baiduFuyu8BUrl?access_token=$token",
-    method: HttpMethod.post,
-    headers: {"Content-Type": "application/json"},
-    data: body,
-  );
+    var respData = await HttpUtils.post(
+      path: "$baiduFuyu8BUrl?access_token=$token",
+      method: HttpMethod.post,
+      headers: {"Content-Type": "application/json"},
+      data: body,
+    );
 
-  var end = DateTime.now().millisecondsSinceEpoch;
+    var end = DateTime.now().millisecondsSinceEpoch;
 
-  print("百度图生文-------耗时${(end - start) / 1000} 秒");
-  print("百度图生文-------$respData");
+    print("百度图生文-------耗时${(end - start) / 1000} 秒");
+    print("百度图生文-------$respData");
 
-  // 响应是json格式
-  return BaiduFuyu8BResp.fromJson(respData);
+    // 响应是json格式
+    return BaiduFuyu8BResp.fromJson(respData);
+  } on HttpException catch (e) {
+    return BaiduFuyu8BResp(
+      // 这里的code和msg就不是api返回的，是自行定义的，应该抽出来
+      errorCode: e.code.toString(),
+      errorMsg: e.msg,
+    );
+  } catch (e) {
+    print("vvvvvvvvvvvvvvvvvvl ${e.runtimeType}---$e");
+    // API请求报错，显示报错信息
+    return BaiduFuyu8BResp(
+      // 这里的code和msg就不是api返回的，是自行定义的，应该抽出来
+      errorCode: "10000",
+      errorMsg: e.toString(),
+    );
+  }
 }

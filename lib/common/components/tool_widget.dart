@@ -162,7 +162,12 @@ buildNetworkImageViewGrid(
 
 /// 构建图片预览，可点击放大
 /// 注意限定传入的图片类型，要在这些条件之中
-Widget buildImageView(dynamic image, BuildContext context) {
+Widget buildImageView(
+  dynamic image,
+  BuildContext context, {
+  // 是否是本地文件地址(暂时没使用到网络地址)
+  bool? isFileUrl = false,
+}) {
   // 如果没有图片数据，直接返回文提示
   if (image == null) {
     return const Center(
@@ -177,8 +182,11 @@ Widget buildImageView(dynamic image, BuildContext context) {
 
   ImageProvider imageProvider;
   // 只有base64的字符串或者文件格式
-  if (image.runtimeType == String) {
+  if (image.runtimeType == String && isFileUrl == false) {
     imageProvider = MemoryImage(base64Decode(image));
+  }
+  if (image.runtimeType == String && isFileUrl == true) {
+    imageProvider = FileImage(File(image));
   } else {
     // 如果直接传文件，那就是文件
     imageProvider = FileImage(image);

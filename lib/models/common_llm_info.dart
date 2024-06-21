@@ -43,13 +43,15 @@ enum PlatformLLM {
   aliyunQwen1p50p5BChatFREE, //  千问1.5开源本，5亿参数
   aliyunFaruiPlus32KFREE,
 
-  /// 其实就是阿里云中限时限量的部分(23个)
+  /// 其实就是阿里云中限时限量的部分(25个)
   limitedQwenMax, // 8k，6k输入
   limitedQwenMax0428, // 8k，6k输入
   limitedQwenLong, // 10000k
   limitedQwenMaxLongContext, // 28k
   limitedQwenPlus, // 32k
   limitedQwenTurbo, // 8k
+  limitedQwenVLMax, // 支持上传图片理解的对话
+  limitedQwenVLPlus, // 支持上传图片理解的对话
 
   limitedBaichuan2Turbo, // 8k
   limitedBaichuan2Turbo192K, // 192k
@@ -100,9 +102,15 @@ class ChatLLMSpec {
   final int freeAmount;
   final double inputPrice; // 每千token单价
   final double outputPrice;
+  // 2024-06-21
+  // 是否是视觉理解大模型(即是否可以解析图片、分析图片内容，然后进行对话)
+  // 比如通义千问-VL 的接口参数和对话的基本无二致，只是入参多个图像image，所以可以放到一起试试
+  // 如果模型支持视觉，就显示上传图片按钮，可加载图片
+  bool? isVisonLLM;
 
   ChatLLMSpec(this.model, this.name, this.contextLength, this.deadline,
-      this.freeAmount, this.inputPrice, this.outputPrice);
+      this.freeAmount, this.inputPrice, this.outputPrice,
+      {this.isVisonLLM = false});
 }
 
 // 2024-06-15 阿里云的限时限量都是这两个值，放在外面好了
@@ -177,6 +185,13 @@ final Map<PlatformLLM, ChatLLMSpec> newLLMSpecs = {
       "qwen-long", '通义千问-长文_阿里云', 10000 * 1000, dt1, num1, 0.04, 0.12),
   PlatformLLM.limitedQwenMaxLongContext: ChatLLMSpec('qwen-max-longcontext',
       '通义千问-Max-30K_阿里云', 28 * 1000, dt1, num2, 0.04, 0.12),
+  // 2024-06-21 视觉理解大模型
+  PlatformLLM.limitedQwenVLMax: ChatLLMSpec(
+      'qwen-vl-max', '通义千问VL-Max_阿里云', 8 * 1000, dt1, num2, 0.02, 0.02,
+      isVisonLLM: true),
+  PlatformLLM.limitedQwenVLPlus: ChatLLMSpec(
+      'qwen-vl-plus', '通义千问VL-Plus_阿里云', 8 * 1000, dt1, num2, 0.008, 0.008,
+      isVisonLLM: true),
 
   // 百川
   PlatformLLM.limitedBaichuan2Turbo: ChatLLMSpec('baichuan2-turbo',
@@ -418,43 +433,33 @@ final Map<Image2TextLLM, String> i2tLlmDescriptions = {
 };
 
 ///
-/// 【？？？ 比较麻烦，暂时不弄了】
-/// 2024-06-07 限量免费的，或者限时免费的放到下面来
 ///
-/// 百度的：https://cloud.baidu.com/doc/WENXINWORKSHOP/s/hlrk4akp7
+/// 2024-06-21 上面的是单纯文本对话的大模型，下面是视觉理解大模型，即可以上传图片
+/// 没法合并到一起是因为，之前通用的请求参数类中的 CommonMessage 的content 属性：
+///     前者是一个String即可，
+///     后者需要 [{String text,String image}] 的 list，
+/// 也为了区分，切换不同页面，单独一个规格
+///
 ///
 
-class LimitedLLM {
-  // 模型所属的平台
-  CloudPlatform platform;
-  // 模型名称
-  String name;
-  // 用在拼接http请求或者作为参数时的模型字符串
-  String model;
-  // 分类：通用、轻量、专业、文生图……
-  String? category;
-  // 在处理限制时，要全部符合才行
-  // 限定的token数量
-  int? limitedTokenSize;
-  // 限定的请求数量
-  int? limitedRequestSize;
-  // 限定的时间
-  DateTime? deadline;
+// 通用视觉理解大模型信息
+class VsionLLMSpec {
+  // 模型字符串(平台API参数的那个model的值)、模型名称、上下文长度数值，到期时间、限量数值，
+  /// 收费输入时百万token价格价格，输出时百万token价格(限时免费没写价格就先写0)
+  final String model;
+  final String name;
+  final int contextLength;
+  final DateTime deadline;
+  final int freeAmount;
+  final double inputPrice; // 每千token单价
+  final double outputPrice;
+  // 2024-06-21
+  // 是否是视觉理解大模型(即是否可以解析图片、分析图片内容，然后进行对话)
+  // 比如通义千问-VL 的接口参数和对话的基本无二致，只是入参多个图像image，所以可以放到一起试试
+  // 如果模型支持视觉，就显示上传图片按钮，可加载图片
+  bool? isVisonLLM;
 
-  LimitedLLM(
-    this.platform,
-    this.name,
-    this.model,
-    this.category,
-    this.limitedTokenSize,
-    this.limitedRequestSize,
-    this.deadline,
-  );
+  VsionLLMSpec(this.model, this.name, this.contextLength, this.deadline,
+      this.freeAmount, this.inputPrice, this.outputPrice,
+      {this.isVisonLLM = false});
 }
-
-List requestLimitedLLM = [
-  LimitedLLM(CloudPlatform.baidu, "Yi-34B-Chat", "yi_34b_chat", "chat", null,
-      500, null),
-  LimitedLLM(
-      CloudPlatform.baidu, "Fuyu-8B", "fuyu_8b", "image2text", null, 500, null),
-];

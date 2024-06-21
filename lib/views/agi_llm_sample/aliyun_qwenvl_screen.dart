@@ -1,8 +1,8 @@
-// ignore_for_file: avoid_print
+// ignore_for_file: avoid_print,
 
 import 'dart:convert';
 import 'dart:io';
-import 'package:file_picker/file_picker.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
@@ -11,23 +11,30 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
-import '../../apis/baidu_apis.dart';
+import '../../apis/aliyun_apis.dart';
 import '../../common/components/tool_widget.dart';
 import '../../common/constants.dart';
 import '../../common/db_tools/db_helper.dart';
-import '../../common/utils/tools.dart';
+import '../../models/ai_interface_state/aliyun_qwenvl_state.dart';
 import '../../models/common_llm_info.dart';
 import '../../models/llm_chat_state.dart';
 import 'widgets/message_item.dart';
 
-class BaiduImage2TextScreen extends StatefulWidget {
-  const BaiduImage2TextScreen({super.key});
+///
+/// 2024-06-21
+/// 理论上这个对话，用户可以上传多个图片(即每次提问都带不同的图片)
+/// 但目前留存历史记录是整个对话只存了一张图片，所以暂时不修改了。
+/// 这个页面也一样，先上传一张图片，然后后续对话都是基于这张图片的，
+/// 即手动为用户提问的message的content带上image地址
+///
+class AliyunQwenVLScreen extends StatefulWidget {
+  const AliyunQwenVLScreen({super.key});
 
   @override
-  State createState() => _BaiduImage2TextScreenState();
+  State createState() => _AliyunQwenVLScreenState();
 }
 
-class _BaiduImage2TextScreenState extends State<BaiduImage2TextScreen> {
+class _AliyunQwenVLScreenState extends State<AliyunQwenVLScreen> {
   final DBHelper _dbHelper = DBHelper();
   final ScrollController _scrollController = ScrollController();
 
@@ -39,8 +46,8 @@ class _BaiduImage2TextScreenState extends State<BaiduImage2TextScreen> {
   // AI是否在思考中(如果是，则不允许再次发送)
   bool isBotThinking = false;
 
-// 用于存储选中的图片文件
-  File? _selectedImage;
+// 用于存储选中的图片文件地址
+  String? _selectedImageUrl;
 
   // 假设的对话数据
   List<ChatMessage> messages = [];
@@ -66,52 +73,25 @@ class _BaiduImage2TextScreenState extends State<BaiduImage2TextScreen> {
     final pickedFile = await picker.pickImage(source: source);
     if (pickedFile != null) {
       setState(() {
-        _selectedImage = File(pickedFile.path);
+        _selectedImageUrl = pickedFile.path;
       });
-    }
-  }
-
-  // 用户选择了图片，会获取图片的信息
-  userPickImage() async {
-    if (!(await requestPhotoPermission())) {
-      return EasyLoading.showError("未授权可访问图片，无法选择图片");
-    }
-    try {
-      // 选择新图片，就是新开图像理解对话了
-      setState(() {
-        chatSession = null;
-        messages.clear();
-      });
-
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.image, // 选择图片类型
-      );
-
-      if (result != null) {
-        // 获取文件,创建File对象
-        final file = File(result.files.single.path!);
-
-        print("选中的文件的地址${file.path}");
-
-        setState(() {
-          // 将图片文件赋值给全局变量
-          _selectedImage = file;
-        });
-      }
-    } on PlatformException catch (e) {
-      print("Unsupported operation$e");
     }
   }
 
   /// 给对话列表添加对话信息
-  sendMessage(String text, {bool isFromUser = true}) {
+  sendMessage(String text, {bool isFromUser = true, QwenVLUsage? usage}) {
     setState(() {
       // 发送消息的逻辑，这里只是简单地将消息添加到列表中
+      int input = (usage?.inputTokens ?? 0) + (usage?.imageTokens ?? 0);
+      int output = usage?.outputTokens ?? 0;
       messages.add(ChatMessage(
         messageId: const Uuid().v4(),
         text: text,
         isFromUser: isFromUser,
         dateTime: DateTime.now(),
+        inputTokens: input,
+        outputTokens: output,
+        totalTokens: input + output,
       ));
 
       // AI思考和用户输入是相反的(如果用户输入了，就是在等到机器回答了)
@@ -139,7 +119,7 @@ class _BaiduImage2TextScreenState extends State<BaiduImage2TextScreen> {
         messages.add(placeholderMessage);
 
         // 用户发送之后，等待AI响应
-        getFuyuData(text);
+        getAliyunQwenVLData();
       }
     });
   }
@@ -161,7 +141,7 @@ class _BaiduImage2TextScreenState extends State<BaiduImage2TextScreen> {
         // 2026-06-06 对话历史默认带上类别
         chatType: "image2text",
         // 存base64显示时会一闪一闪，直接存缓存地址好了
-        i2tImagePath: _selectedImage?.path,
+        i2tImagePath: _selectedImageUrl,
       );
 
       await _dbHelper.insertChatList([chatSession!]);
@@ -175,10 +155,37 @@ class _BaiduImage2TextScreenState extends State<BaiduImage2TextScreen> {
   }
 
   /// 获取图像理解返回的数据
-  getFuyuData(String text) async {
-    var a = await getBaiduFuyu8BResp(
-      text,
-      base64Encode((await _selectedImage!.readAsBytes())),
+  getAliyunQwenVLData() async {
+    print("-_selectedImageUrl:$_selectedImageUrl");
+
+    var url =
+        "https://dashscope.oss-cn-beijing.aliyuncs.com/images/dog_and_girl.jpeg";
+    var base64 = base64Encode((await File(_selectedImageUrl!).readAsBytes()));
+
+    print(url);
+    print(base64.length);
+
+    // 经过测试，这个image参数只能是网络图片，本地图片不行，也不是示例中api的3个桌面平台
+
+    // 将已有的消息处理成Ernie支出的消息列表格式(构建查询条件时要删除占位的消息)
+    List<QwenVLMessage> msgs = messages
+        .where((e) => e.isPlaceholder != true)
+        .map((e) => QwenVLMessage(
+              role: e.isFromUser ? "user" : "assistant",
+              content: [
+                QwenVLContent(
+                  image: url,
+                  text: e.text,
+                )
+              ],
+            ))
+        .toList();
+
+    var temp = await getAliyunQwenVLResp(
+      msgs,
+      model: 'qwen-vl-plus',
+      stream: false,
+      isUserConfig: false,
     );
 
     // 得到回复后要删除表示加载中的占位消息
@@ -186,17 +193,33 @@ class _BaiduImage2TextScreenState extends State<BaiduImage2TextScreen> {
       messages.removeWhere((e) => e.isPlaceholder == true);
     });
 
-    var tempText = a.result ?? "未报错但无返回数据";
-    if (a.errorCode != null) {
+    // 得到AI回复之后，添加到列表中，也注明不是用户提问
+    var tempText = temp.map((e) => e.customReplyText).join();
+    if (temp.isNotEmpty && temp.first.errorCode != null) {
       tempText = """接口报错:
-\ncode:${a.errorCode} 
-\nmsg:${a.errorMsg}
-\n请检查输入是否正确，或切换其他模型试试。
+\ncode:${temp.first.errorCode} 
+\nmsg:${temp.first.errorMsg}
+\n请检查AppId和AppKey是否正确，或切换其他模型试试。
 """;
     }
+    // 每次对话的结果流式返回，所以是个列表，就需要累加起来
+    int inputTokens = 0;
+    int outputTokens = 0;
+    int imageTokens = 0;
+    for (var e in temp) {
+      inputTokens += e.usage?.inputTokens ?? 0;
+      outputTokens += e.usage?.outputTokens ?? 0;
+      imageTokens += e.usage?.imageTokens ?? 0;
+    }
+    // 里面的promptTokens和completionTokens是百度这个特立独行的，在上面拼到一起了
+    var a = QwenVLUsage(
+      inputTokens: inputTokens,
+      outputTokens: outputTokens,
+      imageTokens: imageTokens,
+    );
 
-    // ??? 错误理解之类的还没处理
-    sendMessage(tempText, isFromUser: false);
+    print("限量测试的返回结果-------temp--$a");
+    sendMessage(tempText, isFromUser: false, usage: a);
   }
 
   /// 点击了最近对话的指定某条，则要查询对应信息
@@ -210,7 +233,7 @@ class _BaiduImage2TextScreenState extends State<BaiduImage2TextScreen> {
       setState(() {
         // 注意：图像理解的前提是要有图像，如果记录中没有存图像，则不予显示对话
         if (list.first.i2tImagePath != null) {
-          _selectedImage = File(list.first.i2tImagePath!);
+          _selectedImageUrl = list.first.i2tImagePath!;
           chatSession = list.first;
 
           // 查到了db中的历史记录，则需要替换成当前的(父页面没选择历史对话进来就是空，则都不会有这个函数)
@@ -236,7 +259,7 @@ class _BaiduImage2TextScreenState extends State<BaiduImage2TextScreen> {
         placeholderMessage.dateTime = DateTime.now();
         messages.add(placeholderMessage);
 
-        getFuyuData(temp.last.text);
+        getAliyunQwenVLData();
       });
     }
   }
@@ -324,7 +347,11 @@ class _BaiduImage2TextScreenState extends State<BaiduImage2TextScreen> {
               // 图片预览
               SizedBox(
                 height: 150.sp,
-                child: buildImageView(_selectedImage, context),
+                child: buildImageView(
+                  _selectedImageUrl,
+                  context,
+                  isFileUrl: true,
+                ),
               ),
               // 图片选择按钮
               Row(
@@ -335,9 +362,36 @@ class _BaiduImage2TextScreenState extends State<BaiduImage2TextScreen> {
                       style: ElevatedButton.styleFrom(
                         padding: EdgeInsets.symmetric(horizontal: 5.sp),
                       ),
-                      // onPressed: userPickImage,
                       onPressed: () {
-                        _pickImage(ImageSource.gallery);
+                        FocusScope.of(context).unfocus();
+                        showDialog(
+                          context: context,
+                          builder: (BuildContext context) {
+                            return AlertDialog(
+                              title: Text(
+                                "选择图片",
+                                style: TextStyle(fontSize: 20.sp),
+                              ),
+                              content: const Text("注意，仅支持单张图片！"),
+                              actions: [
+                                TextButton(
+                                  onPressed: () {
+                                    Navigator.of(context).pop();
+                                    _pickImage(ImageSource.camera);
+                                  },
+                                  child: const Text("拍照"),
+                                ),
+                                TextButton(
+                                  onPressed: () {
+                                    Navigator.of(context).pop();
+                                    _pickImage(ImageSource.gallery);
+                                  },
+                                  child: const Text("相册"),
+                                ),
+                              ],
+                            );
+                          },
+                        );
                       },
                       child: const Text('选择图片'),
                     ),
@@ -346,11 +400,7 @@ class _BaiduImage2TextScreenState extends State<BaiduImage2TextScreen> {
                     flex: 1,
                     child: IconButton(
                       onPressed: () {
-                        commonHintDialog(
-                          context,
-                          "说明",
-                          "点击图片可预览,支持jpg/png/bmp\n要求base64编码后大小不超过4M;\n最短边至少15px，最长边最大4096px.",
-                        );
+                        commonHintDialog(context, "说明", "点击图片可放大预览");
                       },
                       icon: Icon(Icons.help, size: 15.sp),
                       iconSize: 15.sp,
@@ -392,21 +442,22 @@ class _BaiduImage2TextScreenState extends State<BaiduImage2TextScreen> {
               ),
               ElevatedButton(
                 // 如果没有选中图片，AI正在响应，或者输入框没有任何文字，不让点击发送
-                onPressed:
-                    isBotThinking || userInput.isEmpty || _selectedImage == null
-                        ? null
-                        : () {
-                            // 在当前上下文中查找最近的 FocusScope 并使其失去焦点，从而收起键盘。
-                            FocusScope.of(context).unfocus();
+                onPressed: isBotThinking ||
+                        userInput.isEmpty ||
+                        _selectedImageUrl == null
+                    ? null
+                    : () {
+                        // 在当前上下文中查找最近的 FocusScope 并使其失去焦点，从而收起键盘。
+                        FocusScope.of(context).unfocus();
 
-                            // 用户发送消息
-                            sendMessage(userInput);
+                        // 用户发送消息
+                        sendMessage(userInput);
 
-                            // 发送完要清空记录用户输的入变量
-                            setState(() {
-                              userInput = "";
-                            });
-                          },
+                        // 发送完要清空记录用户输的入变量
+                        setState(() {
+                          userInput = "";
+                        });
+                      },
                 child: const Text(
                   "生成图像理解",
                   style: TextStyle(fontWeight: FontWeight.bold),

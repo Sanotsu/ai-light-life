@@ -92,7 +92,7 @@ class BaiduFuyu8BResp {
         isSafe: json["is_safe"],
         usage:
             json["usage"] == null ? null : CommonUsage.fromJson(json["usage"]),
-        errorCode: json["error_code"],
+        errorCode: json["error_code"]?.toString(),
         errorMsg: json["error_msg"],
       );
 

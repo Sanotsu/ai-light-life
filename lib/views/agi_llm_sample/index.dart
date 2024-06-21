@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
+import 'aliyun_qwenvl_screen.dart';
 import 'baidu_image2text_screen.dart';
 import 'aliyun_text2image_screen.dart';
 import 'cus_llm_config/user_cus_model_stepper.dart';
@@ -102,6 +103,7 @@ class _AgiLlmSampleState extends State<AgiLlmSample> {
                 buildAIToolEntrance(3, "智能对话\n限量测试", color: Colors.blue[200]),
                 buildAIToolEntrance(1, "文本生图\n两毛一张", color: Colors.grey[100]),
                 buildAIToolEntrance(2, "图像理解", color: Colors.green[100]),
+                buildAIToolEntrance(4, "千问视觉\n限量测试", color: Colors.green[100]),
               ],
             ),
           ),
@@ -125,6 +127,8 @@ class _AgiLlmSampleState extends State<AgiLlmSample> {
               return const BaiduImage2TextScreen();
             } else if (type == 3) {
               return const OneChatScreen(isLimitedTest: true);
+            } else if (type == 4) {
+              return const AliyunQwenVLScreen();
             } else {
               return const OneChatScreen();
             }
