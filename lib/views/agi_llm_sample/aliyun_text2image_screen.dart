@@ -15,6 +15,7 @@ import '../../models/ai_interface_state/aliyun_text2image_state.dart';
 import '../../models/llm_text2image_state.dart';
 import '../accounting/mock_data/index.dart';
 
+
 class AliyunText2ImageScreen extends StatefulWidget {
   const AliyunText2ImageScreen({super.key});
 
@@ -298,7 +299,7 @@ class _AliyunText2ImageScreenState extends State<AliyunText2ImageScreen>
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          '文本生图',
+          '文本生图(通义万相)',
           style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold),
         ),
         actions: [

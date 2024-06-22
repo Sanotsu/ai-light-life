@@ -991,7 +991,7 @@ class _OneChatScreenState extends State<OneChatScreen> {
             commonHintDialog(
               context,
               "模型说明",
-              llmDescriptions[selectedLlm] ?? "",
+              newLLMSpecs[selectedLlm]!.spec ?? "",
             );
           },
           icon: Icon(Icons.help, size: 18.sp),

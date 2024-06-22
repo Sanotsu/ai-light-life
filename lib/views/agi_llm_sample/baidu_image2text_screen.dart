@@ -246,7 +246,7 @@ class _BaiduImage2TextScreenState extends State<BaiduImage2TextScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          '图像理解',
+          '图像理解(Fuyu-8B)',
           style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold),
         ),
         actions: [

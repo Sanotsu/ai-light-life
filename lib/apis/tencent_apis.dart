@@ -25,7 +25,7 @@
 //   bool isUserConfig = true,
 // }) async {
 //   // 如果有传模型名称，就用传递的；没有就默认的
-//   model = model ?? llmModels[PlatformLLM.tencentHunyuanLiteFREE]!;
+//   model = model ?? newLLMSpecs[PlatformLLM.tencentHunyuanLiteFREE]!.model;
 
 //   var body = CommonReqBody(model: model, messages: messages);
 
@@ -57,7 +57,7 @@
 //   bool isUserConfig = true,
 // }) async {
 //   // 如果有传模型名称，就用传递的；没有就默认的
-//   model = model ?? llmModels[PlatformLLM.tencentHunyuanLiteFREE]!;
+//   model = model ?? newLLMSpecs[PlatformLLM.tencentHunyuanLiteFREE]!.model;
 
 //   var body = CommonReqBody(model: model, messages: messages, stream: true);
 

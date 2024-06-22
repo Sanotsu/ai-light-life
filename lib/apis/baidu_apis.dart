@@ -4,6 +4,7 @@ import '../../dio_client/cus_http_client.dart';
 import '../../dio_client/cus_http_request.dart';
 import '../dio_client/interceptor_error.dart';
 import '../models/ai_interface_state/baidu_fuyu8b_state.dart';
+import '../services/cus_get_storage.dart';
 import '_self_keys.dart';
 
 /// 百度平台大模型API的前缀地址
@@ -36,8 +37,10 @@ Future<String> getAccessToken() async {
     },
     data: {
       "grant_type": "client_credentials",
-      "client_id": BAIDU_API_KEY,
-      "client_secret": BAIDU_SECRET_KEY
+      // 如果是用户自行配置，使用自行配置的key；否则检查用户通用配置；最后才是自己的账号key
+      "client_id": MyGetStorage().getBaiduCommonAppId() ?? BAIDU_API_KEY,
+      "client_secret":
+          MyGetStorage().getBaiduCommonAppKey() ?? BAIDU_SECRET_KEY,
     },
   );
 

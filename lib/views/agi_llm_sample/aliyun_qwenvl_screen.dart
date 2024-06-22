@@ -269,7 +269,7 @@ class _AliyunQwenVLScreenState extends State<AliyunQwenVLScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          '图像理解',
+          '图像理解(通义千问-VL)',
           style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold),
         ),
         actions: [

@@ -28,7 +28,7 @@ Future<List<CommonRespBody>> getTencentAigcResp(
 }) async {
   print("-isUserConfig-----------------$isUserConfig");
   // 如果有传模型名称，就用传递的；没有就默认的
-  model = model ?? llmModels[PlatformLLM.tencentHunyuanLiteFREE]!;
+  model = model ?? newLLMSpecs[PlatformLLM.tencentHunyuanLiteFREE]!.model;
 
   var body = CommonReqBody(model: model, messages: messages, stream: stream);
 
@@ -39,8 +39,13 @@ Future<List<CommonRespBody>> getTencentAigcResp(
       method: HttpMethod.post,
       headers: genHunyuanLiteSignatureHeaders(
         commonReqBodyToJson(body, caseType: "pascal"),
-        isUserConfig ? MyGetStorage().getCusAppId() ?? "" : TENCENT_SECRET_ID,
-        isUserConfig ? MyGetStorage().getCusAppKey() ?? "" : TENCENT_SECRET_KEY,
+        // 如果是用户自行配置，使用自行配置的key；否则检查用户通用配置；最后才是自己的账号key
+        isUserConfig
+            ? MyGetStorage().getCusAppId() ?? ""
+            : MyGetStorage().getTencentCommonAppId() ?? TENCENT_SECRET_ID,
+        isUserConfig
+            ? MyGetStorage().getCusAppKey() ?? ""
+            : MyGetStorage().getTencentCommonAppKey() ?? TENCENT_SECRET_KEY,
       ),
       // 可能是因为头的content type设定，这里直接传类实例即可，传toJson也可
       data: body.toJson(caseType: "pascal"),
@@ -100,7 +105,7 @@ Future<List<CommonRespBody>> getAliyunAigcResp(
   bool isUserConfig = true,
 }) async {
   // 如果有传模型名称，就用传递的；没有就默认的
-  model = model ?? llmModels[PlatformLLM.aliyunQwen1p8BChatFREE]!;
+  model = model ?? newLLMSpecs[PlatformLLM.aliyunQwen1p8BChatFREE]!.model;
 
   var body = CommonReqBody(
     model: model,
@@ -114,8 +119,9 @@ Future<List<CommonRespBody>> getAliyunAigcResp(
 
   var header = {
     "Content-Type": "application/json",
+    // 如果是用户自行配置，使用自行配置的key；否则检查用户通用配置；最后才是自己的账号key
     "Authorization":
-        "Bearer ${isUserConfig ? MyGetStorage().getCusAppKey() : ALIYUN_API_KEY}",
+        "Bearer ${isUserConfig ? MyGetStorage().getCusAppKey() : MyGetStorage().getAliyunCommonAppKey() ?? ALIYUN_API_KEY}",
   };
   // 如果是流式，开启SSE
   if (stream) {
@@ -209,9 +215,13 @@ Future<String> getAccessToken({
     },
     data: {
       "grant_type": "client_credentials",
-      "client_id": isUserConfig ? MyGetStorage().getCusAppId() : BAIDU_API_KEY,
-      "client_secret":
-          isUserConfig ? MyGetStorage().getCusAppKey() : BAIDU_SECRET_KEY,
+      // 如果是用户自行配置，使用自行配置的key；否则检查用户通用配置；最后才是自己的账号key
+      "client_id": isUserConfig
+          ? MyGetStorage().getCusAppId()
+          : MyGetStorage().getBaiduCommonAppId() ?? BAIDU_API_KEY,
+      "client_secret": isUserConfig
+          ? MyGetStorage().getCusAppKey()
+          : MyGetStorage().getBaiduCommonAppKey() ?? BAIDU_SECRET_KEY,
     },
   );
 
@@ -228,7 +238,7 @@ Future<List<CommonRespBody>> getBaiduAigcResp(
 }) async {
   // 如果有传模型名称，就用传递的；没有就默认的
   // 百度免费的ernie-speed和ernie-lite 接口使用上是一致的，就是模型名称不一样
-  model = model ?? llmModels[PlatformLLM.baiduErnieSpeed128KFREE]!;
+  model = model ?? newLLMSpecs[PlatformLLM.baiduErnieSpeed128KFREE]!.model;
 
   // 每次请求都要实时获取最小的token
   String token = await getAccessToken(isUserConfig: isUserConfig);

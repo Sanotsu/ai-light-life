@@ -33,8 +33,6 @@ enum PlatformLLM {
   baiduErnieSpeed8KFREE,
   baiduErnieSpeed128KFREE,
   // baiduErnieSpeedAppBuilder,
-  // baiduErnieLite8K0922, // 2024-07-04 下线
-  // baiduErnieLite8K0308,
   baiduErnieLite8KFREE, // 2024-06-12 有短信通知，使用不带日期后缀的为宜
   baiduErnieTiny8KFREE,
   tencentHunyuanLiteFREE,
@@ -107,10 +105,12 @@ class ChatLLMSpec {
   // 比如通义千问-VL 的接口参数和对话的基本无二致，只是入参多个图像image，所以可以放到一起试试
   // 如果模型支持视觉，就显示上传图片按钮，可加载图片
   bool? isVisonLLM;
+  // 模型简述
+  String? spec;
 
   ChatLLMSpec(this.model, this.name, this.contextLength, this.deadline,
       this.freeAmount, this.inputPrice, this.outputPrice,
-      {this.isVisonLLM = false});
+      {this.isVisonLLM = false, this.spec});
 }
 
 // 2024-06-15 阿里云的限时限量都是这两个值，放在外面好了
@@ -123,27 +123,47 @@ const num2 = 100 * 10000;
 final dt3 = DateTime.parse("2099-12-31");
 const num3 = -1 >>> 1;
 
-// 2024-06-15 后续应该放到配置文件，或者用户导入（自行输入，那就要配置平台、密钥等，这就比较麻烦点了）
+/// 2024-06-14 这个可以抽成1个对象即可，暂时先改限时限量版本的
+/// list 取值一定记住顺序：模型字符串(平台API参数的那个model的值)、模型名称、上下文长度数值，限时字符串、限量数值，
+/// 收费输入时百万token价格价格，输出时百万token价格(限时免费没写价格就先写0)
+/// 2024-06-15 后续应该放到配置文件，或者用户导入（自行输入，那就要配置平台、密钥等，这就比较麻烦点了）
 final Map<PlatformLLM, ChatLLMSpec> newLLMSpecs = {
   /// 下面是官方免费的
-  PlatformLLM.baiduErnieSpeed8KFREE:
-      ChatLLMSpec("ernie_speed", 'ERNIESpeed8K', 8 * 1000, dt3, num3, 0.0, 0.0),
+  PlatformLLM.baiduErnieSpeed8KFREE: ChatLLMSpec(
+      "ernie_speed", 'ERNIESpeed8K', 8 * 1000, dt3, num3, 0.0, 0.0,
+      spec:
+          "ERNIE Speed是百度2024年最新发布的自研高性能大语言模型，通用能力优异，适合作为基座模型进行精调，更好地处理特定场景问题，同时具备极佳的推理性能。\n\nERNIE-Speed-8K是模型的一个版本，上下文窗口为8K。"),
   PlatformLLM.baiduErnieSpeed128KFREE: ChatLLMSpec(
-      "ernie-speed-128k", 'ERNIESpeed128K', 128 * 1000, dt3, num3, 0.0, 0.0),
+      "ernie-speed-128k", 'ERNIESpeed128K', 128 * 1000, dt3, num3, 0.0, 0.0,
+      spec:
+          'ERNIE Speed是百度2024年最新发布的自研高性能大语言模型，通用能力优异，适合作为基座模型进行精调，更好地处理特定场景问题，同时具备极佳的推理性能。\n\nERNIE-Speed-128K是模型的一个版本，上下文窗口为128K。。'),
   PlatformLLM.baiduErnieLite8KFREE: ChatLLMSpec(
-      "ernie-lite-8k", 'ERNIELite8K', 8 * 1000, dt3, num3, 0.0, 0.0),
+      "ernie-lite-8k", 'ERNIELite8K', 8 * 1000, dt3, num3, 0.0, 0.0,
+      spec: "ERNIE Lite是百度自研的轻量级大语言模型，兼顾优异的模型效果与推理性能，适合低算力AI加速卡推理使用。"),
   PlatformLLM.baiduErnieTiny8KFREE: ChatLLMSpec(
-      "ernie-tiny-8k", 'ERNIETiny8K', 8 * 1000, dt3, num3, 0.0, 0.0),
-  PlatformLLM.tencentHunyuanLiteFREE:
-      ChatLLMSpec("hunyuan-lite", '混元Lite', 8 * 1000, dt3, num3, 0.0, 0.0),
+      "ernie-tiny-8k", 'ERNIETiny8K', 8 * 1000, dt3, num3, 0.0, 0.0,
+      spec:
+          "ERNIE Tiny是百度自研的超高性能大语言模型，部署与精调成本在文心系列模型中最低。\n\nERNIE-Tiny-8K是模型的一个版本，上下文窗口为8K。"),
+  PlatformLLM.tencentHunyuanLiteFREE: ChatLLMSpec(
+      "hunyuan-lite", '混元Lite', 8 * 1000, dt3, num3, 0.0, 0.0,
+      spec:
+          "腾讯混元大模型(Tencent Hunyuan)是由腾讯研发的大语言模型，具备强大的中文创作能力，复杂语境下的逻辑推理能力，以及可靠的任务执行能力。\\nn混元-Lite 升级为MOE结构，上下文窗口为256k，在NLP，代码，数学，行业等多项评测集上领先众多开源模型。"),
   PlatformLLM.aliyunQwen1p8BChatFREE: ChatLLMSpec(
-      "qwen-1.8b-chat", '通义千问开源版1.8B', 8 * 1000, dt3, num3, 0.0, 0.0),
+      "qwen-1.8b-chat", '通义千问开源版1.8B', 8 * 1000, dt3, num3, 0.0, 0.0,
+      spec:
+          '"通义千问-开源版-1.8B"是通义千问对外开源的1.8B规模参数量的经过人类指令对齐的chat模型，模型支持 8k tokens上下文，API限定用户输入为6k Tokens。'),
   PlatformLLM.aliyunQwen1p51p8BChatFREE: ChatLLMSpec(
-      "qwen1.5-1.8b-chat", '通义千问1.5开源版', 8 * 1000, dt3, num3, 0.0, 0.0),
+      "qwen1.5-1.8b-chat", '通义千问1.5开源版', 8 * 1000, dt3, num3, 0.0, 0.0,
+      spec:
+          '通义千问1.5-开源版-1.8B"是通义千问1.5对外开源的1.8B规模参数量是经过人类指令对齐的chat模型，模型支持 32k tokens上下文，API限定用户输入为30k Tokens。'),
   PlatformLLM.aliyunQwen1p50p5BChatFREE: ChatLLMSpec(
-      "qwen1.5-0.5b-chat", '通义千问1.5开源版0.5B', 8 * 1000, dt3, num3, 0.0, 0.0),
-  PlatformLLM.aliyunFaruiPlus32KFREE:
-      ChatLLMSpec("farui-plus", '通义法睿Plus32K', 8 * 1000, dt3, num3, 0.0, 0.0),
+      "qwen1.5-0.5b-chat", '通义千问1.5开源版0.5B', 8 * 1000, dt3, num3, 0.0, 0.0,
+      spec:
+          '"通义千问1.5-开源版-0.5B"是通义千问1.5对外开源的0.5B规模参数量是经过人类指令对齐的chat模型，模型支持 32k tokens上下文，API限定用户输入为30k Tokens。'),
+  PlatformLLM.aliyunFaruiPlus32KFREE: ChatLLMSpec(
+      "farui-plus", '通义法睿Plus32K', 8 * 1000, dt3, num3, 0.0, 0.0,
+      spec:
+          '"通义法睿"是以通义千问为基座经法律行业数据和知识专门训练的法律行业大模型产品，综合运用了模型精调、强化学习、 RAG检索增强、法律Agent技术，具有回答法律问题、推理法律适用、推荐裁判类案、辅助案情分析、生成法律文书、检索法律知识、审查合同条款等功能。'),
 
   /// 下面是支持用户自行配置的少数几个(用户自己配置的，也当作不限时限量)
 
@@ -238,178 +258,6 @@ final Map<PlatformLLM, ChatLLMSpec> newLLMSpecs = {
       ChatLLMSpec('yi-large-rag', 'Yi-Large-RAG_零一万物', 16000, dt2, num2, 1, 1),
   PlatformLLM.limitedYiMedium:
       ChatLLMSpec('yi-medium', 'Yi-Medium_零一万物', 16000, dt2, num2, 1, 1),
-};
-
-/// 2024-06-14 这个可以抽成1个对象即可，暂时先改限时限量版本的
-/// list 取值一定记住顺序：模型字符串(平台API参数的那个model的值)、模型名称、上下文长度数值，限时字符串、限量数值，
-/// 收费输入时百万token价格价格，输出时百万token价格(限时免费没写价格就先写0)
-// final Map<PlatformLLM, List> llmSpecs = {
-//   // 通义千问
-//   PlatformLLM.limitedQwenMax: [
-//     'qwen-max', '通义千问-Max', 8 * 1000, "2024-07-05", 4000000,
-//     // 输入输出价格（千token*1000=百万token价格）
-//     0.04 * 1000, 0.12 * 1000,
-//   ],
-//   PlatformLLM.limitedQwenMax0428: [
-//     'qwen-max-0428', '通义千问-Max-0428', 8 * 1000, "2024-07-05", 1000000,
-//     // 输入输出价格（千token*1000=百万token价格）
-//     0.04 * 1000, 0.12 * 1000,
-//   ],
-//   PlatformLLM.limitedQwenLong: [
-//     'qwen-long', 'Qwen-Long', 10000 * 1000, "2024-07-05", 4000000, //
-//     0.0005 * 1000, 0.002 * 1000,
-//   ],
-//   PlatformLLM.limitedQwenMaxLongContext: [
-//     'qwen-max-longcontext', '通义千问-Max-30K', 28 * 1000, "2024-07-05", 1000000, //
-//     0.04 * 1000, 0.12 * 1000,
-//   ],
-//   PlatformLLM.limitedQwenPlus: [
-//     'qwen-plus', '通义千问-Plus', 32 * 1000, "2024-07-05", 4000000, //
-//     0.004 * 1000, 0.012 * 1000,
-//   ],
-//   PlatformLLM.limitedQwenTurbo: [
-//     'qwen-turbo', '通义千问-Turbo', 8 * 1000, "2024-07-05", 4000000, //
-//     0.002 * 1000, 0.006 * 1000,
-//   ],
-
-//   // 百川
-//   PlatformLLM.limitedBaichuan2Turbo: [
-//     'baichuan2-turbo', 'Baichuan2-Turbo', 4 * 1000, "2024-12-03", 1000000, //
-//     0.008 * 1000, 0.008 * 1000,
-//   ],
-//   PlatformLLM.limitedBaichuan2Turbo192K: [
-//     'baichuan2-turbo-192k', 'Baichuan2-Turbo-192k', 192 * 1000, "2024-12-03",
-//     1000000, //
-//     0.008 * 1000, 0.008 * 1000,
-//   ],
-
-//   // 百川开源版
-//   PlatformLLM.limitedBaichuan27BChatV1: [
-//     'baichuan2-7b-chat-v1', '百川2-7B', 4 * 1000, "2024-12-02", 1000000, //
-//     0.008 * 1000, 0.008 * 1000,
-//   ],
-//   PlatformLLM.limitedBaichuan213BChatV1: [
-//     'baichuan2-13b-chat-v1', 'Baichuan2-开源版-13B', 4 * 1000, "2024-12-02",
-//     1000000, //
-//     0.008 * 1000, 0.008 * 1000,
-//   ],
-//   PlatformLLM.limitedBaichuan7BV1: [
-//     'baichuan-7b-v1', 'Baichuan2-开源版-7B', 4 * 1000, "2024-12-02", 1000000, //
-//     0.008 * 1000, 0.008 * 1000,
-//   ],
-
-//   // 月之暗面
-//   PlatformLLM.limitedMoonshotV18K: [
-//     'moonshot-v1-8k', 'Moonshot-v1-8K', 8 * 1000, "2024-12-03", 1000000, //
-//     0.008 * 1000, 0.008 * 1000,
-//   ],
-//   PlatformLLM.limitedMoonshotV132K: [
-//     'moonshot-v1-32k', 'Moonshot-v1-32K', 32 * 1000, "2024-12-03", 1000000, //
-//     0.008 * 1000, 0.008 * 1000,
-//   ],
-//   PlatformLLM.limitedMoonshotV1128K: [
-//     'moonshot-v1-128k', 'Moonshot-v1-128K', 128 * 1000, "2024-12-03",
-//     1000000, //
-//     0.008 * 1000, 0.008 * 1000,
-//   ],
-
-//   // LLaMa
-//   PlatformLLM.limitedLLaMa38B: [
-//     'llama3-8b-instruct', 'LLaMa3-8B', 8 * 1000, "2024-12-02", 1000000, //
-//     0.1 * 1000, 0.1 * 1000,
-//   ],
-//   PlatformLLM.limitedLLaMa370B: [
-//     'llama3-70b-instruct', 'LLaMa3-70B', 8 * 1000, "2024-12-09", 1000000, //
-//     0.1 * 1000, 0.1 * 1000,
-//   ],
-//   PlatformLLM.limitedLLaMa213B: [
-//     'llama2-13b-chat-v2', 'Llama2-13B', 8 * 1000, "2024-12-02", 1000000, //
-//     0.1 * 1000, 0.1 * 1000,
-//   ],
-
-//   // 智谱
-//   PlatformLLM.limitedChatGLM26B: [
-//     'chatglm-6b-v2', 'ChatGLM2-6B', 8 * 1000, "2024-12-02", 1000000, //
-//     0.006 * 1000, 0.006 * 1000,
-//   ],
-//   PlatformLLM.limitedChatGLM36B: [
-//     'chatglm3-6b', 'ChatGLM3-开源版-6B', 8 * 1000, "2024-12-02", 1000000, //
-//     0.006 * 1000, 0.006 * 1000,
-//   ],
-
-//   // 零一万物
-//   PlatformLLM.limitedYiLarge: [
-//     'yi-large', 'Yi-Large', 32000, "2024-12-03", 1000000, //
-//     0 * 1000, 0 * 1000,
-//   ],
-//   PlatformLLM.limitedYiLargeTurbo: [
-//     'yi-large-turbo', 'Yi-Large-Turbo', 16000, "2024-12-03", 1000000, //
-//     0 * 1000, 0 * 1000,
-//   ],
-//   PlatformLLM.limitedYiLargeRAG: [
-//     'yi-large-rag', 'Yi-Large-RAG', 16000, "2024-12-03", 1000000 //
-//   ],
-//   PlatformLLM.limitedYiMedium: [
-//     'yi-medium', 'Yi-Medium', 16000, "2024-12-03", 1000000 //
-//   ],
-// };
-
-/// 定义一个Map来存储枚举值和对应的字符串表示
-/// 一般这都是拼接在url中的，取值直接 `llmNames[llmName]` 就好
-final Map<PlatformLLM, String> llmModels = {
-  PlatformLLM.baiduErnieSpeed8KFREE: 'ernie_speed',
-  PlatformLLM.baiduErnieSpeed128KFREE: 'ernie-speed-128k',
-  // PlatformLLM.baiduErnieSpeedAppBuilder: 'ai_apaas',
-  // PlatformLLM.baiduErnieLite8K0922: 'eb-instant',
-  // PlatformLLM.baiduErnieLite8K0308: 'ernie-lite-8k',
-  PlatformLLM.baiduErnieLite8KFREE: 'ernie-lite-8k',
-  PlatformLLM.baiduErnieTiny8KFREE: 'ernie-tiny-8k',
-  PlatformLLM.tencentHunyuanLiteFREE: 'hunyuan-lite', // 256k上下文，最大输出6k
-  PlatformLLM.aliyunQwen1p8BChatFREE: 'qwen-1.8b-chat', // 8k上下文，最大输出2k
-  PlatformLLM.aliyunQwen1p51p8BChatFREE: 'qwen1.5-1.8b-chat', // 32k上下文，最大输出2k
-  PlatformLLM.aliyunQwen1p50p5BChatFREE: 'qwen1.5-0.5b-chat', // 32k上下文，最大输出2k
-  PlatformLLM.aliyunFaruiPlus32KFREE: 'farui-plus',
-};
-
-// 模型对应的中文名
-final Map<PlatformLLM, String> llmNames = {
-  PlatformLLM.baiduErnieSpeed8KFREE: 'ERNIE-Speed-8K',
-  PlatformLLM.baiduErnieSpeed128KFREE: 'ERNIE-Speed-128K',
-  // PlatformLLM.baiduErnieSpeedAppBuilder: 'ERNIE-Speed-AppBuilder-8K-0322',
-  // PlatformLLM.baiduErnieLite8K0922: 'ERNIE-Lite-8K-0922',
-  // PlatformLLM.baiduErnieLite8K0308: 'ERNIE-Lite-8K-0308',
-  PlatformLLM.baiduErnieLite8KFREE: 'ERNIE-Lite-8K',
-  PlatformLLM.baiduErnieTiny8KFREE: 'ERNIE-Tiny-8K',
-  PlatformLLM.tencentHunyuanLiteFREE: '混元-Lite', // 256k上下文，最大输出6k
-  PlatformLLM.aliyunQwen1p8BChatFREE: '通义千问-开源版-1.8B', // 8k上下文，最大输出6k
-  PlatformLLM.aliyunQwen1p51p8BChatFREE: '通义千问1.5-开源版-1.8B', //32k上下文，最大输出2k
-  PlatformLLM.aliyunQwen1p50p5BChatFREE: '通义千问1.5-开源版-0.5B', //32k上下文，最大输出2k
-  PlatformLLM.aliyunFaruiPlus32KFREE: '通义法睿-Plus-32K',
-};
-
-// [暂没有用到]模型对应的分类(比如短小的基础对话、专业的知识等)
-final Map<PlatformLLM, String> llmDescriptions = {
-  PlatformLLM.baiduErnieSpeed8KFREE:
-      'ERNIE Speed是百度2024年最新发布的自研高性能大语言模型，通用能力优异，适合作为基座模型进行精调，更好地处理特定场景问题，同时具备极佳的推理性能。\n\nERNIE-Speed-8K是模型的一个版本，上下文窗口为8K。',
-  PlatformLLM.baiduErnieSpeed128KFREE:
-      'ERNIE Speed是百度2024年最新发布的自研高性能大语言模型，通用能力优异，适合作为基座模型进行精调，更好地处理特定场景问题，同时具备极佳的推理性能。\n\nERNIE-Speed-128K是模型的一个版本，上下文窗口为128K。。',
-  // PlatformLLM.baiduErnieSpeedAppBuilder: '针对企业级大模型应用进行了专门的指令调优，在问答场景、智能体相关场景可以获得同等规模模型下更好的效果',
-  // PlatformLLM.baiduErnieLite8K0922: '轻量级大语言模型，兼顾优异的模型效果与推理性能',
-  // PlatformLLM.baiduErnieLite8K0308: '轻量级大语言模型，兼顾优异的模型效果与推理性能',
-  PlatformLLM.baiduErnieLite8KFREE:
-      'ERNIE Lite是百度自研的轻量级大语言模型，兼顾优异的模型效果与推理性能，适合低算力AI加速卡推理使用。',
-  PlatformLLM.baiduErnieTiny8KFREE:
-      'ERNIE Tiny是百度自研的超高性能大语言模型，部署与精调成本在文心系列模型中最低。\n\nERNIE-Tiny-8K是模型的一个版本，上下文窗口为8K。',
-  PlatformLLM.tencentHunyuanLiteFREE:
-      '腾讯混元大模型(Tencent Hunyuan)是由腾讯研发的大语言模型，具备强大的中文创作能力，复杂语境下的逻辑推理能力，以及可靠的任务执行能力。\\nn混元-Lite 升级为MOE结构，上下文窗口为256k，在NLP，代码，数学，行业等多项评测集上领先众多开源模型。',
-  PlatformLLM.aliyunQwen1p8BChatFREE:
-      '"通义千问-开源版-1.8B"是通义千问对外开源的1.8B规模参数量的经过人类指令对齐的chat模型，模型支持 8k tokens上下文，API限定用户输入为6k Tokens。',
-  PlatformLLM.aliyunQwen1p51p8BChatFREE:
-      '"通义千问1.5-开源版-1.8B"是通义千问1.5对外开源的1.8B规模参数量是经过人类指令对齐的chat模型，模型支持 32k tokens上下文，API限定用户输入为30k Tokens。',
-  PlatformLLM.aliyunQwen1p50p5BChatFREE:
-      '"通义千问1.5-开源版-0.5B"是通义千问1.5对外开源的0.5B规模参数量是经过人类指令对齐的chat模型，模型支持 32k tokens上下文，API限定用户输入为30k Tokens。',
-  PlatformLLM.aliyunFaruiPlus32KFREE:
-      '"通义法睿"是以通义千问为基座经法律行业数据和知识专门训练的法律行业大模型产品，综合运用了模型精调、强化学习、 RAG检索增强、法律Agent技术，具有回答法律问题、推理法律适用、推荐裁判类案、辅助案情分析、生成法律文书、检索法律知识、审查合同条款等功能。',
 };
 
 ///

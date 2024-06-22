@@ -35,7 +35,9 @@ Future<AliyunTextToImgResp> commitAliyunText2ImgJob(
     headers: {
       "X-DashScope-Async": "enable", // 固定的，异步方式提交作业。
       "Content-Type": "application/json",
-      "Authorization": "Bearer $ALIYUN_API_KEY",
+      // 检查用户通用配置；再才是自己的账号key
+      "Authorization":
+          "Bearer ${MyGetStorage().getAliyunCommonAppKey() ?? ALIYUN_API_KEY}",
     },
     // 可能是因为头的content type设定，这里直接传类实例即可，传toJson也可
     data: body,
@@ -69,7 +71,9 @@ Future<AliyunTextToImgResp> getAliyunText2ImgJobResult(String taskId) async {
     path: "https://dashscope.aliyuncs.com/api/v1/tasks/$taskId",
     method: HttpMethod.get,
     headers: {
-      "Authorization": "Bearer $ALIYUN_API_KEY",
+      // 检查用户通用配置；再才是自己的账号key
+      "Authorization":
+          "Bearer ${MyGetStorage().getAliyunCommonAppKey() ?? ALIYUN_API_KEY}",
     },
   );
 
@@ -121,8 +125,9 @@ Future<List<AliyunQwenVlResp>> getAliyunQwenVLResp(
 
   var header = {
     "Content-Type": "application/json",
+    // 如果是用户自行配置，使用自行配置的key；否则检查用户通用配置；最后才是自己的账号key
     "Authorization":
-        "Bearer ${isUserConfig ? MyGetStorage().getCusAppKey() : ALIYUN_API_KEY}",
+        "Bearer ${isUserConfig ? MyGetStorage().getCusAppKey() : MyGetStorage().getAliyunCommonAppKey() ?? ALIYUN_API_KEY}",
   };
   // 如果是流式，开启SSE
   if (stream) {
