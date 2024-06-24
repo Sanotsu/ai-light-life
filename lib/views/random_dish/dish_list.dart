@@ -12,7 +12,6 @@ import '../../common/constants.dart';
 import '../../common/db_tools/db_dish_helper.dart';
 import '../../models/dish.dart';
 
-import 'demo_apis.dart';
 import 'dish_detail.dart';
 import 'dish_json_import.dart';
 import 'dish_modify.dart';
@@ -195,20 +194,20 @@ class _DishListState extends State<DishList> {
           ),
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.bug_report),
-            onPressed: () {
-              insertDemoDish(size: 5);
+          // IconButton(
+          //   icon: const Icon(Icons.bug_report),
+          //   onPressed: () {
+          //     insertDemoDish(size: 5);
 
-              setState(() {
-                dishItems.clear();
-                currentPage = 1;
-              });
-              _loadDishData();
-            },
-          ),
+          //     setState(() {
+          //       dishItems.clear();
+          //       currentPage = 1;
+          //     });
+          //     _loadDishData();
+          //   },
+          // ),
           IconButton(
-            icon: const Icon(Icons.grid_3x3),
+            icon: Icon(isDishCardList ? Icons.list : Icons.grid_3x3),
             onPressed: () {
               // 如果不是卡片列表，不是wifi状态 但要切到卡片列表
               if (!isDishCardList &&

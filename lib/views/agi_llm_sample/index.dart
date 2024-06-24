@@ -6,8 +6,8 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:form_builder_validators/form_builder_validators.dart';
 
-import '../../apis/_self_keys.dart';
 import '../../common/components/tool_widget.dart';
+import '../../common/utils/tools.dart';
 import '../../models/common_llm_info.dart';
 import '../../services/cus_get_storage.dart';
 import 'aliyun_qwenvl_screen.dart';
@@ -33,7 +33,7 @@ class _AgiLlmSampleState extends State<AgiLlmSample> {
   bool isTencentConfigured = false;
 
   // 不明说的东西：长按“智能助手”这标题，使用我自己的三个平台的应用id和key
-  bool isAuthorsAppInfo = MyGetStorage().getIsAuthorsAppInfo();
+  bool isAuthorsAppInfo = false;
 
   String note = """暂仅使用百度千帆、阿里百炼、腾讯混元3个平台。  
   以免费和测试为目的，支持使用的大模型数量有限。
@@ -63,6 +63,11 @@ class _AgiLlmSampleState extends State<AgiLlmSample> {
   }
 
   checkPlatformConfig() {
+    // 是否使用作者的应用配置
+    setState(() {
+      isAuthorsAppInfo = MyGetStorage().getIsAuthorsAppInfo();
+    });
+
     if (MyGetStorage().getBaiduCommonAppId() != null &&
         MyGetStorage().getBaiduCommonAppKey() != null) {
       setState(() {
@@ -106,44 +111,30 @@ class _AgiLlmSampleState extends State<AgiLlmSample> {
       appBar: AppBar(
         title: GestureDetector(
           onLongPress: () async {
+            // 长按之后，先改变是否使用作者应用的标志
+            setState(() {
+              isAuthorsAppInfo = !isAuthorsAppInfo;
+            });
+
+            // 改变后是true，则需要使用作者的平台应用配置
             if (isAuthorsAppInfo) {
-              // 需要使用作者的平台应用配置
-              await MyGetStorage().setBaiduCommonAppId(BAIDU_API_KEY);
-              await MyGetStorage().setBaiduCommonAppKey(BAIDU_SECRET_KEY);
-              await MyGetStorage().setAliyunCommonAppId(ALIYUN_APP_ID);
-              await MyGetStorage().setAliyunCommonAppKey(ALIYUN_API_KEY);
-              await MyGetStorage().setTencentCommonAppId(TENCENT_SECRET_ID);
-              await MyGetStorage().setTencentCommonAppKey(TENCENT_SECRET_KEY);
+              await setDefaultAppIdAndKey();
 
               if (!mounted) return;
-
-              showSnackMessage(
-                // ignore: use_build_context_synchronously
-                context,
-                "你将使用作者的应用ID和KEY，请谨慎！",
-              );
+              // ignore: use_build_context_synchronously
+              showSnackMessage(context, "你将使用作者的应用ID和KEY，请谨慎！");
             } else {
               //  不然就是清除使用作者的平台应用配置
-              await MyGetStorage().setBaiduCommonAppId(null);
-              await MyGetStorage().setBaiduCommonAppKey(null);
-              await MyGetStorage().setAliyunCommonAppId(null);
-              await MyGetStorage().setAliyunCommonAppKey(null);
-              await MyGetStorage().setTencentCommonAppId(null);
-              await MyGetStorage().setTencentCommonAppKey(null);
+              await clearAllAppIdAndKey();
 
               if (!mounted) return;
-
-              showSnackMessage(
-                // ignore: use_build_context_synchronously
-                context,
-                "你将不再使用作者的平台应用配置，感谢！",
-              );
+              // ignore: use_build_context_synchronously
+              showSnackMessage(context, "你将不再使用作者的平台应用配置，感谢！");
             }
 
             // 配置完成，需要检查当前的应用配置，并切换是否使用为相反的值
-            MyGetStorage().setIsAuthorsAppInfo(isAuthorsAppInfo);
+            await MyGetStorage().setIsAuthorsAppInfo(isAuthorsAppInfo);
             setState(() {
-              isAuthorsAppInfo = !isAuthorsAppInfo;
               checkPlatformConfig();
             });
           },
@@ -185,12 +176,9 @@ class _AgiLlmSampleState extends State<AgiLlmSample> {
           TextButton(
             // 如果在缓存中存在配置，则跳到到对话页面，如果没有，进入配置页面
             onPressed: () async {
-              await MyGetStorage().setBaiduCommonAppId(null);
-              await MyGetStorage().setBaiduCommonAppKey(null);
-              await MyGetStorage().setAliyunCommonAppId(null);
-              await MyGetStorage().setAliyunCommonAppKey(null);
-              await MyGetStorage().setTencentCommonAppId(null);
-              await MyGetStorage().setTencentCommonAppKey(null);
+              // 清除配置，且不管如何都重置是否使用作者配置为false
+              await clearAllAppIdAndKey();
+              MyGetStorage().setIsAuthorsAppInfo(false);
 
               setState(() {
                 checkPlatformConfig();
@@ -217,7 +205,7 @@ class _AgiLlmSampleState extends State<AgiLlmSample> {
         ],
       ),
       body: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.end,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           // 显示说明
@@ -238,25 +226,25 @@ class _AgiLlmSampleState extends State<AgiLlmSample> {
               padding: EdgeInsets.symmetric(horizontal: 20.sp),
               crossAxisSpacing: 10,
               mainAxisSpacing: 20,
-              crossAxisCount: 3,
-              childAspectRatio: 3 / 2,
+              crossAxisCount: 2,
+              childAspectRatio: 5 / 2,
               children: <Widget>[
                 buildAIToolEntrance(0, "文本对话", "通用—官方免费",
                     color: Colors.blue[200]),
                 // 2024-06-24 如果使用作者的平台应用配置，那可以使用作者的限量测试的api
-                // (注意，这里是取反，因为长按后是有设置反的操作)
-                !isAuthorsAppInfo
+                isAuthorsAppInfo
                     ? buildAIToolEntrance(1, "文本对话", "阿里—限量测试",
                         color: Colors.blue[200])
-                    : Container(),
-                buildAIToolEntrance(5, "文本对话", "通用—单个配置",
-                    color: Colors.blue[200]),
+                    : buildAIToolEntrance(5, "文本对话", "通用—单个配置",
+                        color: Colors.blue[200]),
+                // Container(),
                 buildAIToolEntrance(2, "文本生图", "阿里—通义万相",
                     color: Colors.grey[100]),
                 buildAIToolEntrance(3, "图像理解", "百度—Fuyu-8B",
                     color: Colors.green[100]),
-                buildAIToolEntrance(4, "视觉模型", "阿里—通义千问",
-                    color: Colors.green[100]),
+                // 2024-06-24 这个API调用不符合文档的设定？？？
+                // buildAIToolEntrance(4, "视觉模型", "阿里—通义千问",
+                //     color: Colors.green[100]),
               ],
             ),
           ),
@@ -422,16 +410,8 @@ class _AgiLlmSampleState extends State<AgiLlmSample> {
           String id = temp?.fields['id']?.value;
           String key = temp?.fields['key']?.value;
 
-          if (cp == CloudPlatform.baidu) {
-            await MyGetStorage().setBaiduCommonAppId(id);
-            await MyGetStorage().setBaiduCommonAppKey(key);
-          } else if (cp == CloudPlatform.aliyun) {
-            await MyGetStorage().setAliyunCommonAppId(id);
-            await MyGetStorage().setAliyunCommonAppKey(key);
-          } else {
-            await MyGetStorage().setTencentCommonAppId(id);
-            await MyGetStorage().setTencentCommonAppKey(key);
-          }
+          await setIdAndKeyFromPlatform(cp, id, key);
+
           print("cp---------------$cp");
 
           setState(() {
@@ -442,7 +422,7 @@ class _AgiLlmSampleState extends State<AgiLlmSample> {
     });
   }
 
-  /// 构建AI对话云平台入口按钮(默认非流式)
+  /// 构建AI对话云平台入口按钮
   buildAIToolEntrance(int type, String label, String subtitle, {Color? color}) {
     return InkWell(
       onTap: () {

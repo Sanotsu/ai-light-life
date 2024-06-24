@@ -15,7 +15,7 @@ import '../../models/brief_accounting_state.dart';
 import '../user_and_settings/backup_and_restore/index.dart';
 import 'bill_item_modify/index.dart';
 import 'bill_report/index.dart';
-import 'mock_data/index.dart';
+
 import 'widgets/bottom_sheet_option_picker.dart';
 
 /// 2024-05-28
@@ -432,23 +432,23 @@ class _BillItemIndexState extends State<BillItemIndex> {
         // leading: const Icon(Icons.arrow_back),
         backgroundColor: Colors.lightGreen,
         actions: [
-          TextButton(
-            onPressed: () async {
-              setState(() {
-                billItems.clear();
-                scollDirection == "none";
-                isLoading = true;
-              });
+          // TextButton(
+          //   onPressed: () async {
+          //     setState(() {
+          //       billItems.clear();
+          //       scollDirection == "none";
+          //       isLoading = true;
+          //     });
 
-              await loadUserFromAssets();
+          //     await loadUserFromAssets();
 
-              setState(() {
-                isLoading = false;
-              });
-              loadBillItemsByMonth();
-            },
-            child: const Text("Mock"),
-          ),
+          //     setState(() {
+          //       isLoading = false;
+          //     });
+          //     loadBillItemsByMonth();
+          //   },
+          //   child: const Text("Mock"),
+          // ),
           // ElevatedButton(
           //   onPressed: showBottomSheet,
           //   child: const Text('demo'),

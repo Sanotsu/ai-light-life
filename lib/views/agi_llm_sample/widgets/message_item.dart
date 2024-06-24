@@ -87,7 +87,7 @@ class MessageItem extends StatelessWidget {
                       // 所以暂时不让选择
                       child: MarkdownBody(
                         data: message.text,
-                        selectable: false,
+                        selectable: true,
                         // 设置Markdown文本全局样式
                         styleSheet: MarkdownStyleSheet(
                           // 普通段落文本颜色(假定用户输入就是普通段落文本)

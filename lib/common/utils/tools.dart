@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../../apis/_self_keys.dart';
 import '../../models/common_llm_info.dart';
 import '../../services/cus_get_storage.dart';
 import '../constants.dart';
@@ -116,4 +117,24 @@ Map<String, String?> getIdAndKeyFromPlatform(CloudPlatform cp) {
     key = MyGetStorage().getTencentCommonAppKey();
   }
   return {"id": id, "key": key};
+}
+
+// 设置私人的平台应用id和key
+setDefaultAppIdAndKey() async {
+  await MyGetStorage().setBaiduCommonAppId(BAIDU_API_KEY);
+  await MyGetStorage().setBaiduCommonAppKey(BAIDU_SECRET_KEY);
+  await MyGetStorage().setAliyunCommonAppId(ALIYUN_APP_ID);
+  await MyGetStorage().setAliyunCommonAppKey(ALIYUN_API_KEY);
+  await MyGetStorage().setTencentCommonAppId(TENCENT_SECRET_ID);
+  await MyGetStorage().setTencentCommonAppKey(TENCENT_SECRET_KEY);
+}
+
+// 清除设定好的平台应用id和key
+clearAllAppIdAndKey() async {
+  await MyGetStorage().setBaiduCommonAppId(null);
+  await MyGetStorage().setBaiduCommonAppKey(null);
+  await MyGetStorage().setAliyunCommonAppId(null);
+  await MyGetStorage().setAliyunCommonAppKey(null);
+  await MyGetStorage().setTencentCommonAppId(null);
+  await MyGetStorage().setTencentCommonAppKey(null);
 }

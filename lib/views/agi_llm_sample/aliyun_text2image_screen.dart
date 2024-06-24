@@ -15,7 +15,6 @@ import '../../models/ai_interface_state/aliyun_text2image_state.dart';
 import '../../models/llm_text2image_state.dart';
 import '../accounting/mock_data/index.dart';
 
-
 class AliyunText2ImageScreen extends StatefulWidget {
   const AliyunText2ImageScreen({super.key});
 
@@ -168,12 +167,42 @@ class _AliyunText2ImageScreenState extends State<AliyunText2ImageScreen>
     // 提交生成任务
     var jobResp = await commitAliyunText2ImgJob(input, parameters);
 
+    print("job报错:$jobResp");
+
+    // 构建文生图任务报错
+    if (jobResp.code != null) {
+      setState(() {
+        isGenImage = false;
+        _removeLoadingOverlay();
+      });
+      return commonExceptionDialog(
+        // ignore: use_build_context_synchronously
+        context,
+        "发生异常",
+        "生成图片出错:${jobResp.message}\n可以检查一下应用ID和KEY是否正确。",
+      );
+    }
+
     // 得到任务编号之后，查询状态
     var taskId = jobResp.output?.taskId;
 
     if (taskId != null) {
       // 获取到任务编号之后，定时查看任务进行状态
       AliyunTextToImgResp? rst = await timedText2ImageJobStatus(taskId);
+
+      // 查询文生图任务进度报错
+      if (rst?.code != null) {
+        setState(() {
+          isGenImage = false;
+          _removeLoadingOverlay();
+        });
+        return commonExceptionDialog(
+          // ignore: use_build_context_synchronously
+          context,
+          "发生异常",
+          "查询文本生图任务进度报错:${jobResp.message}\n可以检查一下应用ID和KEY是否正确。",
+        );
+      }
 
       // 任务处理完成之后，放到结果列表中显示
       var a = rst?.output?.results;
