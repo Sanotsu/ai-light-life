@@ -16,21 +16,8 @@ class MyGetStorage {
 
   String? getCusLlmName() => box.read("cus_llm_name");
 
-  Future<void> setCusAppId(String appId) async {
-    await box.write("cus_app_id", appId);
-  }
-
-  String? getCusAppId() => box.read("cus_app_id");
-
-  Future<void> setCusAppKey(String appKey) async {
-    await box.write("cus_app_key", appKey);
-  }
-
-  String? getCusAppKey() => box.read("cus_app_key");
-
   /// 2024-06-22平台应用通用配置，就是配这平台一个应用，不指定模型都可以用
   /// set id或key可以指定null，用于清空(是否配置的判断也是用非空判断的)
-
   /// 阿里云的id和key
   Future<void> setAliyunCommonAppId(String? appId) async {
     await box.write("cus_aliyun_app_id", appId);
@@ -69,4 +56,12 @@ class MyGetStorage {
   }
 
   String? getTencentCommonAppKey() => box.read("cus_tencent_app_key");
+
+  // 2024-06-24 是否使用开发者的平台应用
+  Future<void> setIsAuthorsAppInfo(bool? flag) async {
+    await box.write("is_authors_app_info", flag);
+  }
+
+  bool getIsAuthorsAppInfo() =>
+      bool.tryParse(box.read("is_authors_app_info").toString()) ?? false;
 }

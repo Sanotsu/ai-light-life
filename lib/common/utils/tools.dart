@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../../models/common_llm_info.dart';
+import '../../services/cus_get_storage.dart';
 import '../constants.dart';
 
 /// 获取设备的图片访问请求
@@ -82,3 +84,36 @@ String getTimePeriod() {
 }
 
 List<String> mealCates = ["早餐", "早茶", "午餐", "下午茶", "晚餐", "夜宵", "甜点", "主食"];
+
+// 保存指定平台应用配置的id和key
+setIdAndKeyFromPlatform(CloudPlatform cp, String? id, String? key) async {
+  if (cp == CloudPlatform.baidu) {
+    await MyGetStorage().setBaiduCommonAppId(id);
+    await MyGetStorage().setBaiduCommonAppKey(key);
+  } else if (cp == CloudPlatform.aliyun) {
+    await MyGetStorage().setAliyunCommonAppId(id);
+    await MyGetStorage().setAliyunCommonAppKey(key);
+  } else {
+    await MyGetStorage().setTencentCommonAppId(id);
+    await MyGetStorage().setTencentCommonAppKey(key);
+  }
+}
+
+// 通过传入的平台，获取该平台应用配置的id和key
+Map<String, String?> getIdAndKeyFromPlatform(CloudPlatform cp) {
+  String? id;
+  String? key;
+
+  if (cp == CloudPlatform.baidu) {
+    // 初始化id或者key
+    id = MyGetStorage().getBaiduCommonAppId();
+    key = MyGetStorage().getBaiduCommonAppKey();
+  } else if (cp == CloudPlatform.aliyun) {
+    id = MyGetStorage().getAliyunCommonAppId();
+    key = MyGetStorage().getAliyunCommonAppKey();
+  } else {
+    id = MyGetStorage().getTencentCommonAppId();
+    key = MyGetStorage().getTencentCommonAppKey();
+  }
+  return {"id": id, "key": key};
+}

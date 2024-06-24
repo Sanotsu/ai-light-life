@@ -29,23 +29,32 @@ const baiduFuyu8BUrl =
 /// 使用 AK，SK 生成鉴权签名（Access Token）
 Future<String> getAccessToken() async {
   // 这个获取的token的结果是一个_Map<String, dynamic>，不用转json直接取就得到Access Token了
-  var respData = await HttpUtils.post(
-    path: baiduAigcAuthUrl,
-    method: HttpMethod.post,
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    data: {
-      "grant_type": "client_credentials",
-      // 如果是用户自行配置，使用自行配置的key；否则检查用户通用配置；最后才是自己的账号key
-      "client_id": MyGetStorage().getBaiduCommonAppId() ?? BAIDU_API_KEY,
-      "client_secret":
-          MyGetStorage().getBaiduCommonAppKey() ?? BAIDU_SECRET_KEY,
-    },
-  );
 
-  // 响应是json格式
-  return respData['access_token'];
+  try {
+    var respData = await HttpUtils.post(
+      path: baiduAigcAuthUrl,
+      method: HttpMethod.post,
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      data: {
+        "grant_type": "client_credentials",
+        // 如果是用户自行配置，使用自行配置的key；否则检查用户通用配置；最后才是自己的账号key
+        "client_id": MyGetStorage().getBaiduCommonAppId() ?? BAIDU_API_KEY,
+        "client_secret":
+            MyGetStorage().getBaiduCommonAppKey() ?? BAIDU_SECRET_KEY,
+      },
+    );
+
+    // 响应是json格式
+    return respData['access_token'];
+  } on HttpException catch (e) {
+    return e.msg;
+  } catch (e) {
+    print("bbbbbbbbbbbbbbbb ${e.runtimeType}---$e");
+    // API请求报错，显示报错信息
+    return e.toString();
+  }
 }
 
 /// 获取Fuyu-8B图像理解的响应结果

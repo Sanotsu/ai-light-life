@@ -5,6 +5,8 @@ import 'package:flutter_form_builder/flutter_form_builder.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:form_builder_validators/form_builder_validators.dart';
 
+import '../../../common/components/tool_widget.dart';
+import '../../../common/utils/tools.dart';
 import '../../../models/common_llm_info.dart';
 import '../../../services/cus_get_storage.dart';
 import '../one_chat_screen.dart';
@@ -38,11 +40,12 @@ class _UserCusModelStepperState extends State<UserCusModelStepper> {
 
 // 如果缓存中已经存在了用户的配置，直接读取出来显示
   initUserCOnfigration() {
-    var id = MyGetStorage().getCusAppId();
-    var key = MyGetStorage().getCusAppKey();
     var name = MyGetStorage().getCusLlmName();
     var pf = MyGetStorage().getCusPlatform();
 
+    if (name == null || pf == null) {
+      return;
+    }
     // 找到还没超时的大模型，取第一个作为预设的
     setState(() {
       // 找到对应的平台和模型(因为配置的时候是用户下拉选择的，理论上这里一定存在，且只应该有一个)
@@ -52,9 +55,11 @@ class _UserCusModelStepperState extends State<UserCusModelStepper> {
       // 找到平台之后，也要找到对应选中的模型
       selectedLLM = PlatformLLM.values.where((m) => m.name == name).first;
 
+      var map = getIdAndKeyFromPlatform(selectedPlatform);
+
       // 初始化id或者key
-      _formKey.currentState?.fields['id']?.didChange(id);
-      _formKey.currentState?.fields['key']?.didChange(key);
+      _formKey.currentState?.fields['id']?.didChange(map['id']);
+      _formKey.currentState?.fields['key']?.didChange(map['key']);
     });
   }
 
@@ -75,6 +80,10 @@ class _UserCusModelStepperState extends State<UserCusModelStepper> {
 
       setState(() {
         selectedLLM = temp.first;
+        // 切换平台之后，如果有全局配置的应用id和key，也跟着切换
+        var map = getIdAndKeyFromPlatform(selectedPlatform);
+        _formKey.currentState?.fields['id']?.didChange(map['id']);
+        _formKey.currentState?.fields['key']?.didChange(map['key']);
       });
     }
   }
@@ -88,7 +97,7 @@ class _UserCusModelStepperState extends State<UserCusModelStepper> {
             height: 100.sp,
             color: Colors.lightBlueAccent,
             child: Center(
-              child: Text("自行配置平台模型", style: TextStyle(fontSize: 20.sp)),
+              child: Text("自行配置平台对话模型", style: TextStyle(fontSize: 20.sp)),
             ),
           ),
           Stepper(
@@ -123,30 +132,38 @@ class _UserCusModelStepperState extends State<UserCusModelStepper> {
                             print("这是最后一步，就不会触发上面的onStepContinue定义了");
 
                             if (_formKey.currentState!.saveAndValidate()) {
+                              if (selectedLLM?.name == null) {
+                                return commonExceptionDialog(
+                                    context, "数据异常", "请选择平台和模型，不可为空");
+                              }
+
+                              await MyGetStorage()
+                                  .setCusPlatform(selectedPlatform.name);
+                              await MyGetStorage()
+                                  .setCusLlmName(selectedLLM!.name);
+
                               var temp = _formKey.currentState;
-                              await MyGetStorage().setCusAppId(
+
+                              await setIdAndKeyFromPlatform(
+                                selectedPlatform,
                                 temp?.fields['id']?.value,
-                              );
-                              await MyGetStorage().setCusAppKey(
                                 temp?.fields['key']?.value,
                               );
-                            }
 
-                            await MyGetStorage()
-                                .setCusPlatform(selectedPlatform.name);
-                            await MyGetStorage()
-                                .setCusLlmName(selectedLLM!.name);
-
-                            if (!mounted) return;
-                            Navigator.pushReplacement(
-                              // ignore: use_build_context_synchronously
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const OneChatScreen(
-                                  isUserConfig: true,
+                              if (!mounted) return;
+                              Navigator.pushReplacement(
+                                // ignore: use_build_context_synchronously
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const OneChatScreen(
+                                    isUserConfig: true,
+                                  ),
                                 ),
-                              ),
-                            );
+                              );
+                            } else {
+                              return commonExceptionDialog(
+                                  context, "数据异常", "请检查应用id和key是否输入");
+                            }
                           }
                         : details.onStepContinue,
 

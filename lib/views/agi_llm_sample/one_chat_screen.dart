@@ -12,6 +12,7 @@ import '../../apis/common_chat_apis.dart';
 import '../../common/components/tool_widget.dart';
 import '../../common/constants.dart';
 import '../../common/db_tools/db_helper.dart';
+import '../../common/utils/tools.dart';
 import '../../models/common_llm_info.dart';
 import '../../models/ai_interface_state/platform_aigc_commom_state.dart';
 import '../../models/llm_chat_state.dart';
@@ -92,8 +93,8 @@ class _OneChatScreenState extends State<OneChatScreen> {
 
   // 进入对话页面简单预设的一些问题
   List defaultQuestions = [
-    "老板经常以未达到工作考核来克扣工资，经常让我无偿加班，是否已经违法？",
     "你好，介绍一下你自己。",
+    "老板经常以未达到工作考核来克扣工资，经常让我无偿加班，是否已经违法？",
     "你是一位产品文案。请设计一份PPT大纲，介绍你们公司新推出的防晒霜，要求言简意赅并且具有创意。",
     "你是一位10w+爆款文章的编辑。请结合赛博玄学主题，如电子木鱼、机甲佛祖、星座、塔罗牌、人形锦鲤、工位装修等，用俏皮有网感的语言撰写一篇公众号文章。",
     "你是一个营养师。现在请帮我制定一周的健康减肥食谱。",
@@ -121,13 +122,8 @@ class _OneChatScreenState extends State<OneChatScreen> {
 
     // 如果是用户自行配置页面来的
     if (widget.isUserConfig == true) {
-      var id = MyGetStorage().getCusAppId();
-      var key = MyGetStorage().getCusAppKey();
-      var name = MyGetStorage().getCusLlmName();
       var pf = MyGetStorage().getCusPlatform();
-
-      print("用户配置的内容：");
-      print("$id $key $name $pf");
+      var name = MyGetStorage().getCusLlmName();
 
       // 找到还没超时的大模型，取第一个作为预设的
       setState(() {
@@ -506,7 +502,9 @@ class _OneChatScreenState extends State<OneChatScreen> {
     return llms
         .map((e) => DropdownMenuItem<PlatformLLM>(
               value: e,
-              alignment: AlignmentDirectional.centerEnd,
+              alignment: widget.isLimitedTest == true
+                  ? AlignmentDirectional.centerEnd
+                  : AlignmentDirectional.center,
               child: Text(
                 text(newLLMSpecs[e]!),
                 style: TextStyle(fontSize: 10.sp, color: Colors.blue),
@@ -892,11 +890,11 @@ class _OneChatScreenState extends State<OneChatScreen> {
       children: [
         Expanded(
           flex: 1,
-          child: Text(label, style: TextStyle(fontSize: 12.sp)),
+          child: Text(label, style: TextStyle(fontSize: 10.sp)),
         ),
         Expanded(
-          flex: 4,
-          child: Text(value, style: TextStyle(fontSize: 12.sp)),
+          flex: 5,
+          child: Text(value, style: TextStyle(fontSize: 10.sp)),
         ),
       ],
     );
@@ -937,8 +935,10 @@ class _OneChatScreenState extends State<OneChatScreen> {
             children: [
               _buildCusConfigRow("平台", selectedPlatform.name),
               _buildCusConfigRow("模型", newLLMSpecs[selectedLlm]!.model),
-              _buildCusConfigRow("AppId", MyGetStorage().getCusAppId() ?? ""),
-              _buildCusConfigRow("AppKey", MyGetStorage().getCusAppKey() ?? ""),
+              _buildCusConfigRow("AppId",
+                  getIdAndKeyFromPlatform(selectedPlatform)['id'] ?? ""),
+              _buildCusConfigRow("AppKey",
+                  getIdAndKeyFromPlatform(selectedPlatform)['key'] ?? ""),
             ],
           ),
         ),
@@ -1018,9 +1018,13 @@ class _OneChatScreenState extends State<OneChatScreen> {
               },
               child: Card(
                 elevation: 2,
+                color: Colors.teal[100],
                 child: Container(
+                  decoration: BoxDecoration(
+                    // 设置圆角半径为10
+                    borderRadius: BorderRadius.all(Radius.circular(15.sp)),
+                  ),
                   padding: EdgeInsets.all(8.sp),
-                  color: Colors.teal[100],
                   child: Text(defaultQuestions[index]),
                 ),
               ),

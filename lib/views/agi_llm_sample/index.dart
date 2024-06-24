@@ -6,6 +6,7 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:form_builder_validators/form_builder_validators.dart';
 
+import '../../apis/_self_keys.dart';
 import '../../common/components/tool_widget.dart';
 import '../../models/common_llm_info.dart';
 import '../../services/cus_get_storage.dart';
@@ -31,18 +32,28 @@ class _AgiLlmSampleState extends State<AgiLlmSample> {
   bool isAliyunConfigured = false;
   bool isTencentConfigured = false;
 
-  String note = """暂时仅使用百度千帆、阿里云百炼、腾讯混元3个平台的部分大模型。
-  
+  // 不明说的东西：长按“智能助手”这标题，使用我自己的三个平台的应用id和key
+  bool isAuthorsAppInfo = MyGetStorage().getIsAuthorsAppInfo();
+
+  String note = """暂仅使用百度千帆、阿里百炼、腾讯混元3个平台。  
+  以免费和测试为目的，支持使用的大模型数量有限。
+
+---
+
 **文本对话(官方免费)**  
 文本翻译、百科问答、情感分析、FAQ、阅读理解、内容创作、代码编写……。
 
----*以下需要配置对应平台自己的应用ID和KEY*---     
+---*以下需要配置对应平台自己的应用ID和KEY*---    
 
-**文本生图(阿里云-通义万相)**   
+**文本对话(单个配置)**    
+使用更加高级的对话模型，需要用户自己的ID和KEY。  
+**文本生图** *(阿里百炼：通义万相)*  
 简单的几句话，就能帮你生成各种风格的图片。  
-**图像理解(百度千帆第三方-Fuyu-8B)**  
+**图像理解** *(百度千帆第三方：Fuyu-8B)*    
 给它一张图，它能回答你关于该图片的相关问题。  
- 
+
+---
+
 **点击**下面指定功能，快来试一试吧！""";
 
   @override
@@ -93,29 +104,73 @@ class _AgiLlmSampleState extends State<AgiLlmSample> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: RichText(
-          softWrap: true,
-          overflow: TextOverflow.ellipsis,
-          maxLines: 2,
-          text: TextSpan(
-            children: [
-              // 为了分类占的宽度一致才用的，只是显示的话可不必
-              WidgetSpan(
-                alignment: PlaceholderAlignment.baseline,
-                baseline: TextBaseline.alphabetic,
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(minWidth: 50.sp),
-                  child: Text(
-                    '智能助手',
-                    style: TextStyle(fontSize: 24.sp),
+        title: GestureDetector(
+          onLongPress: () async {
+            if (isAuthorsAppInfo) {
+              // 需要使用作者的平台应用配置
+              await MyGetStorage().setBaiduCommonAppId(BAIDU_API_KEY);
+              await MyGetStorage().setBaiduCommonAppKey(BAIDU_SECRET_KEY);
+              await MyGetStorage().setAliyunCommonAppId(ALIYUN_APP_ID);
+              await MyGetStorage().setAliyunCommonAppKey(ALIYUN_API_KEY);
+              await MyGetStorage().setTencentCommonAppId(TENCENT_SECRET_ID);
+              await MyGetStorage().setTencentCommonAppKey(TENCENT_SECRET_KEY);
+
+              if (!mounted) return;
+
+              showSnackMessage(
+                // ignore: use_build_context_synchronously
+                context,
+                "你将使用作者的应用ID和KEY，请谨慎！",
+              );
+            } else {
+              //  不然就是清除使用作者的平台应用配置
+              await MyGetStorage().setBaiduCommonAppId(null);
+              await MyGetStorage().setBaiduCommonAppKey(null);
+              await MyGetStorage().setAliyunCommonAppId(null);
+              await MyGetStorage().setAliyunCommonAppKey(null);
+              await MyGetStorage().setTencentCommonAppId(null);
+              await MyGetStorage().setTencentCommonAppKey(null);
+
+              if (!mounted) return;
+
+              showSnackMessage(
+                // ignore: use_build_context_synchronously
+                context,
+                "你将不再使用作者的平台应用配置，感谢！",
+              );
+            }
+
+            // 配置完成，需要检查当前的应用配置，并切换是否使用为相反的值
+            MyGetStorage().setIsAuthorsAppInfo(isAuthorsAppInfo);
+            setState(() {
+              isAuthorsAppInfo = !isAuthorsAppInfo;
+              checkPlatformConfig();
+            });
+          },
+          child: RichText(
+            softWrap: true,
+            overflow: TextOverflow.ellipsis,
+            maxLines: 2,
+            text: TextSpan(
+              children: [
+                // 为了分类占的宽度一致才用的，只是显示的话可不必
+                WidgetSpan(
+                  alignment: PlaceholderAlignment.baseline,
+                  baseline: TextBaseline.alphabetic,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minWidth: 50.sp),
+                    child: Text(
+                      '智能助手',
+                      style: TextStyle(fontSize: 24.sp),
+                    ),
                   ),
                 ),
-              ),
-              TextSpan(
-                text: "  (Simple AGI LLMs)",
-                style: TextStyle(color: Colors.black, fontSize: 15.sp),
-              ),
-            ],
+                // TextSpan(
+                //   text: "  (Simple AGI LLMs)",
+                //   style: TextStyle(color: Colors.black, fontSize: 15.sp),
+                // ),
+              ],
+            ),
           ),
         ),
         // title: const Text('智能对话'),
@@ -177,7 +232,7 @@ class _AgiLlmSampleState extends State<AgiLlmSample> {
           Divider(height: 20.sp),
           // 入口按钮
           SizedBox(
-            height: 0.3.sh,
+            height: 0.25.sh,
             child: GridView.count(
               primary: false,
               padding: EdgeInsets.symmetric(horizontal: 20.sp),
@@ -186,13 +241,22 @@ class _AgiLlmSampleState extends State<AgiLlmSample> {
               crossAxisCount: 3,
               childAspectRatio: 3 / 2,
               children: <Widget>[
-                buildAIToolEntrance(0, "文本对话\n官方免费", color: Colors.blue[200]),
-                buildAIToolEntrance(1, "文本对话\n限量测试", color: Colors.blue[200]),
-                buildAIToolEntrance(5, "文本对话\n自行配置", color: Colors.blue[200]),
-                buildAIToolEntrance(2, "通义万相\n文本生图", color: Colors.grey[100]),
-                buildAIToolEntrance(3, "Fuyu-8B\n图像理解",
+                buildAIToolEntrance(0, "文本对话", "通用—官方免费",
+                    color: Colors.blue[200]),
+                // 2024-06-24 如果使用作者的平台应用配置，那可以使用作者的限量测试的api
+                // (注意，这里是取反，因为长按后是有设置反的操作)
+                !isAuthorsAppInfo
+                    ? buildAIToolEntrance(1, "文本对话", "阿里—限量测试",
+                        color: Colors.blue[200])
+                    : Container(),
+                buildAIToolEntrance(5, "文本对话", "通用—单个配置",
+                    color: Colors.blue[200]),
+                buildAIToolEntrance(2, "文本生图", "阿里—通义万相",
+                    color: Colors.grey[100]),
+                buildAIToolEntrance(3, "图像理解", "百度—Fuyu-8B",
                     color: Colors.green[100]),
-                buildAIToolEntrance(4, "通义千问\n视觉模型", color: Colors.green[100]),
+                buildAIToolEntrance(4, "视觉模型", "阿里—通义千问",
+                    color: Colors.green[100]),
               ],
             ),
           ),
@@ -207,7 +271,7 @@ class _AgiLlmSampleState extends State<AgiLlmSample> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text("文本生成图片信息", style: TextStyle(fontSize: 18.sp)),
+          title: Text("平台应用配置", style: TextStyle(fontSize: 18.sp)),
           content: SingleChildScrollView(
             child: Padding(
               padding: EdgeInsets.all(0.sp),
@@ -379,11 +443,15 @@ class _AgiLlmSampleState extends State<AgiLlmSample> {
   }
 
   /// 构建AI对话云平台入口按钮(默认非流式)
-  buildAIToolEntrance(int type, String label, {Color? color}) {
+  buildAIToolEntrance(int type, String label, String subtitle, {Color? color}) {
     return InkWell(
       onTap: () {
-        // 0, "智能对话-免费" 1, "智能对话-限量 2, "文本生图 3, "图像理解 4, "千问视觉
-        // 4, 自行配置付费对话模型
+        // 0, "智能对话-免费"
+        // 1, "智能对话-限量
+        // 2, "文本生图
+        // 3, "图像理解
+        // 4, "千问视觉
+        // 5, 自行配置单个付费对话模型
         if (type == 0) {
           Navigator.push(
             context,
@@ -451,7 +519,7 @@ class _AgiLlmSampleState extends State<AgiLlmSample> {
         padding: EdgeInsets.all(8.sp),
         decoration: BoxDecoration(
           // 设置圆角半径为10
-          borderRadius: BorderRadius.all(Radius.circular(30.sp)),
+          borderRadius: BorderRadius.all(Radius.circular(15.sp)),
           color: color ?? Colors.teal[200],
           // 添加阴影效果
           boxShadow: [
@@ -464,14 +532,40 @@ class _AgiLlmSampleState extends State<AgiLlmSample> {
           ],
         ),
         child: Center(
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 15.sp,
-              fontWeight: FontWeight.bold,
-              color: Theme.of(context).primaryColor,
+          child: RichText(
+            softWrap: true,
+            overflow: TextOverflow.ellipsis,
+            maxLines: 2,
+            textAlign: TextAlign.center,
+            text: TextSpan(
+              children: [
+                // 为了分类占的宽度一致才用的，只是显示的话可不必
+                WidgetSpan(
+                  alignment: PlaceholderAlignment.baseline,
+                  baseline: TextBaseline.alphabetic,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minWidth: 50.sp),
+                    child: Text(
+                      label,
+                      style: TextStyle(fontSize: 16.sp),
+                    ),
+                  ),
+                ),
+                TextSpan(
+                  text: "\n$subtitle",
+                  style: TextStyle(color: Colors.black, fontSize: 12.sp),
+                ),
+              ],
             ),
           ),
+          //  Text(
+          //   label,
+          //   style: TextStyle(
+          //     fontSize: 15.sp,
+          //     fontWeight: FontWeight.bold,
+          //     color: Theme.of(context).primaryColor,
+          //   ),
+          // ),
         ),
       ),
     );

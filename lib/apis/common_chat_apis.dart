@@ -39,13 +39,13 @@ Future<List<CommonRespBody>> getTencentAigcResp(
       method: HttpMethod.post,
       headers: genHunyuanLiteSignatureHeaders(
         commonReqBodyToJson(body, caseType: "pascal"),
-        // 如果是用户自行配置，使用自行配置的key；否则检查用户通用配置；最后才是自己的账号key
+        // 如果是用户自行配置，使用用户通用配置；否则是自己的账号key
         isUserConfig
-            ? MyGetStorage().getCusAppId() ?? ""
-            : MyGetStorage().getTencentCommonAppId() ?? TENCENT_SECRET_ID,
+            ? MyGetStorage().getTencentCommonAppId() ?? ""
+            : TENCENT_SECRET_ID,
         isUserConfig
-            ? MyGetStorage().getCusAppKey() ?? ""
-            : MyGetStorage().getTencentCommonAppKey() ?? TENCENT_SECRET_KEY,
+            ? MyGetStorage().getTencentCommonAppKey() ?? ""
+            : TENCENT_SECRET_KEY,
       ),
       // 可能是因为头的content type设定，这里直接传类实例即可，传toJson也可
       data: body.toJson(caseType: "pascal"),
@@ -119,9 +119,9 @@ Future<List<CommonRespBody>> getAliyunAigcResp(
 
   var header = {
     "Content-Type": "application/json",
-    // 如果是用户自行配置，使用自行配置的key；否则检查用户通用配置；最后才是自己的账号key
+    // 如果是用户自行配置，使用检查用户通用配置；否则是自己的账号key
     "Authorization":
-        "Bearer ${isUserConfig ? MyGetStorage().getCusAppKey() : MyGetStorage().getAliyunCommonAppKey() ?? ALIYUN_API_KEY}",
+        "Bearer ${isUserConfig ? MyGetStorage().getAliyunCommonAppKey() : ALIYUN_API_KEY}",
   };
   // 如果是流式，开启SSE
   if (stream) {
@@ -206,27 +206,33 @@ const baiduAigcAuthUrl = "https://aip.baidubce.com/oauth/2.0/token";
 Future<String> getAccessToken({
   bool isUserConfig = true,
 }) async {
-  // 这个获取的token的结果是一个_Map<String, dynamic>，不用转json直接取就得到Access Token了
-  var respData = await HttpUtils.post(
-    path: baiduAigcAuthUrl,
-    method: HttpMethod.post,
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    data: {
-      "grant_type": "client_credentials",
-      // 如果是用户自行配置，使用自行配置的key；否则检查用户通用配置；最后才是自己的账号key
-      "client_id": isUserConfig
-          ? MyGetStorage().getCusAppId()
-          : MyGetStorage().getBaiduCommonAppId() ?? BAIDU_API_KEY,
-      "client_secret": isUserConfig
-          ? MyGetStorage().getCusAppKey()
-          : MyGetStorage().getBaiduCommonAppKey() ?? BAIDU_SECRET_KEY,
-    },
-  );
+  try {
+    // 这个获取的token的结果是一个_Map<String, dynamic>，不用转json直接取就得到Access Token了
+    var respData = await HttpUtils.post(
+      path: baiduAigcAuthUrl,
+      method: HttpMethod.post,
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      data: {
+        "grant_type": "client_credentials",
+        // 如果是用户自行配置，使用检查用户通用配置；否则是自己的账号key
+        "client_id":
+            isUserConfig ? MyGetStorage().getBaiduCommonAppId() : BAIDU_API_KEY,
+        "client_secret": isUserConfig
+            ? MyGetStorage().getBaiduCommonAppKey()
+            : BAIDU_SECRET_KEY,
+      },
+    );
 
-  // 响应是json格式
-  return respData['access_token'];
+    // 响应是json格式
+    return respData['access_token'];
+  } on HttpException catch (e) {
+    return e.msg;
+  } catch (e) {
+    // API请求报错，显示报错信息
+    return e.toString();
+  }
 }
 
 /// 获取流式响应数据

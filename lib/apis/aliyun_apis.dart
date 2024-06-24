@@ -27,35 +27,51 @@ Future<AliyunTextToImgResp> commitAliyunText2ImgJob(
     parameters: parameters,
   );
 
-  var start = DateTime.now().millisecondsSinceEpoch;
+  try {
+    var start = DateTime.now().millisecondsSinceEpoch;
 
-  var respData = await HttpUtils.post(
-    path: aliyunText2imageUrl,
-    method: HttpMethod.post,
-    headers: {
-      "X-DashScope-Async": "enable", // 固定的，异步方式提交作业。
-      "Content-Type": "application/json",
-      // 检查用户通用配置；再才是自己的账号key
-      "Authorization":
-          "Bearer ${MyGetStorage().getAliyunCommonAppKey() ?? ALIYUN_API_KEY}",
-    },
-    // 可能是因为头的content type设定，这里直接传类实例即可，传toJson也可
-    data: body,
-  );
+    var respData = await HttpUtils.post(
+      path: aliyunText2imageUrl,
+      method: HttpMethod.post,
+      headers: {
+        "X-DashScope-Async": "enable", // 固定的，异步方式提交作业。
+        "Content-Type": "application/json",
+        // 检查用户通用配置；再才是自己的账号key
+        "Authorization":
+            "Bearer ${MyGetStorage().getAliyunCommonAppKey() ?? ALIYUN_API_KEY}",
+      },
+      // 可能是因为头的content type设定，这里直接传类实例即可，传toJson也可
+      data: body,
+    );
 
-  print("阿里云文生图---------------------$respData");
+    print("阿里云文生图---------------------$respData");
 
-  var end = DateTime.now().millisecondsSinceEpoch;
+    var end = DateTime.now().millisecondsSinceEpoch;
 
-  print("2222222222xxxxxxxxxxxxxxxxx${(end - start) / 1000} 秒");
+    print("2222222222xxxxxxxxxxxxxxxxx${(end - start) / 1000} 秒");
 
-  ///？？？ 2024-06-11 阿里云请求报错，会进入dio的错误拦截器，这里ret就是个null了
-  if (respData.runtimeType == String) {
-    respData = json.decode(respData);
+    ///？？？ 2024-06-11 阿里云请求报错，会进入dio的错误拦截器，这里ret就是个null了
+    if (respData.runtimeType == String) {
+      respData = json.decode(respData);
+    }
+
+    // 响应是json格式
+    return AliyunTextToImgResp.fromJson(respData ?? {});
+  } on HttpException catch (e) {
+    return AliyunTextToImgResp(
+      // 这里的code和msg就不是api返回的，是自行定义的，应该抽出来
+      code: e.code.toString(),
+      message: e.msg,
+    );
+  } catch (e) {
+    print("bbbbbbbbbbbbbbbb ${e.runtimeType}---$e");
+    // API请求报错，显示报错信息
+    return AliyunTextToImgResp(
+      // 这里的code和msg就不是api返回的，是自行定义的，应该抽出来
+      code: "10001",
+      message: e.toString(),
+    );
   }
-
-  // 响应是json格式
-  return AliyunTextToImgResp.fromJson(respData ?? {});
 }
 
 ///
@@ -63,33 +79,49 @@ Future<AliyunTextToImgResp> commitAliyunText2ImgJob(
 /// GET https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}
 ///
 Future<AliyunTextToImgResp> getAliyunText2ImgJobResult(String taskId) async {
-  var start = DateTime.now().millisecondsSinceEpoch;
+  try {
+    var start = DateTime.now().millisecondsSinceEpoch;
 
-  // var taskId = "8bb11ab3-a7b2-4e37-b90f-f7d31d356279";
+    // var taskId = "8bb11ab3-a7b2-4e37-b90f-f7d31d356279";
 
-  var respData = await HttpUtils.post(
-    path: "https://dashscope.aliyuncs.com/api/v1/tasks/$taskId",
-    method: HttpMethod.get,
-    headers: {
-      // 检查用户通用配置；再才是自己的账号key
-      "Authorization":
-          "Bearer ${MyGetStorage().getAliyunCommonAppKey() ?? ALIYUN_API_KEY}",
-    },
-  );
+    var respData = await HttpUtils.post(
+      path: "https://dashscope.aliyuncs.com/api/v1/tasks/$taskId",
+      method: HttpMethod.get,
+      headers: {
+        // 检查用户通用配置；再才是自己的账号key
+        "Authorization":
+            "Bearer ${MyGetStorage().getAliyunCommonAppKey() ?? ALIYUN_API_KEY}",
+      },
+    );
 
-  print("阿里云文生图结果查询---------------------$respData");
+    print("阿里云文生图结果查询---------------------$respData");
 
-  var end = DateTime.now().millisecondsSinceEpoch;
+    var end = DateTime.now().millisecondsSinceEpoch;
 
-  print("333333xxxxxxxxxxxxxxxxx${(end - start) / 1000} 秒");
+    print("333333xxxxxxxxxxxxxxxxx${(end - start) / 1000} 秒");
 
-  ///？？？ 2024-06-11 阿里云请求报错，会进入dio的错误拦截器，这里ret就是个null了
-  if (respData.runtimeType == String) {
-    respData = json.decode(respData);
+    ///？？？ 2024-06-11 阿里云请求报错，会进入dio的错误拦截器，这里ret就是个null了
+    if (respData.runtimeType == String) {
+      respData = json.decode(respData);
+    }
+
+    // 响应是json格式
+    return AliyunTextToImgResp.fromJson(respData ?? {});
+  } on HttpException catch (e) {
+    return AliyunTextToImgResp(
+      // 这里的code和msg就不是api返回的，是自行定义的，应该抽出来
+      code: e.code.toString(),
+      message: e.msg,
+    );
+  } catch (e) {
+    print("aaaaaas ${e.runtimeType}---$e");
+    // API请求报错，显示报错信息
+    return AliyunTextToImgResp(
+      // 这里的code和msg就不是api返回的，是自行定义的，应该抽出来
+      code: "10001",
+      message: e.toString(),
+    );
   }
-
-  // 响应是json格式
-  return AliyunTextToImgResp.fromJson(respData ?? "{}");
 }
 
 ///
@@ -125,9 +157,9 @@ Future<List<AliyunQwenVlResp>> getAliyunQwenVLResp(
 
   var header = {
     "Content-Type": "application/json",
-    // 如果是用户自行配置，使用自行配置的key；否则检查用户通用配置；最后才是自己的账号key
+    // 如果是用户自行配置，使用检查用户通用配置；否则是自己的账号key
     "Authorization":
-        "Bearer ${isUserConfig ? MyGetStorage().getCusAppKey() : MyGetStorage().getAliyunCommonAppKey() ?? ALIYUN_API_KEY}",
+        "Bearer ${isUserConfig ? MyGetStorage().getAliyunCommonAppKey() : ALIYUN_API_KEY}",
   };
   // 如果是流式，开启SSE
   if (stream) {
