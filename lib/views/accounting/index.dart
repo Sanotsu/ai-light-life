@@ -16,6 +16,7 @@ import '../user_and_settings/backup_and_restore/index.dart';
 import 'bill_item_modify/index.dart';
 import 'bill_report/index.dart';
 
+import 'mock_data/index.dart';
 import 'widgets/bottom_sheet_option_picker.dart';
 
 /// 2024-05-28
@@ -97,6 +98,9 @@ class _BillItemIndexState extends State<BillItemIndex> {
 
   // 选中查询的类型，默认是全部，可切换到“支出|收入|全部”
   String selectedType = "全部账单";
+
+  // 2024-06-26 是否显示，我自己要用的从json文件导入账单列表数据的按钮
+  bool isShowMock = false;
 
   @override
   void initState() {
@@ -427,28 +431,42 @@ class _BillItemIndexState extends State<BillItemIndex> {
       resizeToAvoidBottomInset: false,
       // 这里也可以不用appbar？？？
       appBar: AppBar(
-        title: const Text("极简记账"),
+        title: GestureDetector(
+          onLongPress: () async {
+            // 长按之后，先改变是否使用作者应用的标志
+            setState(() {
+              isShowMock = !isShowMock;
+            });
+          },
+          child: const Text("极简记账"),
+        ),
         // 明确说明不要返回箭头，避免其他地方使用push之后会自动带上返回箭头
         // leading: const Icon(Icons.arrow_back),
         backgroundColor: Colors.lightGreen,
         actions: [
-          // TextButton(
-          //   onPressed: () async {
-          //     setState(() {
-          //       billItems.clear();
-          //       scollDirection == "none";
-          //       isLoading = true;
-          //     });
+          if (isShowMock)
+            TextButton(
+              onPressed: () async {
+                setState(() {
+                  billItems.clear();
+                  scollDirection == "none";
+                  isLoading = true;
+                });
 
-          //     await loadUserFromAssets();
+                var importRst = await loadBillIeamFromAssets();
 
-          //     setState(() {
-          //       isLoading = false;
-          //     });
-          //     loadBillItemsByMonth();
-          //   },
-          //   child: const Text("Mock"),
-          // ),
+                setState(() {
+                  isLoading = false;
+                });
+                loadBillItemsByMonth();
+
+                if (!importRst) {
+                  // ignore: use_build_context_synchronously
+                  commonExceptionDialog(context, "导入失败", "选中的json文件格式不正确");
+                }
+              },
+              child: const Text("Mock"),
+            ),
           // ElevatedButton(
           //   onPressed: showBottomSheet,
           //   child: const Text('demo'),
