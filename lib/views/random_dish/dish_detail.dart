@@ -3,7 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../common/components/tool_widget.dart';
-import '../../common/db_tools/db_dish_helper.dart';
+import '../../common/db_tools/db_helper.dart';
 import '../../models/dish.dart';
 
 import 'dish_modify.dart';
@@ -19,7 +19,7 @@ class DishDetail extends StatefulWidget {
 }
 
 class _DishDetailState extends State<DishDetail> {
-  final DBDishHelper _dbHelper = DBDishHelper();
+  final DBHelper _dbHelper = DBHelper();
 
   // 构建食物的单份营养素列表，可以多选，然后进行相关操作
   // 待上传的动作数量已经每个动作的选中状态

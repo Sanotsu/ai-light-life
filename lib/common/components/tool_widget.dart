@@ -102,6 +102,8 @@ buildNetworkImageViewGrid(
                     // 缩放的最大最小限制
                     minScale: PhotoViewComputedScale.contained * 0.8,
                     maxScale: PhotoViewComputedScale.covered * 2,
+                    errorBuilder: (context, url, error) =>
+                        const Icon(Icons.error),
                   ),
                 );
               },
@@ -649,6 +651,7 @@ _buildImageCarouselSliderType(
                 // 缩放的最大最小限制
                 minScale: PhotoViewComputedScale.contained * 0.8,
                 maxScale: PhotoViewComputedScale.covered * 2,
+                errorBuilder: (context, url, error) => const Icon(Icons.error),
               ),
             );
           },
@@ -663,6 +666,7 @@ _buildImageCarouselSliderType(
             builder: (context) => PhotoView(
               imageProvider: getImageProvider(imageUrl),
               enableRotation: true,
+              errorBuilder: (context, url, error) => const Icon(Icons.error),
             ),
           ),
         );
@@ -680,6 +684,8 @@ _buildImageCarouselSliderType(
                 builder: (BuildContext context, int index) {
                   return PhotoViewGalleryPageOptions(
                     imageProvider: getImageProvider(imageList[index]),
+                    errorBuilder: (context, url, error) =>
+                        const Icon(Icons.error),
                   );
                 },
                 // enableRotation: true,
@@ -751,6 +757,7 @@ buildClickImageDialog(BuildContext context, String imageUrl) {
               // 缩放的最大最小限制
               minScale: PhotoViewComputedScale.contained * 0.8,
               maxScale: PhotoViewComputedScale.covered * 2,
+              errorBuilder: (context, url, error) => const Icon(Icons.error),
             ),
           );
         },

@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_fortune_wheel/flutter_fortune_wheel.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
-import '../../common/db_tools/db_dish_helper.dart';
+import '../../common/db_tools/db_helper.dart';
 import '../../common/utils/tools.dart';
 import '../../models/dish.dart';
 
@@ -28,7 +28,7 @@ class _DishWheelIndexState extends State<DishWheelIndex>
   List<Dish> randomDishes = [];
   List<String> randomDishLabels = [];
 
-  final DBDishHelper _dbHelper = DBDishHelper();
+  final DBHelper _dbHelper = DBHelper();
 
   // 转盘流控制器
   StreamController<int> streamController = StreamController<int>();

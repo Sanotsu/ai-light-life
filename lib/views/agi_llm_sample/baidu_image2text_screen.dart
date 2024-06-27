@@ -73,7 +73,7 @@ class _BaiduImage2TextScreenState extends State<BaiduImage2TextScreen> {
 
   // 用户选择了图片，会获取图片的信息
   userPickImage() async {
-    if (!(await requestPhotoPermission())) {
+    if (!(await requestPermission())) {
       return EasyLoading.showError("未授权可访问图片，无法选择图片");
     }
     try {

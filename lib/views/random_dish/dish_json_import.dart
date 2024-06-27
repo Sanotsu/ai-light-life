@@ -6,7 +6,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../common/components/tool_widget.dart';
-import '../../common/db_tools/db_dish_helper.dart';
+import '../../common/db_tools/db_helper.dart';
 import '../../models/dish.dart';
 
 /// 只支持导入json文件，不再支持文件夹
@@ -18,7 +18,7 @@ class DishJsonImport extends StatefulWidget {
 }
 
 class _DishJsonImportState extends State<DishJsonImport> {
-  final DBDishHelper _dbHelper = DBDishHelper();
+  final DBHelper _dbHelper = DBHelper();
 
   // 是否在解析json中或导入数据库中
   bool isLoading = false;
@@ -269,24 +269,60 @@ class _DishJsonImportState extends State<DishJsonImport> {
                 Expanded(
                   child: RichText(
                     textAlign: TextAlign.start,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     text: TextSpan(
                       children: [
-                        TextSpan(
-                          text: '${index + 1} - ',
-                          style: TextStyle(
-                            fontSize: 12.sp,
-                            color: Colors.green,
+                        // 简单固定下宽度
+                        WidgetSpan(
+                          alignment: PlaceholderAlignment.baseline,
+                          baseline: TextBaseline.alphabetic,
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(minWidth: 60.sp),
+                            child: Padding(
+                              padding: EdgeInsets.only(left: 10.sp),
+                              child: Text(
+                                '${index + 1}',
+                                style: TextStyle(
+                                  fontSize: 12.sp,
+                                  color: Colors.green,
+                                ),
+                              ),
+                            ),
                           ),
                         ),
-                        TextSpan(
-                          text: "${dishes[index].dishName} - ",
-                          style: TextStyle(
-                            fontSize: 12.sp,
-                            color: Colors.grey,
+                        WidgetSpan(
+                          alignment: PlaceholderAlignment.baseline,
+                          baseline: TextBaseline.alphabetic,
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(minWidth: 160.sp),
+                            child: Text(
+                              "${dishes[index].dishName}",
+                              style: TextStyle(
+                                fontSize: 12.sp,
+                                color: Colors.grey,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                         ),
+                        // TextSpan(
+                        //   text: '${index + 1} - ',
+                        //   style: TextStyle(
+                        //     fontSize: 12.sp,
+                        //     color: Colors.green,
+                        //   ),
+                        // ),
+                        // TextSpan(
+                        //   text: "${dishes[index].dishName} - ",
+                        //   style: TextStyle(
+                        //     fontSize: 12.sp,
+                        //     color: Colors.grey,
+                        //   ),
+                        // ),
                         TextSpan(
-                          text: "${dishes[index].tags} - ",
+                          text: "${dishes[index].tags}",
                           style: TextStyle(
                             fontSize: 12.sp,
                             color: Colors.red,

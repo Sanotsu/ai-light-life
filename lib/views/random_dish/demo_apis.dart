@@ -6,10 +6,10 @@ import 'package:uuid/uuid.dart';
 
 import '../../common/components/tool_widget.dart';
 import '../../common/constants.dart';
-import '../../common/db_tools/db_dish_helper.dart';
+import '../../common/db_tools/db_helper.dart';
 import '../../models/dish.dart';
 
-final DBDishHelper _dbHelper = DBDishHelper();
+final DBHelper _dbHelper = DBHelper();
 
 Future<List<Object?>> insertDemoDish({int? size = 10}) async {
   print("【【【插入测试数据 start-->:insertDemoFood ");

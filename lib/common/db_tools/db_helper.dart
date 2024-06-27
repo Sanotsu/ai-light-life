@@ -9,15 +9,16 @@ import 'package:sqflite/sqflite.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../models/brief_accounting_state.dart';
+import '../../models/dish.dart';
 import '../../models/llm_chat_state.dart';
 import '../../models/llm_text2image_state.dart';
 import '../constants.dart';
-import 'ddl_brief_accounting.dart';
+import 'ddl_ai_light_life.dart';
 
 // 导出表文件临时存放的文件夹
 const DB_EXPORT_DIR = "db_export";
 // 导出的表前缀
-const DB_EXPORT_TABLE_PREFIX = "ba_";
+const DB_EXPORT_TABLE_PREFIX = "all_";
 
 class DBHelper {
   ///
@@ -47,7 +48,7 @@ class DBHelper {
 
     // IOS不支持这个方法，所以可能取不到这个地址
     Directory? directory2 = await getExternalStorageDirectory();
-    String path = "${directory2?.path}/${BriefAccountingDdl.databaseName}";
+    String path = "${directory2?.path}/${AILightLifeDdl.databaseName}";
 
     print("初始化 DB sqlite数据库存放的地址：$path");
 
@@ -64,9 +65,10 @@ class DBHelper {
     await db.transaction((txn) async {
       // txn.execute(BriefAccountingDdl.ddlForExpend);
       // txn.execute(BriefAccountingDdl.ddlForIncome);
-      txn.execute(BriefAccountingDdl.ddlForBillItem);
-      txn.execute(BriefAccountingDdl.ddlForChatHistory);
-      txn.execute(BriefAccountingDdl.ddlForText2ImageHistory);
+      txn.execute(AILightLifeDdl.ddlForBillItem);
+      txn.execute(AILightLifeDdl.ddlForChatHistory);
+      txn.execute(AILightLifeDdl.ddlForText2ImageHistory);
+      txn.execute(AILightLifeDdl.ddlForDish);
     });
   }
 
@@ -169,7 +171,7 @@ class DBHelper {
   Future<List<Object?>> insertBillItemList(List<BillItem> billItems) async {
     var batch = (await database).batch();
     for (var item in billItems) {
-      batch.insert(BriefAccountingDdl.tableNameOfBillItem, item.toMap());
+      batch.insert(AILightLifeDdl.tableNameOfBillItem, item.toMap());
     }
 
     print("新增账单条目了$billItems");
@@ -178,7 +180,7 @@ class DBHelper {
 
   // 修改单条
   Future<int> updateBillItem(BillItem item) async => (await database).update(
-        BriefAccountingDdl.tableNameOfBillItem,
+        AILightLifeDdl.tableNameOfBillItem,
         item.toMap(),
         where: 'bill_item_id = ?',
         whereArgs: [item.billItemId],
@@ -187,7 +189,7 @@ class DBHelper {
   // 删除单条
   Future<int> deleteBillItemById(String billItemId) async =>
       (await database).delete(
-        BriefAccountingDdl.tableNameOfBillItem,
+        AILightLifeDdl.tableNameOfBillItem,
         where: "bill_item_id=?",
         whereArgs: [billItemId],
       );
@@ -268,7 +270,7 @@ class DBHelper {
     }
 
     final rows = await db.query(
-      BriefAccountingDdl.tableNameOfBillItem,
+      AILightLifeDdl.tableNameOfBillItem,
       where: where.isNotEmpty ? where.join(' AND ') : null,
       whereArgs: whereArgs.isNotEmpty ? whereArgs : null,
       limit: pageSize,
@@ -278,7 +280,7 @@ class DBHelper {
 
     // 数据是分页查询的，但这里带上满足条件的一共多少条
     String sql =
-        'SELECT COUNT(*) FROM ${BriefAccountingDdl.tableNameOfBillItem}';
+        'SELECT COUNT(*) FROM ${AILightLifeDdl.tableNameOfBillItem}';
     if (where.isNotEmpty) {
       sql += ' WHERE ${where.join(' AND ')}';
     }
@@ -350,12 +352,12 @@ class DBHelper {
           b.*,  
         strftime("$formatStr", "date") AS month,
           (SELECT ROUND(SUM(CASE WHEN "item_type" = 1 THEN "value" ELSE 0.0 END), 2) 
-          FROM ${BriefAccountingDdl.tableNameOfBillItem} AS sub  
+          FROM ${AILightLifeDdl.tableNameOfBillItem} AS sub  
           WHERE strftime("$formatStr", sub."date") = strftime("$formatStr", b."date")) AS expend_total,  
           (SELECT ROUND(SUM(CASE WHEN "item_type" = 0 THEN "value" ELSE 0.0 END), 2)  
-          FROM ${BriefAccountingDdl.tableNameOfBillItem} AS sub  
+          FROM ${AILightLifeDdl.tableNameOfBillItem} AS sub  
           WHERE strftime("$formatStr", sub."date") = strftime("$formatStr", b."date")) AS income_total  
-      FROM ${BriefAccountingDdl.tableNameOfBillItem} AS b
+      FROM ${AILightLifeDdl.tableNameOfBillItem} AS b
       $rangeWhere 
       ORDER BY b."date" DESC  
       LIMIT $pageSize 
@@ -367,7 +369,7 @@ class DBHelper {
 
       // 数据是分页查询的，但这里带上满足条件的一共多少条
       String sql =
-          'SELECT COUNT(*) FROM ${BriefAccountingDdl.tableNameOfBillItem}';
+          'SELECT COUNT(*) FROM ${AILightLifeDdl.tableNameOfBillItem}';
       if (where.isNotEmpty) {
         sql += ' WHERE ${where.join(' AND ')}';
       }
@@ -393,7 +395,7 @@ class DBHelper {
     return (await database).rawQuery(
       """
       SELECT DISTINCT strftime('%Y-%m', `date`) AS month     
-      FROM ${BriefAccountingDdl.tableNameOfBillItem} 
+      FROM ${AILightLifeDdl.tableNameOfBillItem} 
       order by `date` DESC 
       """,
     );
@@ -404,7 +406,7 @@ class DBHelper {
     var list = await (await database).rawQuery(
       """
       SELECT MIN("date") AS min_date, MAX("date") AS max_date  
-      FROM ${BriefAccountingDdl.tableNameOfBillItem} 
+      FROM ${AILightLifeDdl.tableNameOfBillItem} 
       """,
     );
 
@@ -459,7 +461,7 @@ class DBHelper {
               strftime("$formatStr", "date") AS period,   
               CASE WHEN item_type = 1 THEN value ELSE 0.0 END AS expend_total_value,  
               CASE WHEN item_type = 0 THEN value ELSE 0.0 END AS income_total_value  
-          FROM ${BriefAccountingDdl.tableNameOfBillItem}   
+          FROM ${AILightLifeDdl.tableNameOfBillItem}   
           WHERE $dateWhere item_type IN (0, 1)) AS combined_data  
       GROUP BY period        
       ORDER BY period ASC;
@@ -498,7 +500,7 @@ class DBHelper {
         round(SUM(CASE WHEN "item_type" = 1 THEN "value" ELSE 0.0 END), 2) AS expend_total_value,  
         round(SUM(CASE WHEN "item_type" = 0 THEN "value" ELSE 0.0 END), 2) AS income_total_value  
     FROM  
-        ${BriefAccountingDdl.tableNameOfBillItem} 
+        ${AILightLifeDdl.tableNameOfBillItem} 
     $dateWhere 
     GROUP BY period 
       """;
@@ -543,7 +545,7 @@ class DBHelper {
     }
 
     final rows = await db.query(
-      BriefAccountingDdl.tableNameOfChatHistory,
+      AILightLifeDdl.tableNameOfChatHistory,
       where: where.isNotEmpty ? where.join(' AND ') : null,
       whereArgs: whereArgs.isNotEmpty ? whereArgs : null,
       orderBy: "gmt_create DESC",
@@ -554,7 +556,7 @@ class DBHelper {
 
   // 删除单条
   Future<int> deleteChatById(String uuid) async => (await database).delete(
-        BriefAccountingDdl.tableNameOfChatHistory,
+        AILightLifeDdl.tableNameOfChatHistory,
         where: "uuid=?",
         whereArgs: [uuid],
       );
@@ -563,7 +565,7 @@ class DBHelper {
   Future<List<Object?>> insertChatList(List<ChatSession> chats) async {
     var batch = (await database).batch();
     for (var item in chats) {
-      batch.insert(BriefAccountingDdl.tableNameOfChatHistory, item.toMap());
+      batch.insert(AILightLifeDdl.tableNameOfChatHistory, item.toMap());
     }
     return await batch.commit();
   }
@@ -571,7 +573,7 @@ class DBHelper {
   // 修改单条(只让修改标题其实)
   Future<int> updateChatSession(ChatSession item) async =>
       (await database).update(
-        BriefAccountingDdl.tableNameOfChatHistory,
+        AILightLifeDdl.tableNameOfChatHistory,
         item.toMap(),
         where: 'uuid = ?',
         whereArgs: [item.uuid],
@@ -606,7 +608,7 @@ class DBHelper {
     }
 
     final rows = await db.query(
-      BriefAccountingDdl.tableNameOfText2ImageHistory,
+      AILightLifeDdl.tableNameOfText2ImageHistory,
       where: where.isNotEmpty ? where.join(' AND ') : null,
       whereArgs: whereArgs.isNotEmpty ? whereArgs : null,
       orderBy: "gmt_create DESC",
@@ -618,7 +620,7 @@ class DBHelper {
   // 删除单条
   Future<int> deleteTextToImageResultById(String requestId) async =>
       (await database).delete(
-        BriefAccountingDdl.tableNameOfText2ImageHistory,
+        AILightLifeDdl.tableNameOfText2ImageHistory,
         where: "request_id=?",
         whereArgs: [requestId],
       );
@@ -629,10 +631,139 @@ class DBHelper {
     var batch = (await database).batch();
     for (var item in rsts) {
       batch.insert(
-        BriefAccountingDdl.tableNameOfText2ImageHistory,
+        AILightLifeDdl.tableNameOfText2ImageHistory,
         item.toMap(),
       );
     }
     return await batch.commit();
+  }
+
+  ///***********************************************/
+  /// dish 的相关操作
+  ///
+
+  // 新增多条食物(只有单个的时候就一个值得数组)
+  Future<List<Object?>> insertDishList(List<Dish> dishes) async {
+    var batch = (await database).batch();
+    for (var item in dishes) {
+      batch.insert(AILightLifeDdl.tableNameOfDish, item.toMap());
+    }
+    return await batch.commit();
+  }
+
+  // 修改单条基础
+  Future<int> updateDish(Dish dish) async => (await database).update(
+        AILightLifeDdl.tableNameOfDish,
+        dish.toMap(),
+        where: 'dish_id = ?',
+        whereArgs: [dish.dishId],
+      );
+
+  // 删除单条
+  Future<int> deleteDishById(String dishId) async => (await database).delete(
+        AILightLifeDdl.tableNameOfDish,
+        where: "dish_id=?",
+        whereArgs: [dishId],
+      );
+
+  // 条件查询食物列表
+  Future<CusDataResult> queryDishList({
+    String? dishId,
+    String? dishName,
+    List<String>? tags, // 食物的分类和餐次查询为多个，只有一个就一个值的数组
+    List<String>? mealCategories,
+    int? page,
+    int? pageSize,
+  }) async {
+    Database db = await database;
+
+    print("菜品条件查询传入的条件：");
+    print("dishId $dishId");
+    print("dishName $dishName");
+    print("tags $tags");
+    print("mealCategories $mealCategories");
+    print("page $page");
+    print("pageSize $pageSize");
+
+    // f分页相关处理
+    page ??= 1;
+    pageSize ??= 10;
+
+    final offset = (page - 1) * pageSize;
+
+    final where = <String>[];
+    final whereArgs = <dynamic>[];
+
+    if (dishId != null) {
+      where.add('dish_id = ?');
+      whereArgs.add(dishId);
+    }
+
+    if (dishName != null) {
+      where.add('dish_name LIKE ?');
+      whereArgs.add("%$dishName%");
+    }
+
+    // 这里应该是内嵌的or
+    if (tags != null && tags.isNotEmpty) {
+      for (var tag in tags) {
+        where.add('tags LIKE ?');
+        whereArgs.add("%$tag%");
+      }
+    }
+
+    if (mealCategories != null && mealCategories.isNotEmpty) {
+      for (var cate in mealCategories) {
+        where.add('meal_categories LIKE ?');
+        whereArgs.add("%$cate%");
+      }
+    }
+
+    final dishRows = await db.query(
+      AILightLifeDdl.tableNameOfDish,
+      where: where.isNotEmpty ? where.join(' AND ') : null,
+      whereArgs: whereArgs.isNotEmpty ? whereArgs : null,
+      limit: pageSize,
+      offset: offset,
+    );
+
+    // 这个只有食物名称的关键字查询结果
+    int? totalCount = Sqflite.firstIntValue(
+      await db.rawQuery(
+        'SELECT COUNT(*) FROM ${AILightLifeDdl.tableNameOfDish} '
+        'WHERE dish_name LIKE ? ',
+        ['%$dishName%'],
+      ),
+    );
+
+    print('dish Total count: $totalCount, dishRows 长度 ${dishRows.length}');
+
+    var dishes = dishRows.map((row) => Dish.fromMap(row)).toList();
+
+    return CusDataResult(data: dishes, total: totalCount ?? 0);
+  }
+
+  // 随机查询10条数据
+  // 主页显示的时候需要，可以传餐次和数量
+  Future<List<Dish>> queryRandomDishList({String? cate, int? size = 10}) async {
+    Database db = await database;
+
+    final where = <String>[];
+    final whereArgs = <dynamic>[];
+
+    if (cate != null) {
+      where.add('meal_categories like ?');
+      whereArgs.add('%$cate%');
+    }
+
+    List<Map<String, dynamic>> randomRows = await db.query(
+      AILightLifeDdl.tableNameOfDish,
+      where: where.isNotEmpty ? where.join(' AND ') : null,
+      whereArgs: whereArgs.isNotEmpty ? whereArgs : null,
+      orderBy: 'RANDOM()',
+      limit: size,
+    );
+
+    return randomRows.map((row) => Dish.fromMap(row)).toList();
   }
 }

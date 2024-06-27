@@ -5,11 +5,11 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:permission_handler/permission_handler.dart';
 
 import '../../common/components/tool_widget.dart';
 import '../../common/constants.dart';
-import '../../common/db_tools/db_dish_helper.dart';
+import '../../common/db_tools/db_helper.dart';
+import '../../common/utils/tools.dart';
 import '../../models/dish.dart';
 
 import 'dish_detail.dart';
@@ -26,7 +26,7 @@ class DishList extends StatefulWidget {
 }
 
 class _DishListState extends State<DishList> {
-  final DBDishHelper _dbHelper = DBDishHelper();
+  final DBHelper _dbHelper = DBHelper();
 
   List<Dish> dishItems = [];
   // 食物的总数(查询时则为符合条件的总数，默认一页只有10条，看不到总数量)
@@ -46,9 +46,15 @@ class _DishListState extends State<DishList> {
   // 默认不使用卡片列表，节约流量
   bool isDishCardList = false;
 
+  // 是否授权访问存储
+  bool isPermissionGranted = false;
+
   @override
   void initState() {
     super.initState();
+
+    _getPermission();
+
     _loadDishData();
 
     scrollController.addListener(_scrollListener);
@@ -67,6 +73,13 @@ class _DishListState extends State<DishList> {
 
     _connectivitySubscription.cancel();
     super.dispose();
+  }
+
+  _getPermission() async {
+    bool flag = await requestPermission();
+    setState(() {
+      isPermissionGranted = flag;
+    });
   }
 
   // 平台消息是异步的，因此我们使用异步方法进行初始化。
@@ -146,12 +159,10 @@ class _DishListState extends State<DishList> {
   }
 
   // 进入json文件导入前，先获取权限
-  Future<void> clickExerciseImport() async {
-    final status = await Permission.storage.request();
-
+  clickExerciseImport() {
     // 用户授权了访问内部存储权限，可以跳转到导入
-    if (!mounted) return;
-    if (status.isGranted) {
+    if (isPermissionGranted) {
+      if (!mounted) return;
       Navigator.push(
         context,
         MaterialPageRoute(

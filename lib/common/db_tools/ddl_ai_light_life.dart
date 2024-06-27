@@ -1,14 +1,10 @@
-/// 极简记账数据库中相关表的创建
-
-class BriefAccountingDdl {
+/// AI Light Life 数据库中相关表的创建
+class AILightLifeDdl {
   // db名称
-  static String databaseName = "brief_accounting.db";
-
-  // db名称
-  // static String databaseName = "embedded_brief_accounting.db";
+  static String databaseName = "embedded_ai_light_life.db";
 
 // 账单条目表
-  static const tableNameOfBillItem = 'ba_bill_item';
+  static const tableNameOfBillItem = 'all_bill_item';
 
   static const String ddlForBillItem = """
     CREATE TABLE $tableNameOfBillItem (
@@ -25,7 +21,7 @@ class BriefAccountingDdl {
 
   /// 2024-06-01 新增AI对话留存
   // 账单条目表
-  static const tableNameOfChatHistory = 'ba_chat_history';
+  static const tableNameOfChatHistory = 'all_chat_history';
 
   // 2024-06-14
   // 图像理解也有对话，所以新加一个对话类型栏位：aigc、image2text、text2image……
@@ -46,7 +42,7 @@ class BriefAccountingDdl {
 
   /// 2024-06-13 新增文生图简单内容流程
   // 账单条目表
-  static const tableNameOfText2ImageHistory = 'ba_text2image_history';
+  static const tableNameOfText2ImageHistory = 'all_text2image_history';
 
   static const String ddlForText2ImageHistory = """
     CREATE TABLE $tableNameOfText2ImageHistory (
@@ -60,16 +56,35 @@ class BriefAccountingDdl {
     );
     """;
 
+  // 菜品基础表
+  static const tableNameOfDish = 'all_dish';
+
+  // 2023-03-10 避免导入时重复导入，还是加一个unique
+  static const String ddlForDish = """
+    CREATE TABLE $tableNameOfDish (
+      dish_id           TEXT      NOT NULL PRIMARY KEY,
+      dish_name         TEXT      NOT NULL,
+      description       TEXT,
+      photos            TEXT,
+      videos            TEXT,
+      tags              TEXT,
+      meal_categories   TEXT,
+      recipe            TEXT,
+      recipe_picture    TEXT,
+      UNIQUE(dish_name,tags)
+    );
+    """;
+
   /// ---------------------- 下面的暂时简化为上面，如果后续真的记录非常多，再考虑拆分为支出和收入两部分
 
   // 创建的表名加上数据库明缩写前缀，避免出现关键字问题
   // 基础活动基础表
-  static const tableNameOfExpend = 'ba_expend';
+  static const tableNameOfExpend = 'all_expend';
   // 动作基础表
-  static const tableNameOfIncome = 'ba_income';
+  static const tableNameOfIncome = 'all_income';
 
   // (预留的)收入和支出的分类不一样，暂时只用一个表，加个栏位来区分时支出还是收入的分类
-  static const tableNameOfCategory = 'ba_category';
+  static const tableNameOfCategory = 'all_category';
 
   static const String ddlForExpend = """
     CREATE TABLE $tableNameOfExpend (

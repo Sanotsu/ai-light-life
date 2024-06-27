@@ -8,39 +8,58 @@ import '../../models/common_llm_info.dart';
 import '../../services/cus_get_storage.dart';
 import '../constants.dart';
 
-/// 获取设备的图片访问请求
-requestPhotoPermission() async {
-  bool isPermissionGranted = false;
+/// 请求各种权限
+/// 目前存储类的权限要分安卓版本，所以单独处理
+/// 查询安卓媒体存储权限和其他权限不能同时进行
+Future<bool> requestPermission({
+  bool isAndroidMedia = true,
+  List<Permission>? list,
+}) async {
+  // 如果是请求媒体权限
+  if (isAndroidMedia) {
+    // 2024-01-12 Android13之后，没有storage权限了，取而代之的是：
+    // Permission.photos, Permission.videos or Permission.audio等
+    // 参看:https://github.com/Baseflow/flutter-permission-handler/issues/1247
+    if (Platform.isAndroid) {
+      // 获取设备sdk版本
+      final androidInfo = await DeviceInfoPlugin().androidInfo;
+      int sdkInt = androidInfo.version.sdkInt;
 
-  /// 2024-01-12 直接询问存储权限，不给就直接显示退出就好
-  // 2024-01-12 Android13之后，没有storage权限了，取而代之的是：
-  // Permission.photos, Permission.videos or Permission.audio等
-  // 参看:https://github.com/Baseflow/flutter-permission-handler/issues/1247
-  if (Platform.isAndroid) {
-    // 获取设备sdk版本
-    final androidInfo = await DeviceInfoPlugin().androidInfo;
-    int sdkInt = androidInfo.version.sdkInt;
-
-    if (sdkInt <= 32) {
-      PermissionStatus storageStatus = await Permission.storage.request();
-      if (storageStatus.isGranted) {
-        isPermissionGranted = true;
+      if (sdkInt <= 32) {
+        PermissionStatus storageStatus = await Permission.storage.request();
+        return storageStatus.isGranted;
       } else {
-        isPermissionGranted = false;
-      }
-    } else {
-      PermissionStatus status = await Permission.photos.request();
+        Map<Permission, PermissionStatus> statuses = await [
+          Permission.audio,
+          Permission.photos,
+          Permission.videos,
+          Permission.manageExternalStorage,
+        ].request();
 
-      if (status.isGranted) {
-        isPermissionGranted = true;
-      } else {
-        isPermissionGranted = false;
+        return (statuses[Permission.audio]!.isGranted &&
+            statuses[Permission.photos]!.isGranted &&
+            statuses[Permission.videos]!.isGranted &&
+            statuses[Permission.manageExternalStorage]!.isGranted);
       }
+    } else if (Platform.isIOS) {
+      Map<Permission, PermissionStatus> statuses = await [
+        Permission.mediaLibrary,
+        Permission.storage,
+      ].request();
+      return (statuses[Permission.mediaLibrary]!.isGranted &&
+          statuses[Permission.storage]!.isGranted);
     }
+    // ??? 还差其他平台的
   }
-  // ??? 还差其他平台的
 
-  return isPermissionGranted;
+  // 如果有其他权限需要访问，则一一处理(没有传需要请求的权限，就直接返回成功)
+  list = list ?? [];
+  if (list.isEmpty) {
+    return true;
+  }
+  Map<Permission, PermissionStatus> statuses = await list.request();
+  // 如果每一个都授权了，那就返回授权了
+  return list.every((p) => statuses[p]!.isGranted);
 }
 
 // 根据数据库拼接的字符串值转回对应选项

@@ -49,7 +49,7 @@ class _HomePageState extends State<HomePage> {
           builder: (context) {
             return AlertDialog(
               title: const Text("退出确认"),
-              content: const Text("确认退出AI Light Life吗？"),
+              content: const Text("确认退出 AI Light Life 吗？"),
               actions: [
                 TextButton(
                   onPressed: () {
@@ -137,6 +137,14 @@ class _HomePageState extends State<HomePage> {
                 selected: _selectedIndex == 1,
                 onTap: () {
                   _onItemTapped(1);
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                title: const Text('随机菜品'),
+                selected: _selectedIndex == 2,
+                onTap: () {
+                  _onItemTapped(2);
                   Navigator.pop(context);
                 },
               ),

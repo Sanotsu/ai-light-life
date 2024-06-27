@@ -3,18 +3,16 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:path/path.dart' as p;
 import 'package:archive/archive_io.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
 
 import '../../../common/components/tool_widget.dart';
-import '../../../common/db_tools/db_dish_helper.dart';
 import '../../../common/db_tools/db_helper.dart';
+import '../../../common/utils/tools.dart';
 import '../../../models/brief_accounting_state.dart';
 import '../../../models/dish.dart';
 import '../../../models/llm_chat_state.dart';
@@ -40,7 +38,6 @@ class BackupAndRestore extends StatefulWidget {
 
 class _BackupAndRestoreState extends State<BackupAndRestore> {
   final DBHelper _dbHelper = DBHelper();
-  final DBDishHelper _dbDishHelper = DBDishHelper();
 
   bool isLoading = false;
 
@@ -54,74 +51,14 @@ class _BackupAndRestoreState extends State<BackupAndRestore> {
   void initState() {
     super.initState();
 
-    _requestPermission();
+    _getPermission();
   }
 
-  _requestPermission() async {
-    // PermissionStatus status = await Permission.manageExternalStorage.request();
-    // print("请求授权结果$status");
-    // if (status.isGranted) {
-    //   setState(() {
-    //     isPermissionGranted = true;
-    //   });
-    // } else if (status.isPermanentlyDenied) {
-    //   openAppSettings();
-    // }
-
-    /// 2024-01-12 直接询问存储权限，不给就直接显示退出就好
-    // 2024-01-12 Android13之后，没有storage权限了，取而代之的是：
-    // Permission.photos, Permission.videos or Permission.audio等
-    // 参看:https://github.com/Baseflow/flutter-permission-handler/issues/1247
-    if (Platform.isAndroid) {
-      // 获取设备sdk版本
-      final androidInfo = await DeviceInfoPlugin().androidInfo;
-      int sdkInt = androidInfo.version.sdkInt;
-
-      setState(() {
-        tempPermMsg = "安卓sdk号$sdkInt";
-      });
-
-      if (sdkInt <= 32) {
-        PermissionStatus storageStatus = await Permission.storage.request();
-
-        setState(() {
-          tempPermMsg = "请求授权结果小于32 $storageStatus";
-        });
-
-        setState(() {
-          if (storageStatus.isGranted) {
-            isPermissionGranted = true;
-          } else {
-            isPermissionGranted = false;
-          }
-        });
-      } else {
-        Map<Permission, PermissionStatus> statuses = await [
-          // Permission.audio,
-          // Permission.photos,
-          // Permission.videos,
-          Permission.manageExternalStorage,
-        ].request();
-
-        setState(() {
-          tempPermMsg = "请求授权结果大于33$statuses";
-        });
-
-        if (
-            // statuses[Permission.audio]!.isGranted &&
-            // statuses[Permission.photos]!.isGranted &&
-            // statuses[Permission.videos]!.isGranted &&
-            statuses[Permission.manageExternalStorage]!.isGranted) {
-          setState(() {
-            isPermissionGranted = true;
-          });
-        } else {
-          setState(() {
-            isPermissionGranted = false;
-          });
-        }
-      }
-    }
+  _getPermission() async {
+    bool flag = await requestPermission();
+    setState(() {
+      isPermissionGranted = flag;
+    });
   }
 
   ///
@@ -432,20 +369,20 @@ class _BackupAndRestoreState extends State<BackupAndRestore> {
       var filename = p.basename(file.path).toLowerCase();
 
       // 根据不同文件名，构建不同的数据
-      if (filename == "ba_bill_item.json") {
+      if (filename == "all_bill_item.json") {
         await _dbHelper.insertBillItemList(
           jsonMapList.map((e) => BillItem.fromMap(e)).toList(),
         );
-      } else if (filename == "ba_chat_history.json") {
+      } else if (filename == "all_chat_history.json") {
         await _dbHelper.insertChatList(
           jsonMapList.map((e) => ChatSession.fromMap(e)).toList(),
         );
-      } else if (filename == "ba_text2image_history.json") {
+      } else if (filename == "all_text2image_history.json") {
         await _dbHelper.insertTextToImageResultList(
           jsonMapList.map((e) => TextToImageResult.fromMap(e)).toList(),
         );
-      } else if (filename == "ba_dish.json") {
-        await _dbDishHelper.insertDishList(
+      } else if (filename == "all_dish.json") {
+        await _dbHelper.insertDishList(
           jsonMapList.map((e) => Dish.fromMap(e)).toList(),
         );
       }
