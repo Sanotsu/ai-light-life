@@ -67,3 +67,7 @@ ios
 **/_old_readme/*
 
 **/_self*/
+**/_self*
+**/mock*/
+**/bak_*/
+**/bak_*
