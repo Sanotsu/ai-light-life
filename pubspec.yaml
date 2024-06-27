@@ -16,7 +16,7 @@ publish_to: "none" # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 0.4.2+1-beta
+version: 0.1.0-beta.1
 
 environment:
   sdk: ">=3.2.4 <4.0.0"
@@ -38,14 +38,16 @@ dependencies:
   path_provider: ^2.1.3 # 获取主机平台文件系统上的常用位置
   path: ^1.9.0 # 基于字符串的路径操作库
   flutter_easyloading: ^3.0.5 #  loading/toast 小部件
-  flutter_screenutil: ^5.9.1 # 适配屏幕和字体大小的插件
+  flutter_screenutil: ^5.9.3 # 适配屏幕和字体大小的插件
   intl: ^0.19.0 # 国际化/本地化处理库
   flutter_localizations:
     sdk: flutter
+  # collection: ^1.19.0 #1.19和flutter_test有冲突
   collection: ^1.18.0 # 集合相关的适用工具库
-  bottom_picker: ^2.7.0 # 简洁，但不支持仅年月
-  month_picker_dialog: ^3.0.0 # 支持仅年月，但是是弹窗，和原始组件类似
-  syncfusion_flutter_charts: ^25.2.5 # 图表库
+  bottom_picker: ^2.8.0 # 简洁，但不支持仅年月
+  month_picker_dialog: ^4.0.0 # 支持仅年月，但是是弹窗，和原始组件类似
+  flutter_date_pickers: ^0.4.3
+  syncfusion_flutter_charts: ^26.1.39 # 图表库
   flutter_form_builder: ^9.3.0 # 表单组件
   form_builder_validators: ^10.0.1 # 表单验证
   form_builder_file_picker: ^4.1.0 # 表单中选择文件
@@ -60,7 +62,7 @@ dependencies:
   permission_handler: ^11.3.1 # 获取设备各项权限
   archive: ^3.6.1 # 解压缩文件
   device_info_plus: ^10.1.0 # 获取设备信息
-  animated_text_kit: ^4.2.2 # 动画文本特效工具，上次更新2022-06-05 但用户多
+  # animated_text_kit: ^4.2.2 # 动画文本特效工具，上次更新2022-06-05 但用户多
   toggle_switch: ^2.3.0 # 第三方的切换按钮
   cached_network_image: ^3.3.1 # 缓存网络图片
   image_gallery_saver: ^2.0.3 # 保存图片到图库(安卓9及以下无效)
@@ -70,7 +72,7 @@ dependencies:
   multi_select_flutter: ^4.1.3 # 一个用于以多种方式创建多选小部件的包
   image_picker: ^1.1.2 # 从设备选图片或者拍照
   flutter_fortune_wheel: ^1.3.1 # 幸运大转盘
-  get_storage: ^2.1.1
+  get_storage: ^2.1.1 # 简单键值对本地存储
 
 dev_dependencies:
   flutter_test:

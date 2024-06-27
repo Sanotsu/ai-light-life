@@ -206,8 +206,10 @@ class _UserAndSettingsState extends State<UserAndSettings> {
 
   _buildBakAndRestoreAndMoreSettingRow() {
     return Column(
+      mainAxisSize: MainAxisSize.max,
       children: [
-        Expanded(
+        SizedBox(
+          height: 100.sp,
           child: NewCusSettingCard(
             leadingIcon: Icons.backup_outlined,
             title: "备份恢复",
@@ -222,7 +224,8 @@ class _UserAndSettingsState extends State<UserAndSettings> {
             },
           ),
         ),
-        Expanded(
+        SizedBox(
+          height: 100.sp,
           child: NewCusSettingCard(
             leadingIcon: Icons.question_mark,
             title: '常见问题(TBD)',

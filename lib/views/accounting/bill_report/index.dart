@@ -2,6 +2,7 @@
 
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_date_pickers/flutter_date_pickers.dart' as dp;
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:intl/intl.dart';
 import 'package:month_picker_dialog/month_picker_dialog.dart';
@@ -383,22 +384,54 @@ class _BillReportIndexState extends State<BillReportIndex>
                           builder: (BuildContext context) {
                             return AlertDialog(
                               title: const Text("选择年份"),
+                              // content: SizedBox(
+                              //   // 需要显示弹窗正文的大小(直接设宽度没什么用，但高度有效)
+                              //   height: 300.sp,
+                              //   child: YearPicker(
+                              //     firstDate: billPeriod.minDate,
+                              //     lastDate: billPeriod.maxDate,
+                              //     selectedDate:
+                              //         DateTime.tryParse("$selectedYear-01-01"),
+                              //     onChanged: (DateTime dateTime) {
+                              //       // 选中年份之后关闭弹窗，并开始查询年度数据
+                              //       Navigator.pop(context);
+                              //       setState(() {
+                              //         selectedYear = dateTime.year.toString();
+                              //         handleSelectedYearChange();
+                              //       });
+                              //     },
+                              //   ),
+                              // ),
                               content: SizedBox(
                                 // 需要显示弹窗正文的大小(直接设宽度没什么用，但高度有效)
                                 height: 300.sp,
-                                child: YearPicker(
-                                  firstDate: billPeriod.minDate,
-                                  lastDate: billPeriod.maxDate,
-                                  selectedDate:
-                                      DateTime.tryParse("$selectedYear-01-01"),
-                                  onChanged: (DateTime dateTime) {
-                                    // 选中年份之后关闭弹窗，并开始查询年度数据
-                                    Navigator.pop(context);
-                                    setState(() {
-                                      selectedYear = dateTime.year.toString();
-                                      handleSelectedYearChange();
-                                    });
-                                  },
+                                child: Expanded(
+                                  child: dp.YearPicker.single(
+                                    selectedDate: DateTime.tryParse(
+                                            "$selectedYear-01-01") ??
+                                        DateTime.now(),
+                                    onChanged: (DateTime dateTime) {
+                                      // 选中年份之后关闭弹窗，并开始查询年度数据
+                                      Navigator.pop(context);
+                                      setState(() {
+                                        selectedYear = dateTime.year.toString();
+                                        handleSelectedYearChange();
+                                      });
+                                    },
+                                    firstDate: billPeriod.minDate,
+                                    lastDate: billPeriod.maxDate,
+                                    // datePickerStyles: dp.DatePickerStyles(
+                                    //   selectedDateStyle: Theme.of(context)
+                                    //       .textTheme
+                                    //       .bodyLarge
+                                    //       ?.copyWith(color: Colors.blue),
+                                    //   selectedSingleDateDecoration:
+                                    //       const BoxDecoration(
+                                    //     color: Colors.red,
+                                    //     shape: BoxShape.circle,
+                                    //   ),
+                                    // ),
+                                  ),
                                 ),
                               ),
                             );

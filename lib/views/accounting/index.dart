@@ -12,10 +12,9 @@ import '../../common/components/tool_widget.dart';
 import '../../common/constants.dart';
 import '../../common/db_tools/db_helper.dart';
 import '../../models/brief_accounting_state.dart';
-import '../user_and_settings/backup_and_restore/index.dart';
+
 import 'bill_item_modify/index.dart';
 import 'bill_report/index.dart';
-
 import 'mock_data/index.dart';
 import 'widgets/bottom_sheet_option_picker.dart';
 
@@ -471,22 +470,6 @@ class _BillItemIndexState extends State<BillItemIndex> {
           //   onPressed: showBottomSheet,
           //   child: const Text('demo'),
           // ),
-          IconButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const BackupAndRestore(),
-                ),
-              ).then((value) {
-                handleSearch();
-              });
-            },
-            icon: Icon(
-              Icons.backup_outlined,
-              color: Theme.of(context).primaryColor,
-            ),
-          ),
           IconButton(
             onPressed: () {
               Navigator.push(

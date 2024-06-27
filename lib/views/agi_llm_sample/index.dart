@@ -217,10 +217,10 @@ class _AgiLlmSampleState extends State<AgiLlmSample> {
               ),
             ),
           ),
-          Divider(height: 20.sp),
+          Divider(height: 50.sp),
           // 入口按钮
           SizedBox(
-            height: 0.25.sh,
+            height: 0.32.sh,
             child: GridView.count(
               primary: false,
               padding: EdgeInsets.symmetric(horizontal: 20.sp),

@@ -81,66 +81,75 @@ buildNetworkImageViewGrid(
     mainAxisSpacing: 5.sp,
     crossAxisSpacing: 5.sp,
     physics: const NeverScrollableScrollPhysics(),
-    children: List.generate(urls.length, (index) {
-      return GridTile(
-        child: GestureDetector(
-          // 单击预览
-          onTap: () {
-            showDialog(
-              context: context,
-              builder: (BuildContext context) {
-                return Dialog(
-                  backgroundColor: Colors.transparent, // 设置背景透明
-                  child: PhotoView(
-                    imageProvider: NetworkImage(urls[index]),
-                    // 设置图片背景为透明
-                    backgroundDecoration: const BoxDecoration(
-                      color: Colors.transparent,
-                    ),
-                    // 可以旋转
-                    // enableRotation: true,
-                    // 缩放的最大最小限制
-                    minScale: PhotoViewComputedScale.contained * 0.8,
-                    maxScale: PhotoViewComputedScale.covered * 2,
-                    errorBuilder: (context, url, error) =>
-                        const Icon(Icons.error),
+    children: buildImageList(style, urls, context),
+  );
+}
+
+// 2024-06-27 在小米6中此放在上面imageViewGrid没问题，但Z60U就报错；因为无法调试，错误原因不知
+// 所以在文生图历史记录中点击某个记录时，不使用上面那个，而使用这个
+buildImageList(String style, List<String> urls, BuildContext context) {
+  return List.generate(urls.length, (index) {
+    return GridTile(
+      child: GestureDetector(
+        // 单击预览
+        onTap: () {
+          showDialog(
+            context: context,
+            builder: (BuildContext context) {
+              return Dialog(
+                backgroundColor: Colors.transparent, // 设置背景透明
+                child: PhotoView(
+                  imageProvider: NetworkImage(urls[index]),
+                  // 设置图片背景为透明
+                  backgroundDecoration: const BoxDecoration(
+                    color: Colors.transparent,
                   ),
-                );
-              },
-            );
-          },
-          // 长按保存到相册
-          onLongPress: () async {
-            if (Platform.isAndroid) {
-              final deviceInfoPlugin = DeviceInfoPlugin();
-              final deviceInfo = await deviceInfoPlugin.androidInfo;
-              final sdkInt = deviceInfo.version.sdkInt;
+                  // 可以旋转
+                  // enableRotation: true,
+                  // 缩放的最大最小限制
+                  minScale: PhotoViewComputedScale.contained * 0.8,
+                  maxScale: PhotoViewComputedScale.covered * 2,
+                  errorBuilder: (context, url, error) =>
+                      const Icon(Icons.error),
+                ),
+              );
+            },
+          );
+        },
+        // 长按保存到相册
+        onLongPress: () async {
+          if (Platform.isAndroid) {
+            final deviceInfoPlugin = DeviceInfoPlugin();
+            final deviceInfo = await deviceInfoPlugin.androidInfo;
+            final sdkInt = deviceInfo.version.sdkInt;
 
-              // Android9对应sdk是28,<=28就不显示保存按钮
-              if (sdkInt > 28) {
-                // 点击预览或者下载
-                var response = await Dio().get(urls[index],
-                    options: Options(responseType: ResponseType.bytes));
+            // Android9对应sdk是28,<=28就不显示保存按钮
+            if (sdkInt > 28) {
+              // 点击预览或者下载
+              var response = await Dio().get(urls[index],
+                  options: Options(responseType: ResponseType.bytes));
 
-                print(response.data);
+              print(response.data);
 
-                // 安卓9及以下好像无法保存
-                final result = await ImageGallerySaver.saveImage(
-                  Uint8List.fromList(response.data),
-                  quality: 100,
-                  name: "${style}_${DateTime.now().millisecondsSinceEpoch}",
-                );
-                if (result["isSuccess"] == true) {
-                  EasyLoading.showToast("图片已保存到相册！");
-                } else {
-                  EasyLoading.showToast("无法保存图片！");
-                }
+              // 安卓9及以下好像无法保存
+              final result = await ImageGallerySaver.saveImage(
+                Uint8List.fromList(response.data),
+                quality: 100,
+                name: "${style}_${DateTime.now().millisecondsSinceEpoch}",
+              );
+              if (result["isSuccess"] == true) {
+                EasyLoading.showToast("图片已保存到相册！");
               } else {
-                EasyLoading.showToast("Android 9 及以下版本无法长按保存到相册！");
+                EasyLoading.showToast("无法保存图片！");
               }
+            } else {
+              EasyLoading.showToast("Android 9 及以下版本无法长按保存到相册！");
             }
-          },
-          // 默认缓存展示
+          }
+        },
+        // 默认缓存展示
+        child: SizedBox(
+          height: 0.2.sw,
           child: CachedNetworkImage(
             imageUrl: urls[index],
             fit: BoxFit.cover,
@@ -157,9 +166,9 @@ buildNetworkImageViewGrid(
             errorWidget: (context, url, error) => const Icon(Icons.error),
           ),
         ),
-      );
-    }),
-  );
+      ),
+    );
+  }).toList();
 }
 
 /// 构建图片预览，可点击放大

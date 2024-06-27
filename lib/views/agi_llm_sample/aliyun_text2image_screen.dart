@@ -437,44 +437,54 @@ class _AliyunText2ImageScreenState extends State<AliyunText2ImageScreen>
           builder: (context) {
             return AlertDialog(
               title: Text("文本生成图片信息", style: TextStyle(fontSize: 18.sp)),
-              content: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "正向提示词:",
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    Text(
-                      e.prompt,
-                      style: TextStyle(fontSize: 12.sp),
-                    ),
-                    const Text(
-                      "反向提示词:",
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    Text(
-                      e.negativePrompt ?? "无",
-                      style: TextStyle(fontSize: 12.sp),
-                    ),
-                    Divider(height: 5.sp),
+              content: SizedBox(
+                height: 300.sp,
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        "正向提示词:",
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        e.prompt,
+                        style: TextStyle(fontSize: 12.sp),
+                      ),
+                      const Text(
+                        "反向提示词:",
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        e.negativePrompt ?? "无",
+                        style: TextStyle(fontSize: 12.sp),
+                      ),
+                      Divider(height: 5.sp),
 
-                    /// 点击按钮去浏览器下载查看
-                    Row(
-                      children: List.generate(
-                        e.imageUrls?.length ?? 0,
-                        (index) => ElevatedButton(
-                          // 假设url一定存在的
-                          onPressed: () => _launchUrl(e.imageUrls![index]),
-                          child: Text('图片${index + 1}'),
+                      /// 点击按钮去浏览器下载查看
+                      Wrap(
+                        children: List.generate(
+                          e.imageUrls?.length ?? 0,
+                          (index) => ElevatedButton(
+                            // 假设url一定存在的
+                            onPressed: () => _launchUrl(e.imageUrls![index]),
+                            child: Text('图片${index + 1}'),
+                          ),
+                        ).toList(),
+                      ),
+
+                      /// 图片预览，点击可放大，长按保存到相册
+                      /// 2024-06-27 ??? 为什么Z60U上不行？？
+                      if (e.imageUrls != null && e.imageUrls!.isNotEmpty)
+                        Wrap(
+                          children: buildImageList(
+                            e.style,
+                            e.imageUrls!,
+                            context,
+                          ),
                         ),
-                      ).toList(),
-                    ),
-
-                    /// 图片预览，点击可放大，长按保存到相册
-                    if (e.imageUrls != null && e.imageUrls!.isNotEmpty)
-                      buildNetworkImageViewGrid(e.style, e.imageUrls!, context),
-                  ],
+                    ],
+                  ),
                 ),
               ),
               actions: [
