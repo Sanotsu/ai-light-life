@@ -7,6 +7,7 @@ import 'accounting/index.dart';
 import 'agi_llm_sample/index.dart';
 import 'user_and_settings/backup_and_restore/index.dart';
 import 'random_dish/dish_wheel_index.dart';
+import 'user_and_settings/index.dart';
 
 /// 主页面
 
@@ -24,6 +25,7 @@ class _HomePageState extends State<HomePage> {
     AgiLlmSample(),
     BillItemIndex(),
     DishWheelIndex(),
+    UserAndSettings(),
   ];
 
   void _onItemTapped(int index) {
@@ -107,6 +109,10 @@ class _HomePageState extends State<HomePage> {
             BottomNavigationBarItem(
               icon: Icon(Icons.restaurant_menu),
               label: "随机菜品",
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.person),
+              label: "用户设置",
             ),
           ],
           currentIndex: _selectedIndex,

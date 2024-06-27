@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_fortune_wheel/flutter_fortune_wheel.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
+import '../../common/constants.dart';
 import '../../common/db_tools/db_helper.dart';
 import '../../common/utils/tools.dart';
 import '../../models/dish.dart';
@@ -22,8 +23,12 @@ class DishWheelIndex extends StatefulWidget {
 // TickerProviderStateMixin 允许一个小部件充当同一小部件​​树中多个“AnimationController”实例的“TickerProvider”。
 class _DishWheelIndexState extends State<DishWheelIndex>
     with TickerProviderStateMixin {
-  // 当前是哪个时间段(餐次字符串)
+  // 当前是哪个时间段(餐次字符串,2024-06-27 仅展示，不作为参数)
   String currentMeal = "";
+  // 2024-06-27 当前的餐次分类，上面那个根据时间来获取，不让修改；
+  // 这个是获取到之后，可以手动修改，用着查询的参数
+  String mealCate = "";
+
   // 随机的10条食物列表和食物名称(名称用来显示，食物用来跳转)
   List<Dish> randomDishes = [];
   List<String> randomDishLabels = [];
@@ -41,15 +46,64 @@ class _DishWheelIndexState extends State<DishWheelIndex>
   // 转盘下方提示语。刚打开app应该什么都没有，开始旋转显示旋转，旋转结束显示结果
   String selectedNote = "";
 
+  // 2024-06-27 数据库中已经存在+预设的分类，修改时才好匹配上
+  List<CusLabel> allDishCates = [];
+
   @override
   void initState() {
     super.initState();
 
     setState(() {
+      initCatesAndRondomDishes();
+    });
+  }
+
+  // 初始化所有菜品分类信息
+  initCatesAndRondomDishes() async {
+    // 一定在查询菜品之前，获得所有的菜品分类
+    await getAllDishCatesTags();
+
+    setState(() {
       currentMeal = getTimePeriod();
+      mealCate = getTimePeriod();
 
       // 默认启动就根据当前时间查询符合餐次的菜品，构建转盘数据
       getRondomDishes();
+    });
+  }
+
+  // 获取数据库中+预设的所有分类和标签
+  getAllDishCatesTags() async {
+    CusDataResult temp = await _dbHelper.queryDishList(
+      page: 1,
+      pageSize: 10000, // 应该查询所有
+    );
+
+    var newData = temp.data as List<Dish>;
+
+    List<String> tempCates = [];
+
+    for (var e in newData) {
+      var a = (e.mealCategories?.split(","));
+      // 合并两个列表, Set()字面量去除重复，然后转回List
+      tempCates = <String>{...tempCates, ...?a}.toSet().toList();
+    }
+
+    // 移除已经存在的分类和标签
+    for (var e in dishCateOptions) {
+      if (tempCates.contains(e.cnLabel)) {
+        tempCates.remove(e.cnLabel);
+      }
+    }
+
+    // 再将标签和分类字符串简单转为对象列表
+    allDishCates = tempCates
+        .map((e) => CusLabel(value: e, enLabel: e, cnLabel: e))
+        .toList();
+
+    // 最后合并预设的和导入时存入数据库中的
+    setState(() {
+      allDishCates = <CusLabel>{...dishCateOptions, ...allDishCates}.toList();
     });
   }
 
@@ -58,7 +112,7 @@ class _DishWheelIndexState extends State<DishWheelIndex>
   getRondomDishes() async {
     randomDishes = await _dbHelper.queryRandomDishList(
       size: 10,
-      cate: currentMeal,
+      cate: mealCate,
     );
 
     setState(() {
@@ -90,6 +144,7 @@ class _DishWheelIndexState extends State<DishWheelIndex>
   refreshPage() {
     setState(() {
       currentMeal = getTimePeriod();
+      mealCate = getTimePeriod();
       getRondomDishes();
     });
   }
@@ -288,7 +343,8 @@ class _DishWheelIndexState extends State<DishWheelIndex>
   _buildMateCatesList() {
     return DropdownMenu<String>(
       width: 144.sp,
-      initialSelection: currentMeal,
+      menuHeight: 300.sp,
+      initialSelection: mealCate,
       // 限制下拉框高度更小点
       inputDecorationTheme: InputDecorationTheme(
         isDense: true,
@@ -302,17 +358,18 @@ class _DishWheelIndexState extends State<DishWheelIndex>
       enabled: !isWheelSpin,
       onSelected: (String? value) {
         setState(() {
-          currentMeal = value!;
+          // 2024-06-27 手动切换了分类，不改变当前用餐时间的预设分类
+          mealCate = value!;
           // 2024-03-23 切换餐次就一并更新转盘预选列表
           getRondomDishes();
         });
       },
       // trailingIcon: Icon(Icons.arrow_drop_down_outlined, size: 14.sp),
       dropdownMenuEntries:
-          mealCates.map<DropdownMenuEntry<String>>((String value) {
+          allDishCates.map<DropdownMenuEntry<String>>((CusLabel value) {
         return DropdownMenuEntry<String>(
-          value: value,
-          label: value,
+          value: value.cnLabel,
+          label: value.cnLabel,
         );
       }).toList(),
     );

@@ -79,6 +79,7 @@ List<CusLabel> dishCateOptions = [
   CusLabel(enLabel: 'Dinner', cnLabel: "晚餐", value: '晚餐'),
   CusLabel(enLabel: 'MidnightSnack', cnLabel: "夜宵", value: '夜宵'),
   CusLabel(enLabel: 'Dessert', cnLabel: "甜点", value: '甜点'),
+  CusLabel(enLabel: 'StapleFood', cnLabel: "主食", value: '主食'),
   CusLabel(enLabel: 'Other', cnLabel: "其他", value: '其他'),
 ];
 

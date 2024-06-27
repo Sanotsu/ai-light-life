@@ -64,4 +64,11 @@ class MyGetStorage {
 
   bool getIsAuthorsAppInfo() =>
       bool.tryParse(box.read("is_authors_app_info").toString()) ?? false;
+
+  // 2024-06-27 用户头像地址
+  Future<void> setUserAvatarPath(String? flag) async {
+    await box.write("user_avatar_path", flag);
+  }
+
+  String? getUserAvatarPath() => box.read("user_avatar_path");
 }

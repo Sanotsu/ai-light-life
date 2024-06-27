@@ -47,6 +47,10 @@ class _BackupAndRestoreState extends State<BackupAndRestore> {
   // 2024-06-05 测试用，z50u没法调试，build之后在页面显示权限结果
   String tempPermMsg = "";
 
+  String note = """'全量备份' 是把应用本地数据库中的所有数据导出保存在本地，包括用智能助手的对话历史、账单列表、菜品列表。
+\n'覆盖恢复' 是把 '全量备份' 导出的压缩包，重新导入到应用中，覆盖应用本地数据库中的所有数据。
+""";
+
   @override
   void initState() {
     super.initState();
@@ -392,7 +396,36 @@ class _BackupAndRestoreState extends State<BackupAndRestore> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("备份恢复")),
+      appBar: AppBar(
+        title: const Text("备份恢复"),
+        actions: [
+          IconButton(
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (BuildContext context) {
+                  return AlertDialog(
+                    title: Text(
+                      "备份恢复说明",
+                      style: TextStyle(fontSize: 18.sp),
+                    ),
+                    content: Text(note),
+                    actions: [
+                      TextButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                        },
+                        child: const Text("确定"),
+                      ),
+                    ],
+                  );
+                },
+              );
+            },
+            icon: const Icon(Icons.help),
+          ),
+        ],
+      ),
       body: isLoading ? buildLoader(isLoading) : buildBackupButton(),
     );
   }

@@ -150,10 +150,7 @@ class _AgiLlmSampleState extends State<AgiLlmSample> {
                   baseline: TextBaseline.alphabetic,
                   child: ConstrainedBox(
                     constraints: BoxConstraints(minWidth: 50.sp),
-                    child: Text(
-                      '智能助手',
-                      style: TextStyle(fontSize: 24.sp),
-                    ),
+                    child: const Text('智能助手'),
                   ),
                 ),
                 // TextSpan(
@@ -210,10 +207,13 @@ class _AgiLlmSampleState extends State<AgiLlmSample> {
         children: [
           // 显示说明
           Expanded(
-            child: SingleChildScrollView(
-              child: Padding(
-                padding: EdgeInsets.all(10.sp),
-                child: MarkdownBody(data: note),
+            child: Align(
+              alignment: Alignment.bottomCenter,
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: EdgeInsets.all(10.sp),
+                  child: MarkdownBody(data: note),
+                ),
               ),
             ),
           ),
@@ -224,19 +224,19 @@ class _AgiLlmSampleState extends State<AgiLlmSample> {
             child: GridView.count(
               primary: false,
               padding: EdgeInsets.symmetric(horizontal: 20.sp),
-              crossAxisSpacing: 10,
+              crossAxisSpacing: 20,
               mainAxisSpacing: 20,
               crossAxisCount: 2,
               childAspectRatio: 5 / 2,
               children: <Widget>[
                 buildAIToolEntrance(0, "文本对话", "通用—官方免费",
-                    color: Colors.blue[200]),
+                    color: Colors.blue[100]),
                 // 2024-06-24 如果使用作者的平台应用配置，那可以使用作者的限量测试的api
                 isAuthorsAppInfo
                     ? buildAIToolEntrance(1, "文本对话", "阿里—限量测试",
-                        color: Colors.blue[200])
+                        color: Colors.blue[100])
                     : buildAIToolEntrance(5, "文本对话", "通用—单个配置",
-                        color: Colors.blue[200]),
+                        color: Colors.blue[100]),
                 // Container(),
                 buildAIToolEntrance(2, "文本生图", "阿里—通义万相",
                     color: Colors.grey[100]),
@@ -527,7 +527,11 @@ class _AgiLlmSampleState extends State<AgiLlmSample> {
                     constraints: BoxConstraints(minWidth: 50.sp),
                     child: Text(
                       label,
-                      style: TextStyle(fontSize: 16.sp),
+                      style: TextStyle(
+                        fontSize: 18.sp,
+                        color: Colors.blueAccent,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),

@@ -64,7 +64,9 @@ class BillItem {
 
   factory BillItem.fromMap(Map<String, dynamic> map) {
     return BillItem(
-      billItemId: map['bill_item_id'] as String,
+      billItemId: map['bill_item_id'] != null
+          ? map['bill_item_id'].toString()
+          : const Uuid().v1(),
       itemType: map['item_type'] as int,
       date: map['date'] as String,
       category: map['category'] as String?,
@@ -80,7 +82,9 @@ class BillItem {
   // 从 JSON 映射中创建 User 实例的工厂方法
   factory BillItem.fromJson(Map<String, dynamic> json) {
     return BillItem(
-      billItemId: json['bill_item_id'] ?? const Uuid().v1(),
+      billItemId: json['bill_item_id'] != null
+          ? json['bill_item_id'].toString()
+          : const Uuid().v1(),
       itemType: json['item_type'] as int,
       date: json['date'] as String,
       category: json['category'] as String?,

@@ -103,8 +103,6 @@ String getTimePeriod() {
   }
 }
 
-List<String> mealCates = ["早餐", "早茶", "午餐", "下午茶", "晚餐", "夜宵", "甜点", "主食"];
-
 // 保存指定平台应用配置的id和key
 setIdAndKeyFromPlatform(CloudPlatform cp, String? id, String? key) async {
   if (cp == CloudPlatform.baidu) {
