@@ -300,3 +300,81 @@ Future<List<CommonRespBody>> getBaiduAigcResp(
     ];
   }
 }
+
+///
+///-----------------------------------------------------------------------------
+/// siliconFlow 的请求方法
+///
+
+String siliconflowAigcUrl = "https://api.siliconflow.cn/v1/chat/completions";
+
+/// 获取流式和非流式的对话响应数据
+Future<List<CommonRespBody>> getSiliconFlowAigcResp(
+  List<CommonMessage> messages, {
+  String? model,
+  bool stream = false,
+  bool isUserConfig = true,
+}) async {
+  print("-isUserConfig-----------------$isUserConfig");
+  // 如果有传模型名称，就用传递的；没有就默认的
+  model = model ??
+      newLLMSpecs[PlatformLLM.siliconCloud_Qwen2_7B_Instruct_FREE]!.model;
+
+  var body = CommonReqBody(model: model, messages: messages, stream: stream);
+
+  try {
+    var start = DateTime.now().millisecondsSinceEpoch;
+    var respData = await HttpUtils.post(
+      path: siliconflowAigcUrl,
+      method: HttpMethod.post,
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer $siliconCloudAk",
+      },
+      // 可能是因为头的content type设定，这里直接传类实例即可，传toJson也可
+      data: body.toJson(),
+    );
+
+    var end = DateTime.now().millisecondsSinceEpoch;
+    print("siliconCloud aigc响应耗时: ${(end - start) / 1000} 秒");
+    print("硅动科技返回的结果：$respData");
+
+    /// ??? 流式返回都是String，没有区分正常和报错返回
+    if (stream) {
+      List<CommonRespBody> list = (respData as String)
+          .split("data:")
+          .where((e) => e.isNotEmpty)
+          .map((e) => CommonRespBody.fromJson(json.decode(e)))
+          .toList();
+      return list;
+    } else {
+      /// 2024-06-06 注意，这里报错的时候，响应的是String，而正常获取回复响应是_Map<String, dynamic>
+      if (respData.runtimeType == String) {
+        respData = json.decode(respData);
+      }
+
+      // 响应是json格式
+      return [CommonRespBody.fromJson(respData)];
+    }
+  } on HttpException catch (e) {
+    return [
+      CommonRespBody(
+        customReplyText: e.toString(),
+        // 这里的code和msg就不是api返回的，是自行定义的，应该抽出来
+        errorCode: e.code.toString(),
+        errorMsg: e.msg,
+      )
+    ];
+  } catch (e) {
+    print("ttttttttttttttttttttt ${e.runtimeType}---$e");
+    // API请求报错，显示报错信息
+    return [
+      CommonRespBody(
+        customReplyText: e.toString(),
+        // 这里的code和msg就不是api返回的，是自行定义的，应该抽出来
+        errorCode: "10000",
+        errorMsg: e.toString(),
+      )
+    ];
+  }
+}

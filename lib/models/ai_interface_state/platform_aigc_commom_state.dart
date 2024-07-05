@@ -106,9 +106,10 @@ class CommonChoice {
 
   factory CommonChoice.fromJson(Map<String, dynamic> json) => CommonChoice(
         // 注意：腾讯的choice流式时取值Delta，非流式才取值Message，但两者结构是一样的，都是Role和Content
+        // 2024-07-04 硅动科技也是delta，但没大写，也没有role
         // 阿里的没有刻意区分
         message: CommonMessage.fromJson(
-          json["message"] ?? json["Message"] ?? json["Delta"],
+          json["message"] ?? json["Message"] ?? json["Delta"] ?? json["delta"],
         ),
         finishReason: json["finish_reason"] ?? json["FinishReason"],
         index: json["index"],
@@ -451,10 +452,18 @@ class CommonRespBody {
         customReplyText = temp.choices!.first.message.content;
       }
     }
-    // 腾讯的基础消息
+    // 腾讯(是首字母大写)或其他平台的基础消息
     if (json["Choices"] != null) {
       var temp = List<CommonChoice>.from(
-        json["Choices"]!.map((x) => CommonChoice.fromJson(x)),
+        (json["Choices"]! as List).map((x) => CommonChoice.fromJson(x)),
+      );
+      if (temp.isNotEmpty) {
+        customReplyText = temp.first.message.content;
+      }
+    }
+    if (json["choices"] != null) {
+      var temp = List<CommonChoice>.from(
+        (json["choices"]! as List).map((x) => CommonChoice.fromJson(x)),
       );
       if (temp.isNotEmpty) {
         customReplyText = temp.first.message.content;

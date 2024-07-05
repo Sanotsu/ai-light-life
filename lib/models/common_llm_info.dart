@@ -1,9 +1,12 @@
 /// 定义云平台
+// ignore_for_file: constant_identifier_names
+
 enum CloudPlatform {
   baidu,
   tencent,
   aliyun,
   limited, // 限时限量的测试
+  siliconCloud,
 }
 
 // 模型对应的中文名
@@ -12,6 +15,7 @@ final Map<CloudPlatform, String> cpNames = {
   CloudPlatform.tencent: '腾讯',
   CloudPlatform.aliyun: '阿里',
   CloudPlatform.limited: '限量',
+  CloudPlatform.siliconCloud: '硅动科技',
 };
 
 // 定义一个函数来从字符串获取枚举值
@@ -40,6 +44,16 @@ enum PlatformLLM {
   aliyunQwen1p51p8BChatFREE, //  千问1.5开源本，18亿参数
   aliyunQwen1p50p5BChatFREE, //  千问1.5开源本，5亿参数
   aliyunFaruiPlus32KFREE,
+  // 硅动科技免费的
+  // SF 前缀 SiliconFlow中免费的
+  // 命名规则：平台_企业_模型版本_参数(_类型)_上下文长度
+  siliconCloud_Qwen2_7B_Instruct_FREE,
+  siliconCloud_Qwen2_1p5B_Instruct_FREE, // 1p5B-> ipoint5B -> 1.5B
+  siliconCloud_Qwen1p5_7B_Chat_FREE,
+  siliconCloud_GLM4_9B_Chat_FREE,
+  siliconCloud_ChatGLM3_6B_FREE,
+  siliconCloud_Yi1p5_9B_Chat_16K_FREE,
+  siliconCloud_Yi1p5_6B_Chat_FREE,
 
   /// 其实就是阿里云中限时限量的部分(25个)
   limitedQwenMax, // 8k，6k输入
@@ -164,6 +178,28 @@ final Map<PlatformLLM, ChatLLMSpec> newLLMSpecs = {
       "farui-plus", '通义法睿Plus32K', 8 * 1000, dt3, num3, 0.0, 0.0,
       spec:
           '"通义法睿"是以通义千问为基座经法律行业数据和知识专门训练的法律行业大模型产品，综合运用了模型精调、强化学习、 RAG检索增强、法律Agent技术，具有回答法律问题、推理法律适用、推荐裁判类案、辅助案情分析、生成法律文书、检索法律知识、审查合同条款等功能。'),
+
+  PlatformLLM.siliconCloud_Qwen2_7B_Instruct_FREE: ChatLLMSpec(
+      "Qwen/Qwen2-7B-Instruct", '通义千问2开源版7B', 8 * 1000, dt3, num3, 0.0, 0.0,
+      spec: '通义千问2开源版7B'),
+  PlatformLLM.siliconCloud_Qwen2_1p5B_Instruct_FREE: ChatLLMSpec(
+      "Qwen/Qwen2-1.5B-Instruct", '通义千问2开源版1.5B', 8 * 1000, dt3, num3, 0.0, 0.0,
+      spec: '通义千问2开源版1.5B'),
+  PlatformLLM.siliconCloud_Qwen1p5_7B_Chat_FREE: ChatLLMSpec(
+      "Qwen/Qwen1.5-7B-Chat", '通义千问1.5开源版7B', 8 * 1000, dt3, num3, 0.0, 0.0,
+      spec: '通义千问1.5开源版7B'),
+  PlatformLLM.siliconCloud_GLM4_9B_Chat_FREE: ChatLLMSpec(
+      "THUDM/glm-4-9b-chat", 'GLM4开源版9B', 8 * 1000, dt3, num3, 0.0, 0.0,
+      spec: 'GLM4开源版9B'),
+  PlatformLLM.siliconCloud_ChatGLM3_6B_FREE: ChatLLMSpec(
+      "THUDM/chatglm3-6b", 'ChatGLM3开源版6B', 8 * 1000, dt3, num3, 0.0, 0.0,
+      spec: 'ChatGLM3开源版6B'),
+  PlatformLLM.siliconCloud_Yi1p5_9B_Chat_16K_FREE: ChatLLMSpec(
+      "01-ai/Yi-1.5-6B-Chat", '零一万物1.5开源版9B', 16 * 1000, dt3, num3, 0.0, 0.0,
+      spec: '零一万物1.5开源版9B'),
+  PlatformLLM.siliconCloud_Yi1p5_6B_Chat_FREE: ChatLLMSpec(
+      "01-ai/Yi-1.5-6B-Chat", '零一万物1.5开源版6B', 8 * 1000, dt3, num3, 0.0, 0.0,
+      spec: '零一万物1.5开源版6B'),
 
   /// 下面是支持用户自行配置的少数几个(用户自己配置的，也当作不限时限量)
 

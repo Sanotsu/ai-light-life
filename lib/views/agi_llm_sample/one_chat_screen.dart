@@ -357,6 +357,10 @@ class _OneChatScreenState extends State<OneChatScreen> {
       // 目前限时限量的，其实也只是阿里云平台的
       temp = await getAliyunAigcResp(msgs,
           model: model, stream: isStream, isUserConfig: isUserConfig);
+    } else if (selectedPlatform == CloudPlatform.siliconCloud) {
+      // 2024-07-04 新加硅动科技siliconFlow中免费的
+      temp = await getSiliconFlowAigcResp(msgs,
+          model: model, stream: isStream, isUserConfig: isUserConfig);
     } else {
       // 理论上不会存在其他的了
       temp = await getBaiduAigcResp(msgs,
@@ -891,7 +895,7 @@ class _OneChatScreenState extends State<OneChatScreen> {
       const Text("平台:"),
       SizedBox(width: 10.sp),
       SizedBox(
-        width: 52.sp,
+        width: 80.sp,
         child: Container(
           decoration: BoxDecoration(
             border: Border.all(color: Colors.grey, width: 1.0),

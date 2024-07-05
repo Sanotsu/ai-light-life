@@ -176,6 +176,9 @@ const TENCENT_SECRET_KEY = "xxx";
 /// 阿里云的相关
 const ALIYUN_API_KEY = "xxx";
 const ALIYUN_APP_ID = "xxx";
+
+// SiliconFlow的密钥
+const siliconCloudAk = 'sk-xxx';
 ```
 
 ### 开发环境
