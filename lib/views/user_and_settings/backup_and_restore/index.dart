@@ -59,7 +59,7 @@ class _BackupAndRestoreState extends State<BackupAndRestore> {
   }
 
   _getPermission() async {
-    bool flag = await requestPermission();
+    bool flag = await requestStoragePermission();
     setState(() {
       isPermissionGranted = flag;
     });

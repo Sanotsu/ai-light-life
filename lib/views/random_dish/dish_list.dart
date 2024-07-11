@@ -76,7 +76,7 @@ class _DishListState extends State<DishList> {
   }
 
   _getPermission() async {
-    bool flag = await requestPermission();
+    bool flag = await requestStoragePermission();
     setState(() {
       isPermissionGranted = flag;
     });

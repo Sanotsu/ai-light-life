@@ -30,15 +30,16 @@ Future<bool> requestPermission({
         return storageStatus.isGranted;
       } else {
         Map<Permission, PermissionStatus> statuses = await [
-          Permission.audio,
-          Permission.photos,
-          Permission.videos,
+          // Permission.audio,
+          // Permission.photos,
+          // Permission.videos,
           Permission.manageExternalStorage,
         ].request();
 
-        return (statuses[Permission.audio]!.isGranted &&
-            statuses[Permission.photos]!.isGranted &&
-            statuses[Permission.videos]!.isGranted &&
+        return (
+            // statuses[Permission.audio]!.isGranted &&
+            // statuses[Permission.photos]!.isGranted &&
+            // statuses[Permission.videos]!.isGranted &&
             statuses[Permission.manageExternalStorage]!.isGranted);
       }
     } else if (Platform.isIOS) {
@@ -60,6 +61,33 @@ Future<bool> requestPermission({
   Map<Permission, PermissionStatus> statuses = await list.request();
   // 如果每一个都授权了，那就返回授权了
   return list.every((p) => statuses[p]!.isGranted);
+}
+
+// 只请求内部存储访问权限(菜品导入、备份还原)
+Future<bool> requestStoragePermission() async {
+  if (Platform.isAndroid) {
+    // 获取设备sdk版本
+    final androidInfo = await DeviceInfoPlugin().androidInfo;
+    int sdkInt = androidInfo.version.sdkInt;
+
+    if (sdkInt <= 32) {
+      var storageStatus = await Permission.storage.request();
+      return storageStatus.isGranted;
+    } else {
+      var storageStatus = await Permission.manageExternalStorage.request();
+      return (storageStatus.isGranted);
+    }
+  } else if (Platform.isIOS) {
+    Map<Permission, PermissionStatus> statuses = await [
+      Permission.mediaLibrary,
+      Permission.storage,
+    ].request();
+    return (statuses[Permission.mediaLibrary]!.isGranted &&
+        statuses[Permission.storage]!.isGranted);
+  } else {
+    // 除了安卓和ios其他先不考虑
+    return false;
+  }
 }
 
 // 根据数据库拼接的字符串值转回对应选项

@@ -12,6 +12,7 @@
     - [Part3: 随机菜品 random\_dish](#part3-随机菜品-random_dish)
       - [使用说明](#使用说明)
       - [导入的菜品 json 文件格式示例](#导入的菜品-json-文件格式示例)
+      - [菜品菜谱 json 数据](#菜品菜谱-json-数据)
     - [Part4: 用户配置 user\_and\_settings](#part4-用户配置-user_and_settings)
   - [其他说明](#其他说明)
     - [关键文件缺失](#关键文件缺失)
@@ -146,6 +147,12 @@ _这个其实是之前(2024-04-09)就单独开发好的 app 了，功能融合�
 ```
 
 后续我也会分享一下自用的菜品列表 json 文件，可以一起试用完善。
+
+#### 菜品菜谱 json 数据
+
+- 2024-07-11
+
+已将 github 中 [Anduin2017/HowToCook](https://github.com/Anduin2017/HowToCook) 仓库中的菜品整理为可导入的 json 数据。参看`_dishes`文件夹：[HowToCook 菜谱 json 数据](_dishes/HowToCook/HowToCook-All合并-持续更新-20240711.json) 文件，其中菜品的图片大部分来源于 [下厨房](https://www.xiachufang.com/) 网站。
 
 ### Part4: 用户配置 user_and_settings
 
