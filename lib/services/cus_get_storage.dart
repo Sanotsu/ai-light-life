@@ -71,4 +71,11 @@ class MyGetStorage {
   }
 
   String? getUserAvatarPath() => box.read("user_avatar_path");
+
+  // 2024-07-14 是否是长辈模式(大字体少多余内容，目前仅单独重新编写对话页面)
+  Future<void> setIsBriefMode(bool? flag) async {
+    await box.write("is_brief_mode", flag);
+  }
+
+  bool getIsBriefMode() => box.read("is_brief_mode") ?? false;
 }

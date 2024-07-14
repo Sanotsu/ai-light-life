@@ -1,48 +1,37 @@
 // ignore_for_file: avoid_print,
 
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_easyloading/flutter_easyloading.dart';
+// import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:intl/intl.dart';
-import 'package:toggle_switch/toggle_switch.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../apis/common_chat_apis.dart';
 import '../../common/components/tool_widget.dart';
 import '../../common/constants.dart';
 import '../../common/db_tools/db_helper.dart';
-import '../../common/utils/tools.dart';
 import '../../models/common_llm_info.dart';
 import '../../models/ai_interface_state/platform_aigc_commom_state.dart';
 import '../../models/llm_chat_state.dart';
 
-import '../../services/cus_get_storage.dart';
-import 'cus_llm_config/user_cus_model_stepper.dart';
-import 'widgets/message_item.dart';
+import 'widgets/message_brief_item.dart';
 
-/// 2024-06-20
-/// 现在主要有3个进入对话聊天页面的地方：
-///   1是预设的使用我的appid和key的默认的文生文，此时使用预设的官方免费的模型
-///   2是预设的使用我的appid和key的【限时限量】的文生文，此时使用limited开头的那些模型
-///   3是用户自行配置的appid和key，此时使用少数几个付费的模型(不是limited开始也不是FREE结尾的模型)
-/// 但其他对话的内容，包括展示、保存等，其实是一样的
+/// 2024-07-14
+/// 长辈模式，只使用免费的对话模型，其他都不管
 ///
-class OneChatScreen extends StatefulWidget {
+class BriefChatScreen extends StatefulWidget {
   // 默认只展示FREE结尾的免费模型，且不用用户配置
 
-  // 理论上不会两者同时传true的(因为我没法简单知道用户配置的限时限量是多少)
-  // 是否是用户自行配置；如果是，展示非limited开始和FREE结尾的模型
-  final bool? isUserConfig;
-  // 是否是显示限量测试；如果是，就不用展示平台、只展示limited开始的模型
-  final bool? isLimitedTest;
-  const OneChatScreen({super.key, this.isUserConfig, this.isLimitedTest});
+  const BriefChatScreen({super.key});
 
   @override
-  State createState() => _OneChatScreenState();
+  State createState() => _BriefChatScreenState();
 }
 
-class _OneChatScreenState extends State<OneChatScreen> {
+class _BriefChatScreenState extends State<BriefChatScreen> {
   final DBHelper _dbHelper = DBHelper();
 
   // 人机对话消息滚动列表
@@ -68,11 +57,6 @@ class _OneChatScreenState extends State<OneChatScreen> {
   // AI是否在思考中(如果是，则不允许再次发送)
   bool isBotThinking = false;
 
-  /// 2024-06-11 默认使用流式请求，更快;但是同样的问题，流式使用的token会比非流式更多
-  /// 2024-06-15 限时限量的可能都是收费的，本来就慢，所以默认就流式，不用切换
-  /// 2024-06-20 流式使用的token太多了，还是默认更省的
-  bool isStream = false;
-
   // 默认进入对话页面应该就是啥都没有，然后根据这空来显示预设对话
   List<ChatMessage> messages = [];
 
@@ -85,14 +69,18 @@ class _OneChatScreenState extends State<OneChatScreen> {
   // 等待AI响应时的占位的消息，在构建真实对话的list时要删除
   var placeholderMessage = ChatMessage(
     messageId: "placeholderMessage",
-    text: "努力思考中(等待越久,回复内容越多)  ",
+    text: "努力思考中，请耐心等待  ",
     isFromUser: false,
     dateTime: DateTime.now(),
     isPlaceholder: true,
   );
 
   // 进入对话页面简单预设的一些问题
-  List defaultQuestions = defaultChatQuestions;
+  List defaultQuestions = [
+    "你好，介绍一下你自己。",
+    "如何制作鱼香肉丝。",
+    "苏东坡是谁？详细介绍一下。",
+  ];
 
   @override
   void initState() {
@@ -103,48 +91,34 @@ class _OneChatScreenState extends State<OneChatScreen> {
 
   // 进入自行配置的对话页面，看看用户配置有没有生效
   initCusConfig() {
-    print("11111111");
+    // 找到免费的大模型，取第一个作为预设的
+    // selectedPlatform = CloudPlatform.baidu;
 
-    // 如果是用户自行配置页面来的
-    if (widget.isUserConfig == true) {
-      var pf = MyGetStorage().getCusPlatform();
-      var name = MyGetStorage().getCusLlmName();
+    // 2024-07-14 每次进来都随机选一个(注意：不能有limited的那个，因为那个没有FREE结尾的)
+    List<CloudPlatform> values = CloudPlatform.values
+        .where((platform) => platform != CloudPlatform.limited)
+        .toList();
+    selectedPlatform = values[Random().nextInt(values.length)];
 
-      // 找到还没超时的大模型，取第一个作为预设的
-      setState(() {
-        // 找到对应的平台和模型(因为配置的时候是用户下拉选择的，理论上这里一定存在，且只应该有一个)
-        selectedPlatform =
-            CloudPlatform.values.where((e) => e.name == pf).toList().first;
+    setState(() {
+      // selectedLlm = PlatformLLM.values
+      //     .where((m) =>
+      //         m.name.startsWith(selectedPlatform.name) &&
+      //         m.name.endsWith("FREE"))
+      //     .first;
 
-        // 找到平台之后，也要找到对应选中的模型
-        selectedLlm = PlatformLLM.values.where((m) => m.name == name).first;
-      });
-    } else if (widget.isLimitedTest == true) {
-      // 找到还没超时的限时限量的大模型，取第一个作为预设的
-      setState(() {
-        selectedPlatform = CloudPlatform.limited;
+      // 2024-07-14 同样的，选中的平台后也随机选择一个模型
+      List<PlatformLLM> models = PlatformLLM.values
+          .where((m) =>
+              m.name.startsWith(selectedPlatform.name) &&
+              m.name.endsWith("FREE"))
+          .toList();
 
-        selectedLlm = PlatformLLM.values
-            .where((m) =>
-                m.name.startsWith(selectedPlatform.name) &&
-                newLLMSpecs[m]!.deadline.isAfter(DateTime.now()))
-            .first;
-      });
-    } else {
-      // 找到免费的大模型，取第一个作为预设的
-      selectedPlatform = CloudPlatform.baidu;
-      setState(() {
-        selectedLlm = PlatformLLM.values
-            .where((m) =>
-                m.name.startsWith(selectedPlatform.name) &&
-                m.name.endsWith("FREE"))
-            .first;
-      });
-    }
+      selectedLlm = models[Random().nextInt(models.length)];
+    });
 
-    print("配置选中后的平台和模型");
-    print("$selectedPlatform $selectedLlm");
-    print("${widget.isUserConfig} ${widget.isLimitedTest}");
+    // print("配置选中后的平台和模型");
+    // print("$selectedPlatform $selectedLlm");
   }
 
   //获取指定分类的历史对话
@@ -152,63 +126,27 @@ class _OneChatScreenState extends State<OneChatScreen> {
     // 获取历史记录：默认查询到所有的历史对话，再根据条件过滤
     var list = await _dbHelper.queryChatList(cateType: "aigc");
 
-    // 如果是限量的,平台只能时limited（模型也只能是limited的，应该不用判断也是）
-    if (widget.isLimitedTest == true) {
-      list = list
-          .where((e) => e.cloudPlatformName == CloudPlatform.limited.name)
-          .toList();
-    } else if (widget.isUserConfig == true) {
-      // 如果是用户配置的,平台非limited，模型非是FREE结尾
-      list = list
-          .where((e) =>
-              e.cloudPlatformName != CloudPlatform.limited.name &&
-              !e.llmName.endsWith("FREE"))
-          .toList();
-    } else {
-      // 默认就是免费的了，平台非limited，模型仅是FREE结尾
-      list = list
-          .where((e) =>
-              e.cloudPlatformName != CloudPlatform.limited.name &&
-              e.llmName.endsWith("FREE"))
-          .toList();
-    }
+    // 默认就是免费的了，平台非limited，模型仅是FREE结尾
+    list = list
+        .where((e) =>
+            e.cloudPlatformName != CloudPlatform.limited.name &&
+            e.llmName.endsWith("FREE"))
+        .toList();
+
     return list;
   }
 
   /// 获取指定对话列表
   _getChatInfo(String chatId) async {
-    print("调用了getChatInfo----------");
-
-    // 2024-06-15 这里要过滤只是限量的部分
-    // 2024-06-20 虽然所有对话都是用同一个页面，但是带出的历史对话可能会有继续沟通的需要
-    // 此时用户可切换的平台和模型，就需要根据来源(预设、限量、用户配置)来加载了。
-    // 那么历史对话如果不是这上面的模型，继续对话就会出问题
-    // var list = (await _dbHelper.queryChatList(uuid: chatId, cateType: "aigc"))
-    //     .where((e) => e.cloudPlatformName == selectedPlatform.name)
-    //     .toList();
     // 默认查询到所有的历史对话(这里有uuid了，应该就只有1条存在才对)
     var list = await _dbHelper.queryChatList(uuid: chatId, cateType: "aigc");
 
-    // 如果是限量的,平台只能时limited（模型也只能是limited的，应该不用判断也是）
-    if (widget.isLimitedTest == true) {
-      list = list
-          .where((e) => e.cloudPlatformName == CloudPlatform.limited.name)
-          .toList();
-    } else if (widget.isUserConfig == true) {
-      // 如果是用户配置的,平台非limited，模型非是FREE结尾
-      list = list
-          .where((e) =>
-              e.cloudPlatformName != CloudPlatform.limited.name &&
-              !e.llmName.endsWith("FREE"))
-          .toList();
-    } else {
-      // 默认就是免费的了，平台非limited，模型仅是FREE结尾
-      list = list
-          .where((e) =>
-              e.cloudPlatformName != CloudPlatform.limited.name &&
-              e.llmName.endsWith("FREE"))
-          .toList();
-    }
+    // 默认就是免费的了，平台非limited，模型仅是FREE结尾
+    list = list
+        .where((e) =>
+            e.cloudPlatformName != CloudPlatform.limited.name &&
+            e.llmName.endsWith("FREE"))
+        .toList();
 
     if (list.isNotEmpty && list.isNotEmpty) {
       setState(() {
@@ -286,7 +224,6 @@ class _OneChatScreenState extends State<OneChatScreen> {
 
   // 保存对话到数据库
   _saveToDb() async {
-    print("处理插入前message的长度${messages.length}");
     // 如果插入时只有一条，那就是用户首次输入，截取部分内容和生成对话记录的uuid
 
     if (messages.isNotEmpty && messages.length == 1) {
@@ -305,23 +242,16 @@ class _OneChatScreenState extends State<OneChatScreen> {
         chatType: "aigc",
       );
 
-      print("这是输入了第一天消息，生成了初始化的对话$chatSession");
-
-      print("进入了插入$chatSession");
       await _dbHelper.insertChatList([chatSession!]);
 
       // 如果已经有多个对话了，理论上该对话已经存入db了，只需要修改该对话的实际对话内容即可
     } else if (messages.length > 1) {
       chatSession!.messages = messages;
 
-      print("进入了修改----$chatSession");
-
       await _dbHelper.updateChatSession(chatSession!);
     }
 
     // 其他没有对话记录、没有消息列表的情况，就不做任何处理了
-
-    print("++++++++++++++++++++++++++++++");
   }
 
   // 根据不同的平台、选中的不同模型，调用对应的接口，得到回复
@@ -340,31 +270,24 @@ class _OneChatScreenState extends State<OneChatScreen> {
     List<CommonRespBody> temp;
     // 2024-06-06 ??? 这里一定要确保存在模型名称，因为要作为http请求参数
     var model = newLLMSpecs[selectedLlm]!.model;
-    // 是用户配置，id和key就使用用户的，不然就是我的
-    var isUserConfig = widget.isUserConfig == true ? true : false;
-    print("显示请求的模型名称!----$model");
-    // 2024-06-11 如果是用户切换了“更快”或“更多”，则使用不同的请求
+
+    // 2024-07-12 标题要大，不显示流式切换了，只有非流式的
     if (selectedPlatform == CloudPlatform.baidu) {
-      temp = await getBaiduAigcResp(msgs,
-          model: model, stream: isStream, isUserConfig: isUserConfig);
+      temp = await getBaiduAigcResp(msgs, model: model, isUserConfig: false);
     } else if (selectedPlatform == CloudPlatform.tencent) {
-      temp = await getTencentAigcResp(msgs,
-          model: model, stream: isStream, isUserConfig: isUserConfig);
+      temp = await getTencentAigcResp(msgs, model: model, isUserConfig: false);
     } else if (selectedPlatform == CloudPlatform.aliyun) {
-      temp = await getAliyunAigcResp(msgs,
-          model: model, stream: isStream, isUserConfig: isUserConfig);
+      temp = await getAliyunAigcResp(msgs, model: model, isUserConfig: false);
     } else if (selectedPlatform == CloudPlatform.limited) {
       // 目前限时限量的，其实也只是阿里云平台的
-      temp = await getAliyunAigcResp(msgs,
-          model: model, stream: isStream, isUserConfig: isUserConfig);
+      temp = await getAliyunAigcResp(msgs, model: model, isUserConfig: false);
     } else if (selectedPlatform == CloudPlatform.siliconCloud) {
       // 2024-07-04 新加硅动科技siliconFlow中免费的
-      temp = await getSiliconFlowAigcResp(msgs,
-          model: model, stream: isStream, isUserConfig: isUserConfig);
+      temp =
+          await getSiliconFlowAigcResp(msgs, model: model, isUserConfig: false);
     } else {
       // 理论上不会存在其他的了
-      temp = await getBaiduAigcResp(msgs,
-          model: model, stream: isStream, isUserConfig: isUserConfig);
+      temp = await getBaiduAigcResp(msgs, model: model, isUserConfig: false);
     }
 
     // 得到回复后要删除表示加载中的占位消息
@@ -398,7 +321,6 @@ class _OneChatScreenState extends State<OneChatScreen> {
       totalTokens: totalTokens,
     );
 
-    print("限量测试的返回结果-------temp--$a");
     _sendMessage(tempText, isFromUser: false, usage: a);
   }
 
@@ -410,24 +332,16 @@ class _OneChatScreenState extends State<OneChatScreen> {
 
   /// 构建用于下拉的平台列表(根据上层传入的值)
   List<DropdownMenuItem<CloudPlatform?>> buildCloudPlatforms() {
-    var cps = CloudPlatform.values;
-
-    // 如果是限量的,平台只能是limited；其他的就是预设的其他3个平台
-    if (widget.isLimitedTest == true) {
-      cps = cps.where((e) => e == CloudPlatform.limited).toList();
-    } else {
-      cps = cps.where((e) => e != CloudPlatform.limited).toList();
-    }
-
-    print("cps-----$cps");
-
-    return cps.map((e) {
+    return CloudPlatform.values
+        .where((e) => e != CloudPlatform.limited)
+        .toList()
+        .map((e) {
       return DropdownMenuItem<CloudPlatform?>(
         value: e,
         alignment: AlignmentDirectional.center,
         child: Text(
           cpNames[e]!,
-          style: TextStyle(fontSize: 12.sp, color: Colors.blue),
+          style: TextStyle(fontSize: 20.sp, color: Colors.blue),
         ),
       );
     }).toList();
@@ -446,20 +360,13 @@ class _OneChatScreenState extends State<OneChatScreen> {
           .where((e) => e.name.startsWith(selectedPlatform.name))
           .toList();
 
-      // 如果是限量的,平台只能时limited（模型也只能是limited的，应该不用判断也是）
-      if (widget.isLimitedTest == true) {
-        // 目前限时限量的模型只有名称是选中的limted开头的平台这一个限制，不用二次过滤
-      } else if (widget.isUserConfig == true) {
-        // 如果是用户配置的，模型非是FREE结尾
-        temp = temp.where((e) => !e.name.endsWith("FREE")).toList();
-      } else {
-        // 默认就是免费的了，模型仅是FREE结尾
-        temp = temp.where((e) => e.name.endsWith("FREE")).toList();
-      }
+      // 默认就是免费的了，模型仅是FREE结尾
+      temp = temp.where((e) => e.name.endsWith("FREE")).toList();
 
       setState(() {
         selectedLlm = temp.first;
         // 2024-06-15 切换平台或者模型应该清空当前对话，因为上下文丢失了。
+        // 建立新对话就是把已有的对话清空就好(因为保存什么的在发送消息时就处理了)
         chatSession = null;
         messages.clear();
       });
@@ -471,35 +378,18 @@ class _OneChatScreenState extends State<OneChatScreen> {
     var llms = PlatformLLM.values
         .where((m) => m.name.startsWith(selectedPlatform.name));
 
-    var text = (ChatLLMSpec e) => e.name;
+    text(ChatLLMSpec e) => e.name;
 
-    // 限时限量的模型， 以limited平台前缀开头的模型，且未过期
-    if (widget.isLimitedTest == true) {
-      llms = llms
-          .where((m) => newLLMSpecs[m]!.deadline.isAfter(DateTime.now()))
-          .toList();
-
-      text = (ChatLLMSpec e) =>
-          "${e.name}_${DateFormat(constDateFormat).format(e.deadline)}到期";
-    } else if (widget.isUserConfig == true) {
-      // 如果是用户配置的,模型仅是指定平台前缀+以非FREE结尾
-      llms = llms.where((m) => !m.name.endsWith("FREE")).toList();
-    } else {
-      // 默认就是免费的了，模型仅是指定平台前缀+以FREE结尾
-      llms = llms.where((m) => m.name.endsWith("FREE")).toList();
-    }
-
-    print("llms--${llms.length}---$llms");
+    // 默认就是免费的了，模型仅是指定平台前缀+以FREE结尾
+    llms = llms.where((m) => m.name.endsWith("FREE")).toList();
 
     return llms
         .map((e) => DropdownMenuItem<PlatformLLM>(
               value: e,
-              alignment: widget.isLimitedTest == true
-                  ? AlignmentDirectional.centerEnd
-                  : AlignmentDirectional.center,
+              alignment: AlignmentDirectional.center,
               child: Text(
                 text(newLLMSpecs[e]!),
-                style: TextStyle(fontSize: 10.sp, color: Colors.blue),
+                style: TextStyle(fontSize: 20.sp, color: Colors.blue),
               ),
             ))
         .toList();
@@ -548,8 +438,8 @@ class _OneChatScreenState extends State<OneChatScreen> {
             /// 在顶部显示对话标题(避免在appbar显示，内容太挤)
             if (chatSession != null) buildChatTitleArea(),
 
-            // 标题和对话正文的分割线
-            const Divider(),
+            /// 标题和对话正文的分割线
+            if (chatSession != null) Divider(height: 3.sp, thickness: 1.sp),
 
             /// 显示对话消息主体
             buildChatListArea(),
@@ -565,10 +455,18 @@ class _OneChatScreenState extends State<OneChatScreen> {
           children: <Widget>[
             SizedBox(
               // 调整DrawerHeader的高度
-              height: 60.sp,
+              height: 100.sp,
               child: DrawerHeader(
-                decoration: BoxDecoration(color: Colors.lightGreen[100]),
-                child: const Center(child: Text('最近对话')),
+                decoration: const BoxDecoration(color: Colors.lightGreen),
+                child: Center(
+                  child: Text(
+                    '最近对话',
+                    style: TextStyle(
+                      fontSize: 20.sp,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
               ),
             ),
             ...(chatHsitory.map((e) => buildGestureItems(e)).toList()),
@@ -581,37 +479,8 @@ class _OneChatScreenState extends State<OneChatScreen> {
   /// 构建appbar区域
   buildAppbarArea() {
     return AppBar(
-      title: Text(
-        '对话│${widget.isUserConfig == true ? '自定' : widget.isLimitedTest == true ? "限量" : "免费"}',
-        style: TextStyle(fontSize: 15.sp, fontWeight: FontWeight.bold),
-      ),
+      title: const Text('你问我答'),
       actions: [
-        /// 选择“更快”就使用流式请求，否则就一般的非流式
-        ToggleSwitch(
-          minHeight: 24.sp,
-          minWidth: 40.sp,
-          fontSize: 9.sp,
-          cornerRadius: 5.sp,
-          dividerMargin: 0.sp,
-          // isVertical: true,
-          // // 激活时按钮的前景背景色
-          // activeFgColor: Colors.black,
-          // activeBgColor: [Colors.green],
-          // // 未激活时的前景背景色
-          // inactiveBgColor: Colors.grey,
-          // inactiveFgColor: Colors.white,
-          initialLabelIndex: isStream ? 0 : 1,
-          totalSwitches: 2,
-          labels: const ['更快', '更省'],
-          // radiusStyle: true,
-          onToggle: (index) {
-            setState(() {
-              isStream = index == 0 ? true : false;
-            });
-          },
-        ),
-        SizedBox(width: 20.sp),
-
         /// 创建新对话
         IconButton(
           onPressed: () {
@@ -621,18 +490,17 @@ class _OneChatScreenState extends State<OneChatScreen> {
               messages.clear();
             });
           },
-          icon: Icon(Icons.add, size: 24.sp),
+          icon: Icon(Icons.add, size: 36.sp),
         ),
         Builder(
           builder: (BuildContext context) {
             return IconButton(
-              icon: Icon(Icons.history, size: 24.sp),
+              icon: Icon(Icons.history, size: 36.sp),
               onPressed: () async {
                 // 获取历史记录：默认查询到所有的历史对话，再根据条件过滤
                 var list = await getHsitoryChats();
                 // 显示最近的对话
 
-                print("list--------$list");
                 setState(() {
                   chatHsitory = list;
                 });
@@ -670,21 +538,21 @@ class _OneChatScreenState extends State<OneChatScreen> {
                   children: [
                     Text(
                       e.title,
-                      style: TextStyle(fontSize: 12.sp),
+                      style: TextStyle(fontSize: 18.sp),
                       maxLines: 2,
                       softWrap: true,
                       overflow: TextOverflow.ellipsis,
                     ),
                     Text(
                       DateFormat(constDatetimeFormat).format(e.gmtCreate),
-                      style: TextStyle(fontSize: 10.sp),
+                      style: TextStyle(fontSize: 16.sp),
                     ),
                   ],
                 ),
               ),
             ),
             SizedBox(
-              width: 80.sp,
+              width: 100.sp,
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -701,27 +569,27 @@ class _OneChatScreenState extends State<OneChatScreen> {
 
   _buildDeleteBotton(ChatSession e) {
     return SizedBox(
-      width: 40.sp,
+      width: 50.sp,
       child: IconButton(
         onPressed: () {
           showDialog(
             context: context,
             builder: (context) {
               return AlertDialog(
-                title: Text("确认删除对话记录:", style: TextStyle(fontSize: 18.sp)),
+                title: const Text("确认删除对话记录:"),
                 content: Text(e.title),
                 actions: [
                   TextButton(
                     onPressed: () {
                       Navigator.of(context).pop(false);
                     },
-                    child: const Text("取消"),
+                    child: Text("取消", style: TextStyle(fontSize: 18.sp)),
                   ),
                   TextButton(
                     onPressed: () {
                       Navigator.of(context).pop(true);
                     },
-                    child: const Text("确定"),
+                    child: Text("确定", style: TextStyle(fontSize: 18.sp)),
                   ),
                 ],
               );
@@ -750,10 +618,9 @@ class _OneChatScreenState extends State<OneChatScreen> {
         },
         icon: Icon(
           Icons.delete,
-          size: 16.sp,
+          size: 28.sp,
           color: Theme.of(context).primaryColor,
         ),
-        iconSize: 18.sp,
         padding: EdgeInsets.all(0.sp),
       ),
     );
@@ -761,7 +628,7 @@ class _OneChatScreenState extends State<OneChatScreen> {
 
   _buildUpdateBotton(ChatSession e) {
     return SizedBox(
-      width: 40.sp,
+      width: 50.sp,
       child: IconButton(
         onPressed: () {
           setState(() {
@@ -814,10 +681,9 @@ class _OneChatScreenState extends State<OneChatScreen> {
         },
         icon: Icon(
           Icons.edit,
-          size: 16.sp,
+          size: 28.sp,
           color: Theme.of(context).primaryColor,
         ),
-        iconSize: 18.sp,
       ),
     );
   }
@@ -877,105 +743,20 @@ class _OneChatScreenState extends State<OneChatScreen> {
     });
   }
 
-  _buildCusConfigRow(String label, String value) {
-    return Row(
-      children: [
-        Expanded(
-          flex: 1,
-          child: Text(label, style: TextStyle(fontSize: 10.sp)),
-        ),
-        Expanded(
-          flex: 5,
-          child: Text(value, style: TextStyle(fontSize: 10.sp)),
-        ),
-      ],
-    );
-  }
-
   /// 构建切换平台和模型的行
   buildPlatAndLlmRow() {
-    List<Widget> cpWidgetList = [
-      const Text("平台:"),
-      SizedBox(width: 10.sp),
-      SizedBox(
-        width: 80.sp,
-        child: Container(
-          decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey, width: 1.0),
-            borderRadius: BorderRadius.circular(4),
-          ),
+    Widget cpRow = Row(
+      children: [
+        Text("平台:", style: TextStyle(fontSize: 20.sp)),
+        SizedBox(width: 10.sp),
+        Expanded(
           child: DropdownButton<CloudPlatform?>(
             value: selectedPlatform,
-            isDense: true,
+            icon: Icon(Icons.arrow_drop_down, size: 36.sp), // 自定义图标
+            underline: Container(), // 取消默认的下划线
             alignment: AlignmentDirectional.center,
             items: buildCloudPlatforms(),
             onChanged: onCloudPlatformChanged,
-          ),
-        ),
-      ),
-    ];
-
-    /// 2024-06-20
-    /// 如果是用户配置的平台和模型(目前仅支持单个配置)、就只能使用那一个。
-    /// 所以没有切换的row，但给用户显示自己配置的平台、模型、和appid及key
-    if (widget.isUserConfig == true) {
-      return Row(children: [
-        Expanded(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildCusConfigRow("平台", selectedPlatform.name),
-              _buildCusConfigRow("模型", newLLMSpecs[selectedLlm]!.model),
-              _buildCusConfigRow("AppId",
-                  getIdAndKeyFromPlatform(selectedPlatform)['id'] ?? ""),
-              _buildCusConfigRow("AppKey",
-                  getIdAndKeyFromPlatform(selectedPlatform)['key'] ?? ""),
-            ],
-          ),
-        ),
-        TextButton(
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const UserCusModelStepper(),
-              ),
-            );
-          },
-          child: const Text("重新配置"),
-        ),
-      ]);
-    }
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        if (widget.isLimitedTest != true) ...cpWidgetList,
-        const Text("模型:"),
-        SizedBox(width: 10.sp),
-        Expanded(
-          // 下拉框有个边框，需要放在容器中
-          child: Container(
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey, width: 1.0),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: DropdownButton<PlatformLLM?>(
-              value: selectedLlm,
-              isDense: true,
-              alignment: AlignmentDirectional.bottomEnd,
-              menuMaxHeight: 300.sp,
-              items: buildPlatformLLMs(),
-              onChanged: (val) {
-                setState(() {
-                  selectedLlm = val!;
-                  // 2024-06-15 切换模型应该新建对话，因为上下文丢失了。
-                  // 建立新对话就是把已有的对话清空就好(因为保存什么的在发送消息时就处理了)
-                  chatSession = null;
-                  messages.clear();
-                });
-              },
-            ),
           ),
         ),
         IconButton(
@@ -986,39 +767,79 @@ class _OneChatScreenState extends State<OneChatScreen> {
               newLLMSpecs[selectedLlm]!.spec ?? "",
             );
           },
-          icon: Icon(Icons.help, size: 18.sp),
-          iconSize: 20.sp,
+          icon: Icon(Icons.help, size: 28.sp),
         ),
-        //
       ],
+    );
+
+    Widget modelRow = Row(
+      children: [
+        Text("模型:", style: TextStyle(fontSize: 20.sp)),
+        SizedBox(width: 10.sp),
+        Expanded(
+          // 下拉框有个边框，需要放在容器中
+          // child: Container(
+          //   decoration: BoxDecoration(
+          //     border: Border.all(color: Colors.grey, width: 1.0),
+          //     borderRadius: BorderRadius.circular(4),
+          //   ),
+          child: DropdownButton<PlatformLLM?>(
+            value: selectedLlm,
+            icon: Icon(Icons.arrow_drop_down, size: 36.sp), // 自定义图标
+            underline: Container(),
+            alignment: AlignmentDirectional.center,
+            menuMaxHeight: 300.sp,
+            items: buildPlatformLLMs(),
+            onChanged: (val) {
+              setState(() {
+                selectedLlm = val!;
+                // 2024-06-15 切换模型应该新建对话，因为上下文丢失了。
+                // 建立新对话就是把已有的对话清空就好(因为保存什么的在发送消息时就处理了)
+                chatSession = null;
+                messages.clear();
+              });
+            },
+          ),
+        ),
+        // ),
+      ],
+    );
+
+    return Padding(
+      padding: EdgeInsets.all(5.sp),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [cpRow, modelRow],
+      ),
     );
   }
 
   /// 直接进入对话页面，展示预设问题的区域
   buildDefaultQuestionArea() {
     return [
-      Text("你可以试着问我(对话总长度不宜超过${newLLMSpecs[selectedLlm]!.contextLength}字)："),
+      Padding(
+        padding: EdgeInsets.all(10.sp),
+        child: Text(" 你可以试着问我：", style: TextStyle(fontSize: 20.sp)),
+      ),
       Expanded(
         flex: 2,
         child: ListView.builder(
           itemCount: defaultQuestions.length,
           itemBuilder: (context, index) {
-            // 构建MessageItem
-            return InkWell(
-              onTap: () {
-                _sendMessage(defaultQuestions[index]);
-              },
-              child: Card(
-                elevation: 2,
-                color: Colors.teal[100],
-                child: Container(
-                  decoration: BoxDecoration(
-                    // 设置圆角半径为10
-                    borderRadius: BorderRadius.all(Radius.circular(15.sp)),
+            return Card(
+              elevation: 2,
+              child: ListTile(
+                title: Text(
+                  defaultQuestions[index],
+                  style: TextStyle(
+                    fontSize: 20.sp,
+                    color: Colors.blue,
                   ),
-                  padding: EdgeInsets.all(8.sp),
-                  child: Text(defaultQuestions[index]),
                 ),
+                trailing: const Icon(Icons.touch_app, color: Colors.blue),
+                onTap: () {
+                  _sendMessage(defaultQuestions[index]);
+                },
               ),
             );
           },
@@ -1031,7 +852,7 @@ class _OneChatScreenState extends State<OneChatScreen> {
   buildChatTitleArea() {
     // 点击可修改标题
     return Padding(
-      padding: EdgeInsets.all(5.sp),
+      padding: EdgeInsets.all(1.sp),
       child: Row(
         children: [
           const Icon(Icons.title),
@@ -1043,7 +864,7 @@ class _OneChatScreenState extends State<OneChatScreen> {
               softWrap: true,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: 15.sp,
+                fontSize: 20.sp,
                 fontWeight: FontWeight.bold,
                 // color: Theme.of(context).primaryColor,
               ),
@@ -1060,7 +881,7 @@ class _OneChatScreenState extends State<OneChatScreen> {
               },
               icon: Icon(
                 Icons.edit,
-                size: 18.sp,
+                size: 28.sp,
                 color: Theme.of(context).primaryColor,
               ),
             ),
@@ -1086,7 +907,7 @@ class _OneChatScreenState extends State<OneChatScreen> {
                 // 如果是最后一个回复的文本，使用打字机特效
                 // if (index == messages.length - 1)
                 //   TypewriterText(text: messages[index].text),
-                MessageItem(message: messages[index]),
+                MessageBriefItem(message: messages[index]),
                 // 如果是大模型回复，可以有一些功能按钮
                 if (!messages[index].isFromUser)
                   Row(
@@ -1098,34 +919,53 @@ class _OneChatScreenState extends State<OneChatScreen> {
                       if ((index == messages.length - 1) &&
                           messages[index].isPlaceholder != true &&
                           selectedPlatform != CloudPlatform.limited)
-                        TextButton(
+                        ElevatedButton(
                           onPressed: () {
                             regenerateLatestQuestion();
                           },
-                          child: const Text("重新生成"),
+                          style: ElevatedButton.styleFrom(
+                            minimumSize: Size.zero,
+                            padding: EdgeInsets.all(5.sp),
+                            // 修改圆角大小
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(5.sp),
+                            ),
+                          ),
+                          child: Text(
+                            "重新回答问题",
+                            style: TextStyle(fontSize: 18.sp),
+                          ),
                         ),
-                      //
+
+                      SizedBox(width: 10.sp),
+
                       // 如果不是等待响应才可以点击复制该条回复
                       if (messages[index].isPlaceholder != true)
-                        IconButton(
+                        ElevatedButton(
+                          // 取掉按钮内边距，或者改到自己想要的大小
+                          style: ElevatedButton.styleFrom(
+                            minimumSize: Size.zero,
+                            padding: EdgeInsets.all(5.sp),
+                            // 修改圆角大小
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(5.sp),
+                            ),
+                          ),
                           onPressed: () {
                             Clipboard.setData(
                               ClipboardData(text: messages[index].text),
                             );
 
-                            EasyLoading.showToast(
-                              "已复制到剪贴板",
-                              duration: const Duration(seconds: 3),
-                              toastPosition: EasyLoadingToastPosition.center,
-                            );
+                            // EasyLoading.showToast(
+                            //   "已复制到剪贴板",
+                            //   duration: const Duration(seconds: 3),
+                            //   toastPosition: EasyLoadingToastPosition.center,
+                            // );
                           },
-                          icon: Icon(Icons.copy, size: 20.sp),
-                        ),
-                      // 如果不是等待响应才显示token数量
-                      if (messages[index].isPlaceholder != true)
-                        Text(
-                          "tokens 输入:${messages[index].inputTokens} 输出:${messages[index].outputTokens} 总计:${messages[index].totalTokens}",
-                          style: TextStyle(fontSize: 10.sp),
+                          child: Text(
+                            "复制回答内容",
+                            style: TextStyle(fontSize: 18.sp),
+                          ),
                         ),
                       SizedBox(width: 10.sp),
                     ],
@@ -1147,11 +987,14 @@ class _OneChatScreenState extends State<OneChatScreen> {
           Expanded(
             child: TextField(
               controller: _userInputController,
-              decoration: const InputDecoration(
-                hintText: '可以向我提任何问题哦 ٩(๑❛ᴗ❛๑)۶',
-                border: OutlineInputBorder(), // 添加边框
+              style: TextStyle(fontSize: 20.sp),
+              decoration: InputDecoration(
+                hintText: '可以向我提任何问题哦',
+                hintStyle: TextStyle(fontSize: 20.sp),
+                border: const OutlineInputBorder(),
               ),
-              maxLines: 5,
+              // ？？？2024-07-14 如果屏幕太小，键盘弹出来之后挤占屏幕高度，这里可能会出现溢出问题
+              maxLines: 2,
               minLines: 1,
               onChanged: (String? text) {
                 if (text != null) {

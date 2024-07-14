@@ -33,13 +33,21 @@ Widget buildLoader(bool isLoading) {
   }
 }
 
-commonHintDialog(BuildContext context, String title, String message) {
+commonHintDialog(
+  BuildContext context,
+  String title,
+  String message, {
+  double? msgFontSize,
+}) {
   showDialog(
     context: context,
     builder: (context) {
       return AlertDialog(
         title: Text(title),
-        content: Text(message, style: TextStyle(fontSize: 12.sp)),
+        content: Text(
+          message,
+          style: TextStyle(fontSize: msgFontSize ?? 12.sp),
+        ),
         actions: [
           TextButton(
             onPressed: () {

@@ -3,7 +3,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../services/cus_get_storage.dart';
 import 'accounting/index.dart';
+import 'agi_llm_sample/brief_mode_index.dart';
 import 'agi_llm_sample/index.dart';
 import 'user_and_settings/backup_and_restore/index.dart';
 import 'random_dish/dish_wheel_index.dart';
@@ -21,12 +23,21 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
 
-  static const List<Widget> _widgetOptions = <Widget>[
-    AgiLlmSample(),
-    BillItemIndex(),
-    DishWheelIndex(),
-    UserAndSettings(),
-  ];
+  List<Widget> _widgetOptions = [];
+
+  @override
+  void initState() {
+    super.initState();
+
+    _widgetOptions = [
+      MyGetStorage().getIsBriefMode()
+          ? const BriefAIChatIndex()
+          : const AgiLlmSample(),
+      const BillItemIndex(),
+      const DishWheelIndex(),
+      const UserAndSettings(),
+    ];
+  }
 
   void _onItemTapped(int index) {
     setState(() {

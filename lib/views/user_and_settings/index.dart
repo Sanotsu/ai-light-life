@@ -9,6 +9,7 @@ import 'package:photo_view/photo_view.dart';
 
 import '../../common/constants.dart';
 import '../../services/cus_get_storage.dart';
+import '../home_page.dart';
 import 'backup_and_restore/index.dart';
 
 class UserAndSettings extends StatefulWidget {
@@ -21,6 +22,9 @@ class UserAndSettings extends StatefulWidget {
 class _UserAndSettingsState extends State<UserAndSettings> {
   // 用户头像路径
   String? _avatarPath = MyGetStorage().getUserAvatarPath();
+
+  // 2024-07-14 是否开启长辈模式
+  bool isBriefMode = MyGetStorage().getIsBriefMode();
 
   // 修改头像
   // 选择图片来源
@@ -208,39 +212,116 @@ class _UserAndSettingsState extends State<UserAndSettings> {
     return Column(
       mainAxisSize: MainAxisSize.max,
       children: [
-        SizedBox(
-          height: 100.sp,
-          child: NewCusSettingCard(
-            leadingIcon: Icons.backup_outlined,
-            title: "备份恢复",
-            onTap: () {
-              // 处理相应的点击事件
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const BackupAndRestore(),
+        Expanded(
+          child: SizedBox(
+            height: 100.sp,
+            child: NewCusSettingCard(
+              leadingIcon: Icons.backup_outlined,
+              title: "备份恢复",
+              onTap: () {
+                // 处理相应的点击事件
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const BackupAndRestore(),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+        Expanded(
+          child: SizedBox(
+            height: 100.sp,
+            // 这个和其他卡牌样式类似，但多点东西
+            child: Container(
+              padding: EdgeInsets.all(2.sp),
+              child: Card(
+                elevation: 5,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10.sp),
                 ),
-              );
-            },
+                child: Center(
+                  child: ListTile(
+                    leading: const Icon(Icons.accessibility_new),
+                    title: Text(
+                      "长辈模式",
+                      style: TextStyle(
+                        fontSize: 15.sp,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).primaryColor,
+                      ),
+                    ),
+                    trailing: Text(
+                      isBriefMode ? "已开启" : "未开启",
+                      style: TextStyle(fontSize: 20.sp),
+                    ),
+                    onTap: () {
+                      showDialog(
+                        context: context,
+                        builder: (context) {
+                          return AlertDialog(
+                            title: const Text("长辈模式"),
+                            content: Text(
+                              isBriefMode ? "是否关闭长辈模式?" : "是否开启长辈模式?",
+                              style: TextStyle(fontSize: 20.sp),
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                },
+                                child: const Text("取消"),
+                              ),
+                              TextButton(
+                                onPressed: () async {
+                                  // 先存入当前取反
+                                  await MyGetStorage().setIsBriefMode(
+                                    !isBriefMode,
+                                  );
+
+                                  // 在修改当前值为取反后的值
+                                  setState(() {
+                                    isBriefMode =
+                                        MyGetStorage().getIsBriefMode();
+                                  });
+                                  if (!context.mounted) return;
+                                  Navigator.pop(context);
+                                  // 2024-07-14 ？？？重新加载app，确保更新（应该有更好的办法）
+                                  _reloadApp(context);
+                                },
+                                child: const Text("确定"),
+                              ),
+                            ],
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
           ),
         ),
-        SizedBox(
-          height: 100.sp,
-          child: NewCusSettingCard(
-            leadingIcon: Icons.question_mark,
-            title: '常见问题(TBD)',
-            onTap: () {
-              showAboutDialog(
-                context: context,
-                applicationName: 'AI Light Life',
-                children: [
-                  const Text("author: SanotSu"),
-                  const Text("phone: 13113155009"),
-                ],
-              );
-            },
+        Expanded(
+          child: SizedBox(
+            height: 100.sp,
+            child: NewCusSettingCard(
+              leadingIcon: Icons.question_mark,
+              title: '常见问题(TBD)',
+              onTap: () {
+                showAboutDialog(
+                  context: context,
+                  applicationName: 'AI Light Life',
+                  children: [
+                    const Text("author: SanotSu"),
+                    const Text("phone: 13113155009"),
+                  ],
+                );
+              },
+            ),
           ),
-        ),
+        )
       ],
     );
   }
@@ -285,4 +366,18 @@ class NewCusSettingCard extends StatelessWidget {
       ),
     );
   }
+}
+
+// 重新加载应用程序以更新UI
+void _reloadApp(BuildContext context) {
+  // ???2024-07-12 这里有问题，新版本在切换语言后重载，会出现OnBackInvokedCallback is not enabled for the application.
+  // 即便已经在manifest文件进行配置了，现象类似：https://github.com/flutter/flutter/issues/146132
+  // 这会导致在连续的pop 例如Navigator.of(context)..pop()..pop();
+  //    或者两个Navigator.of(context).pop();Navigator.of(context).pop(); 的地方出现白屏，找不到路径的现象
+  // 暂未解决
+  Navigator.pushAndRemoveUntil(
+    context,
+    MaterialPageRoute(builder: (_) => const HomePage()),
+    (route) => false,
+  );
 }

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math';
 
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -182,4 +183,15 @@ clearAllAppIdAndKey() async {
   await MyGetStorage().setAliyunCommonAppKey(null);
   await MyGetStorage().setTencentCommonAppId(null);
   await MyGetStorage().setTencentCommonAppKey(null);
+}
+
+// 指定范围内生成一个整数
+int generateRandomInt(int min, int max) {
+  if (min > max) {
+    throw ArgumentError('最小值必须小于或等于最大值。');
+  }
+
+  var random = Random();
+  // +1 因为 nextInt 包含 min 但不包含 max
+  return min + random.nextInt(max - min + 1);
 }
