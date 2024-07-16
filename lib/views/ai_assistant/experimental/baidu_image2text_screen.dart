@@ -11,14 +11,14 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
-import '../../apis/baidu_apis.dart';
-import '../../common/components/tool_widget.dart';
-import '../../common/constants.dart';
-import '../../common/db_tools/db_helper.dart';
-import '../../common/utils/tools.dart';
-import '../../models/common_llm_info.dart';
-import '../../models/llm_chat_state.dart';
-import 'widgets/message_item.dart';
+import '../../../apis/baidu_apis.dart';
+import '../../../common/components/tool_widget.dart';
+import '../../../common/constants.dart';
+import '../../../common/db_tools/db_helper.dart';
+import '../../../common/utils/tools.dart';
+import '../../../models/common_llm_info.dart';
+import '../../../models/llm_chat_state.dart';
+import '../_components/message_item.dart';
 
 class BaiduImage2TextScreen extends StatefulWidget {
   const BaiduImage2TextScreen({super.key});

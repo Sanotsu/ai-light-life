@@ -8,12 +8,12 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:toggle_switch/toggle_switch.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../apis/aliyun_apis.dart';
-import '../../common/components/tool_widget.dart';
-import '../../common/db_tools/db_helper.dart';
-import '../../models/ai_interface_state/aliyun_text2image_state.dart';
-import '../../models/llm_text2image_state.dart';
-import '../accounting/mock_data/index.dart';
+import '../../../apis/aliyun_apis.dart';
+import '../../../common/components/tool_widget.dart';
+import '../../../common/db_tools/db_helper.dart';
+import '../../../models/ai_interface_state/aliyun_text2image_state.dart';
+import '../../../models/llm_text2image_state.dart';
+import '../../accounting/mock_data/index.dart';
 
 class AliyunText2ImageScreen extends StatefulWidget {
   const AliyunText2ImageScreen({super.key});

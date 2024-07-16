@@ -53,9 +53,7 @@ class _DishWheelIndexState extends State<DishWheelIndex>
   void initState() {
     super.initState();
 
-    setState(() {
-      initCatesAndRondomDishes();
-    });
+    initCatesAndRondomDishes();
   }
 
   // 初始化所有菜品分类信息
@@ -63,6 +61,8 @@ class _DishWheelIndexState extends State<DishWheelIndex>
     // 一定在查询菜品之前，获得所有的菜品分类
     await getAllDishCatesTags();
 
+    // 异步执行结果，如果没挂载了，就不管了
+    if (!mounted) return;
     setState(() {
       currentMeal = getTimePeriod();
       mealCate = getTimePeriod();
@@ -102,6 +102,10 @@ class _DishWheelIndexState extends State<DishWheelIndex>
         .toList();
 
     // 最后合并预设的和导入时存入数据库中的
+    // 2024-07-16 是否已经销毁
+    //    有些异步操作的结果可能在组件都销毁了才返回，还需要修改状态，此时就会报错，
+    //  在修改状态前，检查是否还挂载中，如果没有就不再改变状态了(一般是在异步函数中才需要)
+    if (!mounted) return;
     setState(() {
       allDishCates = <CusLabel>{...dishCateOptions, ...allDishCates}.toList();
     });
@@ -115,6 +119,8 @@ class _DishWheelIndexState extends State<DishWheelIndex>
       cate: mealCate,
     );
 
+    // 检查当前State对象是否仍然挂载
+    if (!mounted) return;
     setState(() {
       randomDishLabels = randomDishes.map((e) => e.dishName).toList();
 
@@ -464,6 +470,7 @@ class _DishWheelIndexState extends State<DishWheelIndex>
                                   isWheelSpin = false;
                                   selectedNote = "最终选中了: ";
                                 });
+
                                 debugPrint("动画停止了……");
                               },
                             ),

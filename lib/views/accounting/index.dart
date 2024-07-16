@@ -128,6 +128,9 @@ class _BillItemIndexState extends State<BillItemIndex> {
   /// 获取数据库中账单记录的日期起迄范围
   getBillPeriod() async {
     var tempPeriod = await _dbHelper.queryDateRangeList();
+
+    // 异步执行结果，如果没挂载了，就不管了
+    if (!mounted) return;
     setState(() {
       billPeriod = tempPeriod;
     });
@@ -153,6 +156,8 @@ class _BillItemIndexState extends State<BillItemIndex> {
 
     var newData = temp.data as List<BillItem>;
 
+    // 异步执行结果，如果没挂载了，就不管了
+    if (!mounted) return;
     setState(() {
       // 2024-05-24 这里不能直接添加，还需要排序，不然上拉后下拉日期新的列表在日期旧的列表后面
       if (scollDirection == "down") {
@@ -334,6 +339,8 @@ class _BillItemIndexState extends State<BillItemIndex> {
 
     var newData = temp.data as List<BillItem>;
 
+    // 异步执行结果，如果没挂载了，就不管了
+    if (!mounted) return;
     setState(() {
       // 关键字查询结果，直接添加，没有其他顺序，
       billItems.addAll(newData);
@@ -433,6 +440,8 @@ class _BillItemIndexState extends State<BillItemIndex> {
         title: GestureDetector(
           onLongPress: () async {
             // 长按之后，先改变是否使用作者应用的标志
+            // 异步执行结果，如果没挂载了，就不管了
+            if (!mounted) return;
             setState(() {
               isShowMock = !isShowMock;
             });
@@ -454,6 +463,8 @@ class _BillItemIndexState extends State<BillItemIndex> {
 
                 var importRst = await loadBillIeamFromAssets();
 
+                // 异步执行结果，如果没挂载了，就不管了
+                if (!mounted) return;
                 setState(() {
                   isLoading = false;
                 });

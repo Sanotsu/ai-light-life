@@ -3,7 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
-import '../../common/components/tool_widget.dart';
+import '../../../common/components/tool_widget.dart';
 
 import 'brief_one_chat_screen.dart';
 
