@@ -56,15 +56,6 @@ enum PlatformLLM {
   siliconCloud_Yi1p5_6B_Chat_FREE,
 
   /// 其实就是阿里云中限时限量的部分(25个)
-  limitedQwenMax, // 8k，6k输入
-  limitedQwenMax0428, // 8k，6k输入
-  limitedQwenLong, // 10000k
-  limitedQwenMaxLongContext, // 28k
-  limitedQwenPlus, // 32k
-  limitedQwenTurbo, // 8k
-  limitedQwenVLMax, // 支持上传图片理解的对话
-  limitedQwenVLPlus, // 支持上传图片理解的对话
-
   limitedBaichuan2Turbo, // 8k
   limitedBaichuan2Turbo192K, // 192k
 
@@ -128,8 +119,6 @@ class ChatLLMSpec {
 }
 
 // 2024-06-15 阿里云的限时限量都是这两个值，放在外面好了
-final dt1 = DateTime.parse("2024-07-04");
-const num1 = 400 * 10000;
 final dt2 = DateTime.parse("2024-12-02");
 const num2 = 100 * 10000;
 
@@ -228,27 +217,6 @@ final Map<PlatformLLM, ChatLLMSpec> newLLMSpecs = {
       'hunyuan-standard-256K', '混元Standard256K', 8 * 1000, dt3, num3, 0.0, 0.0),
 
   /// 下面是受限的(因为使用一个虚构的limited平台，所以在显示的名称后面手动加上平台)
-  // 通义千问
-  PlatformLLM.limitedQwenMax:
-      ChatLLMSpec("qwen-max", '通义千问-Max_阿里云', 8 * 1000, dt1, num1, 0.04, 0.12),
-  PlatformLLM.limitedQwenMax0428: ChatLLMSpec(
-      "qwen-max-0428", '通义千问-Max-0428_阿里云', 8 * 1000, dt1, num2, 0.04, 0.12),
-  PlatformLLM.limitedQwenPlus: ChatLLMSpec(
-      'qwen-plus', '通义千问-Plus_阿里云', 32 * 1000, dt1, num1, 0.004, 0.012),
-  PlatformLLM.limitedQwenTurbo: ChatLLMSpec(
-      'qwen-turbo', '通义千问-Turbo_阿里云', 8 * 1000, dt1, num1, 0.002, 0.006),
-  PlatformLLM.limitedQwenLong: ChatLLMSpec(
-      "qwen-long", '通义千问-长文_阿里云', 10000 * 1000, dt1, num1, 0.04, 0.12),
-  PlatformLLM.limitedQwenMaxLongContext: ChatLLMSpec('qwen-max-longcontext',
-      '通义千问-Max-30K_阿里云', 28 * 1000, dt1, num2, 0.04, 0.12),
-  // 2024-06-21 视觉理解大模型
-  PlatformLLM.limitedQwenVLMax: ChatLLMSpec(
-      'qwen-vl-max', '通义千问VL-Max_阿里云', 8 * 1000, dt1, num2, 0.02, 0.02,
-      isVisonLLM: true),
-  PlatformLLM.limitedQwenVLPlus: ChatLLMSpec(
-      'qwen-vl-plus', '通义千问VL-Plus_阿里云', 8 * 1000, dt1, num2, 0.008, 0.008,
-      isVisonLLM: true),
-
   // 百川
   PlatformLLM.limitedBaichuan2Turbo: ChatLLMSpec('baichuan2-turbo',
       'Baichuan2-Turbo_百川', 4 * 1000, dt2, num2, 0.008, 0.008),

@@ -85,8 +85,8 @@ class _OneChatScreenState extends State<OneChatScreen> {
   // 等待AI响应时的占位的消息，在构建真实对话的list时要删除
   var placeholderMessage = ChatMessage(
     messageId: "placeholderMessage",
-    text: "努力思考中(等待越久,回复内容越多)  ",
-    isFromUser: false,
+    role: "assistant",
+    content: "努力思考中(等待越久,回复内容越多)  ",
     dateTime: DateTime.now(),
     isPlaceholder: true,
   );
@@ -241,12 +241,12 @@ class _OneChatScreenState extends State<OneChatScreen> {
 
   // 这个发送消息实际是将对话文本添加到对话列表中
   // 但是在用户发送消息之后，需要等到AI响应，成功响应之后将响应加入对话中
-  _sendMessage(String text, {bool isFromUser = true, CommonUsage? usage}) {
+  _sendMessage(String text, {String role = "user", CommonUsage? usage}) {
     // 发送消息的逻辑，这里只是简单地将消息添加到列表中
     var temp = ChatMessage(
       messageId: const Uuid().v4(),
-      text: text,
-      isFromUser: isFromUser,
+      role: role,
+      content: text,
       dateTime: DateTime.now(),
       inputTokens: usage?.inputTokens,
       outputTokens: usage?.outputTokens,
@@ -255,7 +255,7 @@ class _OneChatScreenState extends State<OneChatScreen> {
 
     setState(() {
       // AI思考和用户输入是相反的(如果用户输入了，就是在等到机器回到了)
-      isBotThinking = isFromUser;
+      isBotThinking = role == "user";
 
       messages.add(temp);
 
@@ -272,7 +272,7 @@ class _OneChatScreenState extends State<OneChatScreen> {
       );
 
       // 如果是用户发送了消息，则开始等到AI响应(如果不是用户提问，则不会去调用接口)
-      if (isFromUser) {
+      if (role == "user") {
         // 如果是用户输入时，在列表中添加一个占位的消息，以便思考时的装圈和已加载的消息可以放到同一个list进行滑动
         // 一定注意要记得AI响应后要删除此占位的消息
         placeholderMessage.dateTime = DateTime.now();
@@ -293,9 +293,9 @@ class _OneChatScreenState extends State<OneChatScreen> {
       // 如果没有对话记录(即上层没有传入，且当前时用户第一次输入文字还没有创建对话记录)，则新建对话记录
       chatSession ??= ChatSession(
         uuid: const Uuid().v4(),
-        title: messages.first.text.length > 30
-            ? messages.first.text.substring(0, 30)
-            : messages.first.text,
+        title: messages.first.content.length > 30
+            ? messages.first.content.substring(0, 30)
+            : messages.first.content,
         gmtCreate: DateTime.now(),
         messages: messages,
         // 2026-06-20 这里记录的自定义模型枚举的值，因为后续查询结果过滤有需要用来判断
@@ -331,8 +331,8 @@ class _OneChatScreenState extends State<OneChatScreen> {
     List<CommonMessage> msgs = messages
         .where((e) => e.isPlaceholder != true)
         .map((e) => CommonMessage(
-              content: e.text,
-              role: e.isFromUser ? "user" : "assistant",
+              content: e.content,
+              role: e.role,
             ))
         .toList();
 
@@ -399,13 +399,13 @@ class _OneChatScreenState extends State<OneChatScreen> {
     );
 
     print("限量测试的返回结果-------temp--$a");
-    _sendMessage(tempText, isFromUser: false, usage: a);
+    _sendMessage(tempText, role: "assistant", usage: a);
   }
 
   /// 2024-05-31 暂时不根据token的返回来说了，临时直接显示整个对话不超过8千字
   /// 限量的有放在对象里面
   bool isMessageTooLong() =>
-      messages.fold(0, (sum, msg) => sum + msg.text.length) >
+      messages.fold(0, (sum, msg) => sum + msg.content.length) >
       newLLMSpecs[selectedLlm]!.contextLength;
 
   /// 构建用于下拉的平台列表(根据上层传入的值)
@@ -1088,7 +1088,7 @@ class _OneChatScreenState extends State<OneChatScreen> {
                 //   TypewriterText(text: messages[index].text),
                 MessageItem(message: messages[index]),
                 // 如果是大模型回复，可以有一些功能按钮
-                if (!messages[index].isFromUser)
+                if (messages[index].role == "assistant")
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
@@ -1110,7 +1110,7 @@ class _OneChatScreenState extends State<OneChatScreen> {
                         IconButton(
                           onPressed: () {
                             Clipboard.setData(
-                              ClipboardData(text: messages[index].text),
+                              ClipboardData(text: messages[index].content),
                             );
 
                             EasyLoading.showToast(

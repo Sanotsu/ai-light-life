@@ -18,7 +18,7 @@ class MessageBriefItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // 根据是否是用户输入跳转文本内容布局
-    bool isFromUser = message.isFromUser;
+    bool isFromUser = message.role == "user";
 
     // 如果是用户输入，头像显示在右边
     CrossAxisAlignment crossAlignment =
@@ -65,7 +65,7 @@ class MessageBriefItem extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          message.text,
+                          message.content,
                           style: TextStyle(
                             color: Colors.black,
                             fontSize: 20.sp,
@@ -93,7 +93,7 @@ class MessageBriefItem extends StatelessWidget {
                       // https://github.com/flutter/flutter/issues/148792
                       // 所以暂时不让选择
                       child: MarkdownBody(
-                        data: message.text,
+                        data: message.content,
                         selectable: true,
                         // 设置Markdown文本全局样式
                         styleSheet: MarkdownStyleSheet(

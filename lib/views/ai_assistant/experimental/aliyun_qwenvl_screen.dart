@@ -61,8 +61,8 @@ class _AliyunQwenVLScreenState extends State<AliyunQwenVLScreen> {
   // 等待AI响应时的占位的消息，在构建真实对话的list时要删除
   var placeholderMessage = ChatMessage(
     messageId: "placeholderMessage",
-    text: "努力思考中  ",
-    isFromUser: false,
+    role: "assistant",
+    content: "努力思考中  ",
     dateTime: DateTime.now(),
     isPlaceholder: true,
   );
@@ -79,15 +79,15 @@ class _AliyunQwenVLScreenState extends State<AliyunQwenVLScreen> {
   }
 
   /// 给对话列表添加对话信息
-  sendMessage(String text, {bool isFromUser = true, QwenVLUsage? usage}) {
+  sendMessage(String text, {String role = "user", QwenVLUsage? usage}) {
     setState(() {
       // 发送消息的逻辑，这里只是简单地将消息添加到列表中
       int input = (usage?.inputTokens ?? 0) + (usage?.imageTokens ?? 0);
       int output = usage?.outputTokens ?? 0;
       messages.add(ChatMessage(
         messageId: const Uuid().v4(),
-        text: text,
-        isFromUser: isFromUser,
+        content: text,
+        role: role,
         dateTime: DateTime.now(),
         inputTokens: input,
         outputTokens: output,
@@ -95,7 +95,7 @@ class _AliyunQwenVLScreenState extends State<AliyunQwenVLScreen> {
       ));
 
       // AI思考和用户输入是相反的(如果用户输入了，就是在等到机器回答了)
-      isBotThinking = isFromUser;
+      isBotThinking = (role == "user");
 
       // 注意，在每次添加了对话之后，都把整个对话列表存入对话历史中去
       // 当然，要在占位消息之前
@@ -112,7 +112,7 @@ class _AliyunQwenVLScreenState extends State<AliyunQwenVLScreen> {
       );
 
       // 如果是用户发送了消息，则开始等到AI响应(如果不是用户提问，则不会去调用接口)
-      if (isFromUser) {
+      if (role == "user") {
         // 如果是用户输入时，在列表中添加一个占位的消息，以便思考时的装圈和已加载的消息可以放到同一个list进行滑动
         // 一定注意要记得AI响应后要删除此占位的消息
         placeholderMessage.dateTime = DateTime.now();
@@ -132,7 +132,7 @@ class _AliyunQwenVLScreenState extends State<AliyunQwenVLScreen> {
       chatSession ??= ChatSession(
         uuid: const Uuid().v4(),
         // 存完整的第一个问题，就不让修改了
-        title: messages.first.text,
+        title: messages.first.content,
         gmtCreate: DateTime.now(),
         messages: messages,
         // 2026-06-06 这里记录的也是各平台原始的大模型名称
@@ -171,11 +171,11 @@ class _AliyunQwenVLScreenState extends State<AliyunQwenVLScreen> {
     List<QwenVLMessage> msgs = messages
         .where((e) => e.isPlaceholder != true)
         .map((e) => QwenVLMessage(
-              role: e.isFromUser ? "user" : "assistant",
+              role: e.role,
               content: [
                 QwenVLContent(
                   image: url,
-                  text: e.text,
+                  text: e.content,
                 )
               ],
             ))
@@ -219,7 +219,7 @@ class _AliyunQwenVLScreenState extends State<AliyunQwenVLScreen> {
     );
 
     print("限量测试的返回结果-------temp--$a");
-    sendMessage(tempText, isFromUser: false, usage: a);
+    sendMessage(tempText, role: "assistant", usage: a);
   }
 
   /// 点击了最近对话的指定某条，则要查询对应信息
@@ -250,7 +250,7 @@ class _AliyunQwenVLScreenState extends State<AliyunQwenVLScreen> {
 
   /// 最后一条大模型回复如果不满意，可以重新生成(中间的不行，因为后续的问题是关联上下文的)
   regenerateLatestQuestion() {
-    var temp = messages.where((e) => !e.isFromUser).toList();
+    var temp = messages.where((e) => e.role != "user").toList();
 
     if (temp.isNotEmpty) {
       setState(() {
@@ -484,7 +484,7 @@ class _AliyunQwenVLScreenState extends State<AliyunQwenVLScreen> {
             children: [
               MessageItem(message: messages[index]),
               // 如果是大模型回复，可以有一些功能按钮
-              if (!messages[index].isFromUser)
+              if (messages[index].role == "assistant")
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
@@ -502,7 +502,7 @@ class _AliyunQwenVLScreenState extends State<AliyunQwenVLScreen> {
                     IconButton(
                       onPressed: () {
                         Clipboard.setData(
-                          ClipboardData(text: messages[index].text),
+                          ClipboardData(text: messages[index].content),
                         );
 
                         EasyLoading.showToast(

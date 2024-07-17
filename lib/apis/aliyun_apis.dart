@@ -7,7 +7,6 @@ import '../dio_client/cus_http_request.dart';
 import '../dio_client/interceptor_error.dart';
 import '../models/ai_interface_state/aliyun_qwenvl_state.dart';
 import '../models/ai_interface_state/aliyun_text2image_state.dart';
-import '../models/common_llm_info.dart';
 import '../services/cus_get_storage.dart';
 import '_self_keys.dart';
 
@@ -140,7 +139,7 @@ Future<List<AliyunQwenVlResp>> getAliyunQwenVLResp(
   bool isUserConfig = true,
 }) async {
   // 如果有传模型名称，就用传递的；没有就默认的
-  model = model ?? newLLMSpecs[PlatformLLM.limitedQwenVLPlus]!.model;
+  model = model ?? "没有模型";
 
 //  ?????
 // 2024-06-21

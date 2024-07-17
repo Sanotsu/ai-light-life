@@ -8,10 +8,14 @@ import '../common/constants.dart';
 /// 对话页面就是包含一系列时间顺序排序后的对话消息的list
 class ChatMessage {
   final String messageId; // 每个消息有个ID方便整个对话列表的保存？？？
-  final String text; // 文本内容
   DateTime dateTime; // 时间
-  final bool isFromUser; // 是否来自用户
-  final String? avatarUrl; // 头像URL
+  // 2024-07-17 对话模型role和context都存上
+  // 之前有个isFromUser来区分用户和AI助手，但没法保存system，所以直接改为role
+  final String role;
+  // 2024-07-17 之前是text，现在改为content
+  final String content; // 文本内容
+  // 2024-07-17 有可能对话存在输入图片(假如后续一个用户对话中存在图片切来切去，就最后每个问答来回都存上图片)
+  final String? imageUrl;
   final bool? isPlaceholder; // 是否是等待响应时的占位消息
   /// 2024-06-15 限时限量有token限制，所以存放每次对话的token消耗
   final int? inputTokens;
@@ -20,10 +24,10 @@ class ChatMessage {
 
   ChatMessage({
     required this.messageId,
-    required this.text,
     required this.dateTime,
-    required this.isFromUser,
-    this.avatarUrl,
+    required this.role,
+    required this.content,
+    this.imageUrl,
     this.isPlaceholder,
     this.inputTokens,
     this.outputTokens,
@@ -33,10 +37,10 @@ class ChatMessage {
   Map<String, dynamic> toMap() {
     return {
       'message_id': messageId,
-      'text': text,
       'date_time': dateTime,
-      'is_from_user': isFromUser,
-      'avatar_url': avatarUrl,
+      'role': role,
+      'content': content,
+      'image_url': imageUrl,
       'is_placeholder': isPlaceholder,
       'input_tokens': inputTokens,
       'output_tokens': outputTokens,
@@ -51,10 +55,10 @@ class ChatMessage {
   factory ChatMessage.fromMap(Map<String, dynamic> map) {
     return ChatMessage(
       messageId: map['message_id'] as String,
-      text: map['text'] as String,
       dateTime: DateTime.parse(map['date_time']),
-      isFromUser: bool.parse(map['is_from_user']),
-      avatarUrl: map['avatar_url'] as String?,
+      role: map['role'] as String,
+      content: map['content'] as String,
+      imageUrl: map['image_url'] as String?,
       isPlaceholder: bool.tryParse(map['is_placeholder']),
       inputTokens: int.tryParse(map['input_tokens']),
       outputTokens: int.tryParse(map['output_tokens']),
@@ -64,10 +68,10 @@ class ChatMessage {
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) => ChatMessage(
         messageId: json["message_id"],
-        text: json["text"],
         dateTime: DateTime.parse(json["date_time"]),
-        isFromUser: bool.parse(json["is_from_user"]),
-        avatarUrl: json["avatar_url"],
+        role: json["role"],
+        content: json["content"],
+        imageUrl: json["image_url"],
         isPlaceholder: bool.tryParse(json["is_placeholder"]),
         inputTokens: int.tryParse(json["input_tokens"]),
         outputTokens: int.tryParse(json["output_tokens"]),
@@ -76,10 +80,10 @@ class ChatMessage {
 
   Map<String, dynamic> toJson() => {
         "message_id": messageId,
-        "text": text,
         "date_time": dateTime,
-        "is_from_user": isFromUser,
-        "avatar_url": avatarUrl,
+        'role': role,
+        "content": content,
+        "image_url": imageUrl,
         "is_placeholder": isPlaceholder,
         "input_tokens": inputTokens,
         "output_tokens": outputTokens,
@@ -93,10 +97,10 @@ class ChatMessage {
     return '''
     {
      "message_id": "$messageId", 
-     "text": ${jsonEncode(text)}, 
      "date_time": "$dateTime", 
-     "is_from_user": "$isFromUser", 
-     "avatar_url": "$avatarUrl", 
+     "role": "$role", 
+     "content": ${jsonEncode(content)}, 
+     "image_url": "$imageUrl", 
      "is_placeholder":"$isPlaceholder",
      "input_tokens":"$inputTokens",
      "output_tokens":"$outputTokens",

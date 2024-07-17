@@ -3,7 +3,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
-import 'chatbot/chatbat_screen.dart';
+import 'chat_bot/chat_bat_screen.dart';
+import 'photo_translation/index.dart';
 
 ///
 /// 2024-07-16 规划一系列有AI加成的使用工具，这里是主入口
@@ -70,8 +71,16 @@ class _AIToolIndexState extends State<AIToolIndex> {
                   },
                 ),
                 buildAIToolEntrance(
-                  "拍照翻译(TODO)",
+                  "拍照翻译",
                   icon: const Icon(Icons.photo_camera_outlined),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const PhotoTranslation(),
+                      ),
+                    );
+                  },
                 ),
                 buildAIToolEntrance(
                   "翻译助手(TODO)",

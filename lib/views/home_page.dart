@@ -6,7 +6,7 @@ import 'package:flutter/services.dart';
 import '../services/cus_get_storage.dart';
 import 'accounting/index.dart';
 import 'ai_assistant/ai_tools/index.dart';
-import 'ai_assistant/elderly_mode/brief_mode_index.dart';
+import 'ai_assistant/experimental/index.dart';
 import 'user_and_settings/backup_and_restore/index.dart';
 import 'random_dish/dish_wheel_index.dart';
 import 'user_and_settings/index.dart';
@@ -31,7 +31,7 @@ class _HomePageState extends State<HomePage> {
 
     _widgetOptions = [
       MyGetStorage().getIsBriefMode()
-          ? const BriefAIChatIndex()
+          ? const AgiLlmSample()
           : const AIToolIndex(),
       const BillItemIndex(),
       const DishWheelIndex(),

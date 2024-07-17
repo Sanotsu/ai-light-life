@@ -98,6 +98,7 @@ Future<List<CommonRespBody>> getTencentAigcResp(
 var aliyunAigcUrl =
     "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation";
 
+// ？？？2024-07-17 注意：这里不是所有的模型都支持配置resultFormat，限量的那些不行，但还没去处理
 Future<List<CommonRespBody>> getAliyunAigcResp(
   List<CommonMessage> messages, {
   String? model,

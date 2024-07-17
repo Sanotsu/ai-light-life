@@ -279,8 +279,7 @@ class DBHelper {
     );
 
     // 数据是分页查询的，但这里带上满足条件的一共多少条
-    String sql =
-        'SELECT COUNT(*) FROM ${AILightLifeDdl.tableNameOfBillItem}';
+    String sql = 'SELECT COUNT(*) FROM ${AILightLifeDdl.tableNameOfBillItem}';
     if (where.isNotEmpty) {
       sql += ' WHERE ${where.join(' AND ')}';
     }
@@ -368,8 +367,7 @@ class DBHelper {
       final rows = await db.rawQuery(sql3);
 
       // 数据是分页查询的，但这里带上满足条件的一共多少条
-      String sql =
-          'SELECT COUNT(*) FROM ${AILightLifeDdl.tableNameOfBillItem}';
+      String sql = 'SELECT COUNT(*) FROM ${AILightLifeDdl.tableNameOfBillItem}';
       if (where.isNotEmpty) {
         sql += ' WHERE ${where.join(' AND ')}';
       }
