@@ -18,6 +18,7 @@ import '../../../../models/paid_llm/common_chat_model_spec.dart';
 import '../../_components/message_item.dart';
 import '../../_components/save_markdown_as_pdf.dart';
 import '../../_components/save_markdown_as_txt.dart';
+import '../../_components/save_markdown_html_as_pdf.dart';
 
 // 可供翻译的目标语言
 enum TargetLanguage {
@@ -550,9 +551,11 @@ class _PhotoTranslationState extends State<PhotoTranslation> {
       offset: Offset(25.sp, 0),
       onSelected: (String value) async {
         // 处理选中的菜单项
+        // 之前还有个预览页面，现在直接保存了
         if (value == 'txt') {
-          // 之前还有个预览页面，现在直接保存了
           saveMarkdownAsTxt(messages.last.content);
+        } else if (value == 'pdf') {
+          saveMarkdownHtmlAsPdf(messages.last.content, _selectedImage!);
         } else {
           // Navigator.push(
           //   context,
@@ -568,7 +571,8 @@ class _PhotoTranslationState extends State<PhotoTranslation> {
       },
       itemBuilder: (BuildContext context) => <PopupMenuItem<String>>[
         const PopupMenuItem(value: 'txt', child: Text('保存为txt')),
-        const PopupMenuItem(value: 'pdf', child: Text('保存为pdf(测试)')),
+        const PopupMenuItem(value: 'pdf', child: Text('保存为pdf')),
+        const PopupMenuItem(value: 'pdf-test', child: Text('保存为pdf(测试)')),
       ],
     );
   }

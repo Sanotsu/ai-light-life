@@ -81,14 +81,10 @@ Future<void> saveMarkdownAsPdf(String mdString, File imageFile) async {
           // 上方显示图片
           pdf.Center(
             child: pdf.Image(
-              pdf.MemoryImage(
-                imageFile.readAsBytesSync(),
-              ),
+              pdf.MemoryImage(imageFile.readAsBytesSync()),
             ),
           ),
-          pdf.Center(
-            child: pdf.Text("原图片如上"),
-          ),
+          pdf.Center(child: pdf.Text("原图片如上")),
           pdf.SizedBox(height: 20),
           ...widgets,
         ];
@@ -100,9 +96,7 @@ Future<void> saveMarkdownAsPdf(String mdString, File imageFile) async {
           child: pdf.Row(
             mainAxisAlignment: pdf.MainAxisAlignment.spaceBetween,
             children: [
-              pdf.Text(
-                '本文件由<AI轻生活>自动导出',
-              ),
+              pdf.Text('本文件由<AI轻生活>自动生成'),
               pdf.Text(DateFormat.yMMMEd().format(DateTime.now())),
             ],
           ),
