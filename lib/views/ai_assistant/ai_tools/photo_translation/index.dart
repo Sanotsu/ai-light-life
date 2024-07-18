@@ -15,9 +15,9 @@ import '../../../../common/components/tool_widget.dart';
 import '../../../../models/llm_chat_state.dart';
 import '../../../../models/paid_llm/common_chat_completion_state.dart';
 import '../../../../models/paid_llm/common_chat_model_spec.dart';
-import '../../_components/markdown_to_pdf_converter.dart';
-import '../../_components/markdown_to_txt_converter.dart';
 import '../../_components/message_item.dart';
+import '../../_components/save_markdown_as_pdf.dart';
+import '../../_components/save_markdown_as_txt.dart';
 
 // 可供翻译的目标语言
 enum TargetLanguage {
@@ -551,24 +551,19 @@ class _PhotoTranslationState extends State<PhotoTranslation> {
       onSelected: (String value) async {
         // 处理选中的菜单项
         if (value == 'txt') {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => MarkdownToTextConverter(
-                messages.last.content,
-              ),
-            ),
-          );
+          // 之前还有个预览页面，现在直接保存了
+          saveMarkdownAsTxt(messages.last.content);
         } else {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => MarkdownToPdfConverter(
-                messages.last.content,
-                imageFile: _selectedImage!,
-              ),
-            ),
-          );
+          // Navigator.push(
+          //   context,
+          //   MaterialPageRoute(
+          //     builder: (context) => SaveMarkdownToPdf(
+          //       messages.last.content,
+          //       imageFile: _selectedImage!,
+          //     ),
+          //   ),
+          // );
+          saveMarkdownAsPdf(messages.last.content, _selectedImage!);
         }
       },
       itemBuilder: (BuildContext context) => <PopupMenuItem<String>>[
