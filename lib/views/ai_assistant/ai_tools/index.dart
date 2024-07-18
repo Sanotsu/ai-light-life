@@ -73,6 +73,7 @@ class _AIToolIndexState extends State<AIToolIndex> {
                 buildAIToolEntrance(
                   "拍照翻译",
                   icon: const Icon(Icons.photo_camera_outlined),
+                  color: Colors.blue[100],
                   onTap: () {
                     Navigator.push(
                       context,

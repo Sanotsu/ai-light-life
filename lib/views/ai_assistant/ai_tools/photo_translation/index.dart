@@ -15,6 +15,8 @@ import '../../../../common/components/tool_widget.dart';
 import '../../../../models/llm_chat_state.dart';
 import '../../../../models/paid_llm/common_chat_completion_state.dart';
 import '../../../../models/paid_llm/common_chat_model_spec.dart';
+import '../../_components/markdown_to_pdf_converter.dart';
+import '../../_components/markdown_to_txt_converter.dart';
 import '../../_components/message_item.dart';
 
 // 可供翻译的目标语言
@@ -91,9 +93,12 @@ class _PhotoTranslationState extends State<PhotoTranslation> {
 
   // 默认的图像识别指令(这里是翻译，就暂时只有翻译)
   List<String> defaultCmds = [
-    "1. 识别并打印图片中的文字;\n2. 将图片中文字翻译成",
+    "1. 打印图片中的原文文字;\n2. 将图片中文字翻译成",
     "分析图中存在那些元素，表现了什么内容。"
   ];
+
+  // 保存时可选择某些格式
+  String selectedDLOption = 'TXT';
 
   ///
   /// =======================================
@@ -509,11 +514,10 @@ class _PhotoTranslationState extends State<PhotoTranslation> {
                         },
                         icon: Icon(Icons.copy, size: 20.sp),
                       ),
+                      // 点击下载翻译结果
+                      buildDLPopupMenuButton(),
+
                       // // 其他功能(占位)
-                      IconButton(
-                        onPressed: null,
-                        icon: Icon(Icons.download_outlined, size: 20.sp),
-                      ),
                       // IconButton(
                       //   onPressed: null,
                       //   icon: Icon(Icons.thumb_down_outlined, size: 20.sp),
@@ -535,6 +539,42 @@ class _PhotoTranslationState extends State<PhotoTranslation> {
           ),
         );
       },
+    );
+  }
+
+  buildDLPopupMenuButton() {
+    return PopupMenuButton<String>(
+      icon: Icon(Icons.download_outlined, size: 20.sp),
+      // 调整弹出按钮的位置
+      position: PopupMenuPosition.under,
+      offset: Offset(25.sp, 0),
+      onSelected: (String value) async {
+        // 处理选中的菜单项
+        if (value == 'txt') {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => MarkdownToTextConverter(
+                messages.last.content,
+              ),
+            ),
+          );
+        } else {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => MarkdownToPdfConverter(
+                messages.last.content,
+                imageFile: _selectedImage!,
+              ),
+            ),
+          );
+        }
+      },
+      itemBuilder: (BuildContext context) => <PopupMenuItem<String>>[
+        const PopupMenuItem(value: 'txt', child: Text('保存为txt')),
+        const PopupMenuItem(value: 'pdf', child: Text('保存为pdf(测试)')),
+      ],
     );
   }
 }

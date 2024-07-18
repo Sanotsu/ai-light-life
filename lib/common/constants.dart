@@ -1,4 +1,8 @@
 // 时间格式化字符串
+// ignore_for_file: non_constant_identifier_names
+
+import 'dart:io';
+
 const constDatetimeFormat = "yyyy-MM-dd HH:mm:ss";
 const constDateFormat = "yyyy-MM-dd";
 const constMonthFormat = "yyyy-MM";
@@ -103,3 +107,7 @@ List defaultChatQuestions = [
   // "请帮我写一份通用的加薪申请模板。",
   // "一个长方体的棱长和是144厘米，它的长、宽、高之比是4:3:2，长方体的体积是多少？",
 ];
+
+/// 保存翻译结果的目录
+final SAVE_TRANSLATION_DIR =
+    Directory('/storage/emulated/0/AILightLife/translations');
