@@ -195,3 +195,11 @@ int generateRandomInt(int min, int max) {
   // +1 因为 nextInt 包含 min 但不包含 max
   return min + random.nextInt(max - min + 1);
 }
+
+// 转换文件大小为字符串显示
+String formatFileSize(int bytes, {int decimals = 2}) {
+  if (bytes <= 0) return "0 B";
+  const suffixes = ["B", "KB", "MB", "GB", "TB"];
+  var i = (log(bytes) / log(1024)).floor();
+  return '${(bytes / pow(1024, i)).toStringAsFixed(decimals)} ${suffixes[i]}';
+}

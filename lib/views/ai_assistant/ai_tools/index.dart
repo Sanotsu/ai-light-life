@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import 'chat_bot/chat_bat_screen.dart';
+import 'document_summary/index.dart';
 import 'photo_translation/index.dart';
 
 ///
@@ -58,7 +59,7 @@ class _AIToolIndexState extends State<AIToolIndex> {
               childAspectRatio: 4 / 3,
               children: <Widget>[
                 buildAIToolEntrance(
-                  "你问我答",
+                  "你问\n我答",
                   icon: const Icon(Icons.chat_outlined),
                   color: Colors.blue[100],
                   onTap: () {
@@ -71,7 +72,7 @@ class _AIToolIndexState extends State<AIToolIndex> {
                   },
                 ),
                 buildAIToolEntrance(
-                  "拍照翻译",
+                  "拍照\n翻译",
                   icon: const Icon(Icons.photo_camera_outlined),
                   color: Colors.blue[100],
                   onTap: () {
@@ -84,15 +85,24 @@ class _AIToolIndexState extends State<AIToolIndex> {
                   },
                 ),
                 buildAIToolEntrance(
-                  "翻译助手(TODO)",
+                  "翻译\n助手(TODO)",
                   icon: const Icon(Icons.translate),
                 ),
                 buildAIToolEntrance(
-                  "阅读总结(TODO)",
+                  "文档\n提要",
                   icon: const Icon(Icons.newspaper),
+                  color: Colors.blue[100],
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const DocumentSummary(),
+                      ),
+                    );
+                  },
                 ),
                 buildAIToolEntrance(
-                  "聚合搜索(TODO)",
+                  "聚合\n搜索(TODO)",
                   icon: const Icon(Icons.search),
                 ),
               ],

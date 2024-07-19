@@ -242,6 +242,7 @@ Future<List<CommonRespBody>> getBaiduAigcResp(
   String? model,
   bool stream = false,
   bool isUserConfig = true,
+  String? system,
 }) async {
   // 如果有传模型名称，就用传递的；没有就默认的
   // 百度免费的ernie-speed和ernie-lite 接口使用上是一致的，就是模型名称不一样
@@ -250,7 +251,9 @@ Future<List<CommonRespBody>> getBaiduAigcResp(
   // 每次请求都要实时获取最小的token
   String token = await getAccessToken(isUserConfig: isUserConfig);
 
-  var body = CommonReqBody(messages: messages, stream: stream);
+  var body = system != null
+      ? CommonReqBody(messages: messages, stream: stream, system: system)
+      : CommonReqBody(messages: messages, stream: stream);
 
   var start = DateTime.now().millisecondsSinceEpoch;
 

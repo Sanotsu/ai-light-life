@@ -241,6 +241,8 @@ class CommonReqBody {
   AliyunInput? input;
   // [阿里云] 额外的，阿里还可以配置其他参数，比较有用的是指定输出消息的格式，阿里云不同模型可能默认响应不一样
   AliyunParameters? parameters;
+  // 2024-07-19 [百度] 百度的系统角色不是在messages中，而是单独的system字段;messages传入时数量只能是奇数的
+  String? system;
 
   CommonReqBody({
     this.model,
@@ -248,6 +250,7 @@ class CommonReqBody {
     this.stream = false,
     this.input,
     this.parameters,
+    this.system,
   });
 
   factory CommonReqBody.fromRawJson(String str) =>
@@ -270,6 +273,7 @@ class CommonReqBody {
         parameters: json["parameters"] == null
             ? null
             : AliyunParameters.fromJson(json["parameters"]),
+        system: json["system"] ?? json["System"],
       );
 
   Map<String, dynamic> toJson({String? caseType}) {
@@ -290,6 +294,7 @@ class CommonReqBody {
             "stream": stream,
             "input": input?.toJson(),
             "parameters": parameters?.toJson(),
+            "system": system,
           };
   }
 }
