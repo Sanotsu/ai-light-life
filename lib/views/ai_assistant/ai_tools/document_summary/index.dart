@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:open_filex/open_filex.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../../apis/common_chat_apis.dart';
@@ -21,6 +23,7 @@ import 'document_parser.dart';
 /// 文档提要
 /// 用户可以直接复制一大段内容来分析，或者上传文件来分析
 ///
+
 class DocumentSummary extends StatefulWidget {
   const DocumentSummary({super.key});
 
@@ -50,7 +53,7 @@ class _DocumentSummaryState extends State<DocumentSummary> {
   /// ===================
   ///
 
-  Future<void> _pickAndReadFile() async {
+  Future<void> pickAndReadFileOld() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf'],
@@ -85,6 +88,72 @@ class _DocumentSummaryState extends State<DocumentSummary> {
     }
   }
 
+  Future<void> _pickAndReadFile() async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'txt', 'docx'],
+    );
+
+    if (result != null) {
+      setState(() {
+        // 是否在解析文件中
+        isLoadingDocument = true;
+        // 新选中了文档，需要在解析前就清空旧的文档信息和旧的分析数据
+        _fileContent = '';
+        _selectedFile = null;
+        messages.clear();
+      });
+      PlatformFile file = result.files.first;
+
+      // if (file.extension == "txt") {
+      //   // var bytes = File(file.path!).readAsBytesSync();
+      //   // var utf16CodeUnits = bytes.buffer.asUint16List();
+      //   // return String.fromCharCodes(utf16CodeUnits);
+
+      //   var bytes = File(file.path!).readAsBytesSync();
+      //   var aa = await CharsetDetector.autoDecode(bytes.buffer.asUint8List());
+      //   l.i(aa.charset);
+
+      //   final codec = Encoding.getByName(aa.charset.toLowerCase());
+
+      //   l.i("codec-----------$codec");
+
+      //   // var bytes = File(file.path!).readAsStringSync( );
+      // }
+
+      // ？？？2024-07-20 使用compute 解析doc文件会报错。
+      // 不使用compute 加载圈会被堵塞无法显示
+      // 调用 compute 函数来在后台线程中读取文件内容。
+      var text = await compute(readFileContent, file);
+      // var text = await readFileContent(file);
+
+      if (!mounted) return;
+      setState(() {
+        _selectedFile = file;
+        // 无法解析的和解析结果为空的，都统一为空字符串
+        _fileContent = text ?? "";
+
+        print("=========文档内容长度==========${_fileContent.length}--$_fileContent");
+        isLoadingDocument = false;
+      });
+    }
+  }
+
+  // 这个打开文件整的就只是调用设备中支持的打开对应文件的程序，用第三方程序打开文件而已
+  openFiles() async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles();
+
+    if (result != null) {
+      PlatformFile file = result.files.first;
+
+      if (await Permission.manageExternalStorage.request().isGranted) {
+        var result = await OpenFilex.open(file.path);
+
+        l.i("文件地址---${file.path} type=${result.type}  message=${result.message}");
+      }
+    }
+  }
+
   ///
   /// 问答都是一次性的，不用想着多次发送的情况了
   /// 对于是否展示用户输入的内容，分为以下三种情况：
@@ -94,7 +163,7 @@ class _DocumentSummaryState extends State<DocumentSummary> {
   ///
   /// 这个按钮只有用户点击，每次点击效果是一样的
   ///
-  qusets({bool? isRegen}) async {
+  getSummaryResult({bool? isRegen}) async {
     // 点击分析前，显示占位的
 
     var userContent = "";
@@ -104,7 +173,7 @@ class _DocumentSummaryState extends State<DocumentSummary> {
     }
 
     // 如果是重新生成，那用户输入的内容其实已经清空了，要使用刻意备份的字符串
-    if (isRegen == true) {
+    if (isRegen == true && userInputForRegen.isNotEmpty) {
       userContent += "手动输入的文档内容:\n\n$userInputForRegen\n\n";
     } else {
       // 理论上重新生成和用户输入为空不会都为true，但为了避免意外，强行2选1
@@ -223,7 +292,7 @@ class _DocumentSummaryState extends State<DocumentSummary> {
 
     // 因为在调用总结函数时有清空用户输入，所以这里点击重新生成，就取不到直接的用户输入了
     // 所以在函数内部专门加了个变量，来处理重新生成的逻辑
-    qusets(isRegen: true);
+    getSummaryResult(isRegen: true);
   }
 
   @override
@@ -237,12 +306,18 @@ class _DocumentSummaryState extends State<DocumentSummary> {
               commonHintDialog(
                 context,
                 '温馨提示',
-                '1 文档目前仅支持pdf、word、txt格式;\n 2 目前仅支持单个文档的分析总结提要;\n 3 文档总内容不超过8000字符.',
+                '1 文档目前仅支持pdf、docx、txt(UTF-8编码)格式的文档;\n 2 目前仅支持单个文档的分析总结提要;\n 3 文档总内容不超过8000字符.',
                 msgFontSize: 15.sp,
               );
             },
             icon: const Icon(Icons.help),
-          )
+          ),
+          // IconButton(
+          //   onPressed: () {
+          //     openFiles();
+          //   },
+          //   icon: const Icon(Icons.file_open),
+          // )
         ],
       ),
       body: Column(
@@ -401,7 +476,7 @@ class _DocumentSummaryState extends State<DocumentSummary> {
                     FocusScope.of(context).unfocus();
 
                     // 调用文档分析总结函数
-                    qusets();
+                    getSummaryResult();
                   },
             icon: const Icon(Icons.send),
           ),

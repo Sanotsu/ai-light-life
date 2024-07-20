@@ -1,4 +1,6 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" 
+          xmlns:tools="http://schemas.android.com/tools"
+          package="com.swm.ai_light_life">
     <!-- =访问网络 -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <!-- =访问设备存储 -->
@@ -41,5 +43,21 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <!-- open_file用来打开文件，如果与FileProvider的其他插件发生冲突时，需要指定这个provider -->
+        <!-- 注意，还要新建一个文件(默认不存在) android/app/src/main/res/xml/filepaths.xml 并添加相关内容-->
+        <!-- 以及在顶部 添加xmlns:tools和package-->
+        <!-- 再注意，filepaths.xml直接readme里面的不行，
+        参看https://github.com/crazecoder/open_file/issues/255#issuecomment-1605629090 -->
+        <provider
+                android:name="androidx.core.content.FileProvider"
+                android:authorities="${applicationId}.fileProvider"
+                android:exported="false"
+                android:grantUriPermissions="true"
+                tools:replace="android:authorities">
+            <meta-data
+                    android:name="android.support.FILE_PROVIDER_PATHS"
+                    android:resource="@xml/filepaths"
+                    tools:replace="android:resource" />
+        </provider>
     </application>
 </manifest>

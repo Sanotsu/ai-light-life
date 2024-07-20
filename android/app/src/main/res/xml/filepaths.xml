@@ -1,0 +1,14 @@
+<!-- <?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <root-path name="root" path="."/>
+    <external-files-path name="external_storage_directory" path="." />
+</resources> -->
+<!-- 使用open_file就是上面那个，open_filex(fork前者但修复了一些问题且维护更积极)就是下面个 -->
+<paths>
+    <external-path name="external-path" path="."/>
+    <external-cache-path name="external-cache-path" path="."/>
+    <external-files-path name="external-files-path" path="."/>
+    <files-path name="files_path" path="."/>
+    <cache-path name="cache-path" path="."/>
+    <root-path name="root" path="."/>
+</paths>

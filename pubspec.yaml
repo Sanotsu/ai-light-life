@@ -81,6 +81,14 @@ dependencies:
   htmltopdfwidgets: ^1.0.3 # 将 HTML 转换为 PDF 
   syncfusion_flutter_pdf: ^26.1.42 # 主要可以读取pdf文档
   printing: ^5.13.1 # 允许 Flutter 应用程序生成文档并将其打印到 android 或 ios 兼容打印机
+  # 读取文件(fork open_file且更新)
+  open_filex: ^4.4.0
+  # 从doc读取(仅)文本内容
+  doc_text: ^0.0.1
+  # 从docx读取(仅)文本内容
+  docx_to_text: ^1.0.1
+  # 检测文档的编码
+  flutter_charset_detector: ^3.1.0
 
 dev_dependencies:
   flutter_test:
