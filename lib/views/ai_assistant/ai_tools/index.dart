@@ -5,6 +5,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import 'chat_bot/chat_bat_screen.dart';
 import 'document_summary/index.dart';
+import 'multi_translator/index.dart';
 import 'photo_translation/index.dart';
 
 ///
@@ -85,8 +86,17 @@ class _AIToolIndexState extends State<AIToolIndex> {
                   },
                 ),
                 buildAIToolEntrance(
-                  "翻译\n助手(TODO)",
+                  "翻译\n助手",
                   icon: const Icon(Icons.translate),
+                  color: Colors.blue[100],
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const MultiTranslator(),
+                      ),
+                    );
+                  },
                 ),
                 buildAIToolEntrance(
                   "文档\n提要",
