@@ -1,79 +1,64 @@
 // ignore_for_file: avoid_print
 
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:docx_to_text/docx_to_text.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter_charset_detector/flutter_charset_detector.dart';
 import 'package:logger/logger.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 
 var l = Logger();
 
-Future<String?> parsePdf(String path) async {
-  try {
-    // 加载整个pdf文件.
-    final pdfDocument = PdfDocument(inputBytes: await File(path).readAsBytes());
-    // 获取pdf中所有的文本
-    String text = PdfTextExtractor(pdfDocument).extractText();
-    // 处理完之后释放文档
-    pdfDocument.dispose();
-
-    print("text----${text.length}");
-
-    return text;
-  } catch (e) {
-    print("error----${e.toString()}");
-    rethrow;
-  }
-}
-
-// 实测直接获取文档全部内容，可能会挤在一起，单词都无法区分开了
-String? parsePdfSync(String path) {
-  try {
-    final pdfDocument = PdfDocument(inputBytes: File(path).readAsBytesSync());
-    String text = PdfTextExtractor(pdfDocument).extractText();
-    pdfDocument.dispose();
-    print("parsePdfSync text----${text.length}");
-    return text;
-  } catch (e) {
-    print("parsePdfSync error----${e.toString()}");
-    rethrow;
-  }
-}
-
-String? parsePdfLinesSync(String path) {
-  try {
-    final pdfDocument = PdfDocument(inputBytes: File(path).readAsBytesSync());
-
-    // 从文档中提取文本行集合
-    final textLines = PdfTextExtractor(pdfDocument).extractTextLines();
-
-    var text = "";
-    for (var line in textLines) {
-      text += line.text;
-    }
-
-    pdfDocument.dispose();
-    print("parsePdfLinesSync text----${text.length}");
-    return text;
-  } catch (e) {
-    print("parsePdfLinesSync error----${e.toString()}");
-    rethrow;
-  }
-}
-
+/// 从文件中读完文本
 Future<String?> readFileContent(PlatformFile file) async {
   try {
     switch (file.extension) {
       case 'txt':
         // return File(file.path!).readAsString();
 
-        // 目前只看utf8的
+        // // 1  目前只看utf8的
+        // var bytes = File(file.path!).readAsBytesSync();
+        // var aa = utf8.decode(bytes, allowMalformed: true);
+        // l.i(aa);
+        // return aa;
+
+        // // 2  使用预设的几种编码来转码(但utf8的文本latin1也能解，只不过乱码而已)
+        // final content = File(file.path!).readAsBytesSync();
+
+        // // 尝试不同的编码格式
+        // // 2024-07-22 目前好像就这几种默认的
+        // List<Encoding> encodings = [
+        //   utf8,
+        //   ascii,
+        //   latin1,
+        // ];
+
+        // String decodedContent = "";
+        // for (var encoding in encodings) {
+        //   try {
+        //     decodedContent = encoding.decode(content);
+        //     print('Successfully decoded using ${encoding.name}');
+        //     print(decodedContent);
+        //     break;
+        //   } catch (e) {
+        //     print('Failed to decode using ${encoding.name}: $e');
+        //   }
+        // }
+
+        // if (decodedContent.isEmpty) {
+        //   print('Failed to decode the file with all supported encodings.');
+        // }
+
+        // return decodedContent;
+
+        // 3 使用第三方库来自动识别和转换
         var bytes = File(file.path!).readAsBytesSync();
-        var aa = utf8.decode(bytes, allowMalformed: true);
-        l.i(aa);
-        return aa;
+        DecodingResult result = await CharsetDetector.autoDecode(bytes);
+        print(result.charset); // => e.g. 'SHIFT_JIS'
+        print(result.string); // => e.g. '日本語'
+
+        return result.string;
 
       case 'pdf':
         final pdfDocument =
@@ -120,4 +105,29 @@ Future<String?> readFileContent(PlatformFile file) async {
     l.e("解析文档出错:${e.toString()}");
     rethrow;
   }
+}
+
+///
+/// 如果像上面把文本读取放在一个函数内，可能出现不同库的一些其他问题，比如
+///    2024-07-20 如果上层使用了compute来后台处理，这个插件就会报错：
+///      Bad state: The BackgroundIsolateBinaryMessenger.instance value is invalid until
+///      BackgroundIsolateBinaryMessenger.ensureInitialized is executed.
+/// 所以根据分类，有些用上compute，有些用不上，所以拆开来
+///
+Future<String> extractTextFromPdf(String path) async {
+  final pdfDocument = PdfDocument(inputBytes: File(path).readAsBytesSync());
+
+  // 实测直接获取文档全部内容，可能会挤在一起，单词都无法区分开了
+  // String text = PdfTextExtractor(pdfDocument).extractText();
+
+  // 从文档中提取文本行集合
+  final textLines = PdfTextExtractor(pdfDocument).extractTextLines();
+
+  var text = "";
+  for (var line in textLines) {
+    text += line.text;
+  }
+
+  pdfDocument.dispose();
+  return text;
 }

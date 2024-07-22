@@ -1,9 +1,14 @@
 // ignore_for_file: avoid_print
 
+import 'dart:io';
+
+import 'package:doc_text/doc_text.dart';
+import 'package:docx_to_text/docx_to_text.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_charset_detector/flutter_charset_detector.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:open_filex/open_filex.dart';
@@ -53,45 +58,10 @@ class _DocumentSummaryState extends State<DocumentSummary> {
   /// ===================
   ///
 
-  Future<void> pickAndReadFileOld() async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['pdf'],
-    );
-
-    if (result != null) {
-      setState(() {
-        // 是否在解析文件中
-        isLoadingDocument = true;
-        // 新选中了文档，需要在解析前就清空旧的文档信息和旧的分析数据
-        _fileContent = '';
-        _selectedFile = null;
-        messages.clear();
-      });
-      PlatformFile file = result.files.first;
-
-      // 如果 parsePdf 方法改为异步方法后，加载圈仍然卡住，可能是因为解析 PDF 的操作仍然在 UI 线程中执行。
-      // 为了确保加载圈能够正常旋转，需要确保解析 PDF 的操作在后台线程中执行。
-      // 可以使用 compute 函数来在后台线程中执行耗时操作。
-      // var text = await parsePdf(file.path!);
-      var text = await compute(parsePdfLinesSync, file.path!);
-
-      if (!mounted) return;
-      setState(() {
-        _selectedFile = file;
-        // 无法解析的和解析结果为空的，都统一为空字符串
-        _fileContent = text ?? "";
-
-        print("=========文档内容长度==========${_fileContent.length}--$_fileContent");
-        isLoadingDocument = false;
-      });
-    }
-  }
-
   Future<void> _pickAndReadFile() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
-      allowedExtensions: ['pdf', 'txt', 'docx'],
+      allowedExtensions: ['pdf', 'txt', 'docx', 'doc'],
     );
 
     if (result != null) {
@@ -103,39 +73,46 @@ class _DocumentSummaryState extends State<DocumentSummary> {
         _selectedFile = null;
         messages.clear();
       });
+
       PlatformFile file = result.files.first;
 
-      // if (file.extension == "txt") {
-      //   // var bytes = File(file.path!).readAsBytesSync();
-      //   // var utf16CodeUnits = bytes.buffer.asUint16List();
-      //   // return String.fromCharCodes(utf16CodeUnits);
+      try {
+        var text = "";
+        switch (file.extension) {
+          case 'txt':
+            DecodingResult result = await CharsetDetector.autoDecode(
+              File(file.path!).readAsBytesSync(),
+            );
+            text = result.string;
+            print(result.charset);
+            print(result.string);
+          case 'pdf':
+            text = await compute(extractTextFromPdf, file.path!);
+          case 'docx':
+            text = docxToText(File(file.path!).readAsBytesSync());
+          case 'doc':
+            text = await DocText().extractTextFromDoc(file.path!) ?? "";
+          default:
+            print("默认的,暂时啥都不做");
+        }
 
-      //   var bytes = File(file.path!).readAsBytesSync();
-      //   var aa = await CharsetDetector.autoDecode(bytes.buffer.asUint8List());
-      //   l.i(aa.charset);
-
-      //   final codec = Encoding.getByName(aa.charset.toLowerCase());
-
-      //   l.i("codec-----------$codec");
-
-      //   // var bytes = File(file.path!).readAsStringSync( );
-      // }
-
-      // ？？？2024-07-20 使用compute 解析doc文件会报错。
-      // 不使用compute 加载圈会被堵塞无法显示
-      // 调用 compute 函数来在后台线程中读取文件内容。
-      var text = await compute(readFileContent, file);
-      // var text = await readFileContent(file);
-
-      if (!mounted) return;
-      setState(() {
-        _selectedFile = file;
-        // 无法解析的和解析结果为空的，都统一为空字符串
-        _fileContent = text ?? "";
-
-        print("=========文档内容长度==========${_fileContent.length}--$_fileContent");
-        isLoadingDocument = false;
-      });
+        if (!mounted) return;
+        setState(() {
+          _selectedFile = file;
+          _fileContent = text;
+          isLoadingDocument = false;
+          l.i("=========文档内容长度==========${_fileContent.length}");
+          l.i('上传文档解析出来的内容：$_fileContent');
+        });
+      } catch (e) {
+        l.e("解析文档出错:${e.toString()}");
+        setState(() {
+          _selectedFile = file;
+          _fileContent = "";
+          isLoadingDocument = false;
+        });
+        rethrow;
+      }
     }
   }
 
@@ -210,7 +187,7 @@ class _DocumentSummaryState extends State<DocumentSummary> {
         messageId: "placeholderMessage",
         dateTime: DateTime.now(),
         role: "assistant",
-        content: "努力思考中，请耐心等待  ",
+        content: "正在处理中，请稍候  ",
         isPlaceholder: true,
       ));
     });
@@ -287,8 +264,6 @@ class _DocumentSummaryState extends State<DocumentSummary> {
       // 将最后一条消息删除，重新发送
       messages.removeLast();
     });
-    print(messages.length);
-    print("xxxxxxxxxxxxxxxxxxx");
 
     // 因为在调用总结函数时有清空用户输入，所以这里点击重新生成，就取不到直接的用户输入了
     // 所以在函数内部专门加了个变量，来处理重新生成的逻辑
@@ -306,7 +281,7 @@ class _DocumentSummaryState extends State<DocumentSummary> {
               commonHintDialog(
                 context,
                 '温馨提示',
-                '1 文档目前仅支持pdf、docx、txt(UTF-8编码)格式的文档;\n 2 目前仅支持单个文档的分析总结提要;\n 3 文档总内容不超过8000字符.',
+                '1 目前仅支持上传单个文档文件;\n\n2 上传文档目前仅支持 pdf、txt、docx、doc 格式; \n\n3 上传的文档和手动输入的文档总内容不超过8000字符.',
                 msgFontSize: 15.sp,
               );
             },
@@ -334,7 +309,9 @@ class _DocumentSummaryState extends State<DocumentSummary> {
                     ],
                   ),
                 )
-              : buildReadSummaryChatArea(),
+              : messages.isEmpty
+                  ? const Expanded(child: Center(child: Text("请上传文件文件或输入文档内容")))
+                  : buildReadSummaryChatArea(),
           buildUserSendArea(),
         ],
       ),
@@ -502,9 +479,19 @@ class _DocumentSummaryState extends State<DocumentSummary> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
+                      // 如果是最后一条，且不是占位对话，可能重新生成
+                      if ((index == messages.length - 1) &&
+                          messages[index].isPlaceholder != true)
+                        TextButton(
+                          onPressed: () {
+                            regenerateLatestQuestion();
+                          },
+                          child: const Text("重新生成"),
+                        ),
+
                       // 如果不是等待响应才可以点击复制该条回复
                       if (messages[index].isPlaceholder != true)
-                        IconButton(
+                        TextButton(
                           onPressed: () {
                             Clipboard.setData(
                               ClipboardData(text: messages[index].content),
@@ -516,25 +503,17 @@ class _DocumentSummaryState extends State<DocumentSummary> {
                               toastPosition: EasyLoadingToastPosition.center,
                             );
                           },
-                          icon: const Icon(Icons.copy),
+                          child: const Text("复制"),
                         ),
 
                       SizedBox(width: 10.sp),
-
-                      if ((index == messages.length - 1) &&
-                          messages[index].isPlaceholder != true)
-                        TextButton(
-                          onPressed: () {
-                            regenerateLatestQuestion();
-                          },
-                          child: const Text("重新生成"),
-                        ),
-
                       // 如果不是等待响应才显示token数量
                       if (messages[index].isPlaceholder != true)
                         Text(
-                          "tokens 输入:${messages[index].inputTokens} 输出:${messages[index].outputTokens} 总计:${messages[index].totalTokens}",
+                          "tokens 输入:${messages[index].inputTokens} \n输出:${messages[index].outputTokens} 总计:${messages[index].totalTokens}",
                           style: TextStyle(fontSize: 10.sp),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       SizedBox(width: 10.sp),
                     ],
