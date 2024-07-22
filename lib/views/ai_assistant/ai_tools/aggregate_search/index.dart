@@ -1,39 +1,38 @@
 // ignore_for_file: avoid_print,
 
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 // import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:intl/intl.dart';
-import 'package:toggle_switch/toggle_switch.dart';
 import 'package:uuid/uuid.dart';
 
-import '../../../../apis/common_chat_apis.dart';
+import '../../../../apis/paid_cc_apis.dart';
 import '../../../../common/components/tool_widget.dart';
 import '../../../../common/constants.dart';
 import '../../../../common/db_tools/db_helper.dart';
-import '../../../../models/ai_interface_state/platform_aigc_commom_state.dart';
-import '../../../../models/common_llm_info.dart';
 import '../../../../models/llm_chat_state.dart';
+import '../../../../models/paid_llm/common_chat_completion_state.dart';
+import '../../../../models/paid_llm/common_chat_model_spec.dart';
 import '../../_components/message_item.dart';
-import '../aggregate_search/user_send_area.dart';
+import 'user_send_area.dart';
 
-/// 2024-07-16
-/// 这个应该会复用，后续抽出chatbatindex出来
+/// 2024-07-22
+/// 目前支持付费的rag只有零一万物，还有点贵
+/// 就不开放了，且尽量简单点
+///  平台: ApiPlatform.lingyiwanwu.name,
+///  模型: CCM.YiLargeRag
 ///
-class ChatBatScreen extends StatefulWidget {
-  // 默认只展示FREE结尾的免费模型，且不用用户配置
-
-  const ChatBatScreen({super.key});
+/// 这个和 chat_bat_screen 有很多相似的代码，需要抽离
+class AggregateSearch extends StatefulWidget {
+  const AggregateSearch({super.key});
 
   @override
-  State createState() => _ChatBatScreenState();
+  State createState() => _AggregateSearchState();
 }
 
-class _ChatBatScreenState extends State<ChatBatScreen> {
+class _AggregateSearchState extends State<AggregateSearch> {
   final DBHelper _dbHelper = DBHelper();
 
   // 人机对话消息滚动列表
@@ -51,18 +50,11 @@ class _ChatBatScreenState extends State<ChatBatScreen> {
   final _selectedTitleController = TextEditingController();
 
   /// 级联选择效果：云平台-模型名
-  /// 2024-06-15 这里限量的，暂时都是阿里云平台的，但单独取名limited？？？
-  /// 也没有其他可修改的地方
-  CloudPlatform selectedPlatform = CloudPlatform.limited;
-  PlatformLLM selectedLlm = PlatformLLM.limitedYiLarge;
+  ApiPlatform selectedPlatform = ApiPlatform.lingyiwanwu;
+  CCM selectedLlm = CCM.YiLargeRag;
 
   // AI是否在思考中(如果是，则不允许再次发送)
   bool isBotThinking = false;
-
-  /// 2024-06-11 默认使用流式请求，更快;但是同样的问题，流式使用的token会比非流式更多
-  /// 2024-06-15 限时限量的可能都是收费的，本来就慢，所以默认就流式，不用切换
-  /// 2024-06-20 流式使用的token太多了，还是默认更省的
-  bool isStream = false;
 
   // 默认进入对话页面应该就是啥都没有，然后根据这空来显示预设对话
   List<ChatMessage> messages = [];
@@ -78,97 +70,38 @@ class _ChatBatScreenState extends State<ChatBatScreen> {
     messageId: "placeholderMessage",
     dateTime: DateTime.now(),
     role: "assistant",
-    content: "努力思考中，请耐心等待  ",
+    content: "正在全网搜索最新信息，请稍等……  ",
     isPlaceholder: true,
   );
 
   // 进入对话页面简单预设的一些问题
-  List defaultQuestions = defaultChatQuestions;
-  //  [
-  //   "你好，介绍一下你自己。",
-  //   "如何制作鱼香肉丝。",
-  //   "苏东坡是谁？详细介绍一下。",
-  // ];
-
-  @override
-  void initState() {
-    super.initState();
-
-    initCusConfig();
-  }
-
-  // 进入自行配置的对话页面，看看用户配置有没有生效
-  initCusConfig() {
-    // 2024-07-14 每次进来都随机选一个(注意：不能有limited的那个，因为那个没有FREE结尾的)
-    List<CloudPlatform> values = CloudPlatform.values
-        .where((platform) => platform != CloudPlatform.limited)
-        .toList();
-    selectedPlatform = values[Random().nextInt(values.length)];
-
-    setState(() {
-      // 2024-07-14 同样的，选中的平台后也随机选择一个模型
-      List<PlatformLLM> models = PlatformLLM.values
-          .where((m) =>
-              m.name.startsWith(selectedPlatform.name) &&
-              m.name.endsWith("FREE"))
-          .toList();
-
-      selectedLlm = models[Random().nextInt(models.length)];
-    });
-
-    // print("配置选中后的平台和模型");
-    // print("$selectedPlatform $selectedLlm");
-  }
+  List defaultQuestions = [
+    "最近一周的10条国际大事要事新闻。",
+    "查看一下今天A股的情况。",
+    "搜索一下最近的计算机学科研成果，我希望我的数据来源足够专业。并帮我总结这5条科研成果的大致内容。",
+  ];
 
   //获取指定分类的历史对话
   Future<List<ChatSession>> getHsitoryChats() async {
-    // 获取历史记录：默认查询到所有的历史对话，再根据条件过滤
-    var list = await _dbHelper.queryChatList(cateType: "aigc");
+    // 获取历史记录：默认查询到所有的历史对话，再根据条件过滤(存的时候栏位要一致)
+    var list = await _dbHelper.queryChatList(cateType: "rag");
 
-    // 默认就是免费的了，平台非limited，模型仅是FREE结尾
-    list = list
-        .where((e) =>
-            e.cloudPlatformName != CloudPlatform.limited.name &&
-            e.llmName.endsWith("FREE"))
-        .toList();
-
+    // 2024-07-22 目前只有零一万物
+    list = list.where((e) => e.llmName == selectedLlm.name).toList();
     return list;
   }
 
   /// 获取指定对话列表
   _getChatInfo(String chatId) async {
     // 默认查询到所有的历史对话(这里有uuid了，应该就只有1条存在才对)
-    var list = await _dbHelper.queryChatList(uuid: chatId, cateType: "aigc");
-
-    // 默认就是免费的了，平台非limited，模型仅是FREE结尾
-    list = list
-        .where((e) =>
-            e.cloudPlatformName != CloudPlatform.limited.name &&
-            e.llmName.endsWith("FREE"))
-        .toList();
+    // 2024-07-22 目前付费的rag只有零一万物
+    var list = await _dbHelper.queryChatList(uuid: chatId, cateType: "rag");
 
     if (list.isNotEmpty && list.isNotEmpty) {
       setState(() {
         chatSession = list.first;
-
-        // 如果有存是哪个模型，也默认选中该模型
-        // ？？？2024-06-11 虽然同一个对话现在可以切换平台和模型了，但这里只是保留第一次对话取的值
-        // 后面对话过程中切换平台和模型，只会在该次对话过程中有效
-        var tempLlms = newLLMSpecs.entries
-            // 数据库存的模型名就是自定义的模型名
-            .where((e) => e.key.name == list.first.llmName)
-            .toList();
-
-        // 被选中的平台也就是记录中存放的平台
-        var tempCps = CloudPlatform.values
-            .where((e) => e.name.contains(list.first.cloudPlatformName ?? ""))
-            .toList();
-
-        // 避免麻烦，两个都不为空才显示；否则还是预设的
-        if (tempLlms.isNotEmpty && tempCps.isNotEmpty) {
-          selectedLlm = tempLlms.first.key;
-          selectedPlatform = tempCps.first;
-        }
+        selectedPlatform = ApiPlatform.lingyiwanwu;
+        selectedLlm = CCM.YiLargeRag;
 
         // 查到了db中的历史记录，则需要替换成当前的(父页面没选择历史对话进来就是空，则都不会有这个函数)
         messages = chatSession!.messages;
@@ -178,15 +111,21 @@ class _ChatBatScreenState extends State<ChatBatScreen> {
 
   // 这个发送消息实际是将对话文本添加到对话列表中
   // 但是在用户发送消息之后，需要等到AI响应，成功响应之后将响应加入对话中
-  _sendMessage(String text, {String? role = "user", CommonUsage? usage}) {
+  _sendMessage(
+    String text, {
+    String? role = "user",
+    CCUsage? usage,
+    List<CCQuote>? quotes,
+  }) {
     // 发送消息的逻辑，这里只是简单地将消息添加到列表中
     var temp = ChatMessage(
       messageId: const Uuid().v4(),
       role: role ?? "user",
       content: text,
+      quotes: quotes,
       dateTime: DateTime.now(),
-      inputTokens: usage?.inputTokens,
-      outputTokens: usage?.outputTokens,
+      inputTokens: usage?.promptTokens,
+      outputTokens: usage?.completionTokens,
       totalTokens: usage?.totalTokens,
     );
 
@@ -215,7 +154,7 @@ class _ChatBatScreenState extends State<ChatBatScreen> {
         placeholderMessage.dateTime = DateTime.now();
         messages.add(placeholderMessage);
 
-        // 不是腾讯，就是百度
+        // 获取AI的响应
         _getLlmResponse();
       }
     });
@@ -238,7 +177,7 @@ class _ChatBatScreenState extends State<ChatBatScreen> {
         llmName: selectedLlm.name,
         cloudPlatformName: selectedPlatform.name,
         // 2026-06-06 对话历史默认带上类别
-        chatType: "aigc",
+        chatType: "rag",
       );
 
       await _dbHelper.insertChatList([chatSession!]);
@@ -257,41 +196,25 @@ class _ChatBatScreenState extends State<ChatBatScreen> {
   // 虽然返回的响应通用了，但不同的平台和模型实际取值还是没有抽出来的
   _getLlmResponse() async {
     // 将已有的消息处理成Ernie支出的消息列表格式(构建查询条件时要删除占位的消息)
-    List<CommonMessage> msgs = messages
+    List<CCMessage> msgs = messages
         .where((e) => e.isPlaceholder != true)
-        .map((e) => CommonMessage(
+        .map((e) => CCMessage(
               content: e.content,
               role: e.role,
             ))
         .toList();
 
     // 等待请求响应
-    List<CommonRespBody> temp;
-    // 2024-06-06 ??? 这里一定要确保存在模型名称，因为要作为http请求参数
-    var model = newLLMSpecs[selectedLlm]!.model;
+    CCRespBody temp;
+    //  这里一定要确保存在模型名称，因为要作为http请求参数
+    var model = ccmSpecList[selectedLlm]!.model;
 
     // 2024-07-12 标题要大，不显示流式切换了，只有非流式的
-    if (selectedPlatform == CloudPlatform.baidu) {
-      temp = await getBaiduAigcResp(msgs,
-          model: model, stream: isStream, isUserConfig: false);
-    } else if (selectedPlatform == CloudPlatform.tencent) {
-      temp = await getTencentAigcResp(msgs,
-          model: model, stream: isStream, isUserConfig: false);
-    } else if (selectedPlatform == CloudPlatform.aliyun) {
-      temp = await getAliyunAigcResp(msgs,
-          model: model, stream: isStream, isUserConfig: false);
-    } else if (selectedPlatform == CloudPlatform.limited) {
-      // 目前限时限量的，其实也只是阿里云平台的
-      temp = await getAliyunAigcResp(msgs,
-          model: model, stream: isStream, isUserConfig: false);
-    } else if (selectedPlatform == CloudPlatform.siliconCloud) {
-      // 2024-07-04 新加硅动科技siliconFlow中免费的
-      temp = await getSiliconFlowAigcResp(msgs,
-          model: model, stream: isStream, isUserConfig: false);
+    if (selectedPlatform == ApiPlatform.lingyiwanwu) {
+      temp = await getChatResp(ApiPlatform.lingyiwanwu, msgs, model: model);
     } else {
       // 理论上不会存在其他的了
-      temp = await getBaiduAigcResp(msgs,
-          model: model, stream: isStream, isUserConfig: false);
+      temp = await getChatResp(ApiPlatform.lingyiwanwu, msgs, model: model);
     }
 
     // 得到回复后要删除表示加载中的占位消息
@@ -299,52 +222,45 @@ class _ChatBatScreenState extends State<ChatBatScreen> {
       messages.removeWhere((e) => e.isPlaceholder == true);
     });
 
-    // 得到AI回复之后，添加到列表中，也注明不是用户提问
-    var tempText = temp.map((e) => e.customReplyText).join();
-    if (temp.isNotEmpty && temp.first.errorCode != null) {
-      tempText = """接口报错:
-\ncode:${temp.first.errorCode} 
-\nmsg:${temp.first.errorMsg}
-\n请检查AppId和AppKey是否正确，或切换其他模型试试。
+    // 得到AI回复之后，添加到列表中
+    var tempText = temp.customReplyText;
+
+    if (temp.error?.code != null) {
+      if (!mounted) return;
+      tempText = """AI大模型接口错误:
+\ncode: ${temp.error?.code} 
+\ntype: ${temp.error?.type} 
+\nmessage: ${temp.error?.message}
 """;
     }
 
-    // 每次对话的结果流式返回，所以是个列表，就需要累加起来
-    int inputTokens = 0;
-    int outputTokens = 0;
-    int totalTokens = 0;
-    for (var e in temp) {
-      inputTokens += e.usage?.inputTokens ?? e.usage?.promptTokens ?? 0;
-      outputTokens += e.usage?.outputTokens ?? e.usage?.completionTokens ?? 0;
-      totalTokens += e.usage?.totalTokens ?? 0;
-    }
-    // 里面的promptTokens和completionTokens是百度这个特立独行的，在上面拼到一起了
-    var a = CommonUsage(
-      inputTokens: inputTokens,
-      outputTokens: outputTokens,
-      totalTokens: totalTokens,
+    // 构建token使用数据
+    var a = CCUsage(
+      promptTokens: temp.usage?.promptTokens ?? 0,
+      completionTokens: temp.usage?.completionTokens ?? 0,
+      totalTokens: temp.usage?.totalTokens ?? 0,
     );
 
-    _sendMessage(tempText, role: "assistant", usage: a);
+    // 如果是rag，保留引用数据
+    List<CCQuote>? b = temp.choices?.first.quote;
+
+    _sendMessage(tempText, role: "assistant", usage: a, quotes: b);
   }
 
   /// 2024-05-31 暂时不根据token的返回来说了，临时直接显示整个对话不超过8千字
   /// 限量的有放在对象里面
   bool isMessageTooLong() =>
       messages.fold(0, (sum, msg) => sum + msg.content.length) >
-      newLLMSpecs[selectedLlm]!.contextLength;
+      ccmSpecList[selectedLlm]!.contextLength;
 
   /// 构建用于下拉的平台列表(根据上层传入的值)
-  List<DropdownMenuItem<CloudPlatform?>> buildCloudPlatforms() {
-    return CloudPlatform.values
-        .where((e) => e != CloudPlatform.limited)
-        .toList()
-        .map((e) {
-      return DropdownMenuItem<CloudPlatform?>(
+  List<DropdownMenuItem<ApiPlatform?>> buildCloudPlatforms() {
+    return ApiPlatform.values.toList().map((e) {
+      return DropdownMenuItem<ApiPlatform?>(
         value: e,
         alignment: AlignmentDirectional.center,
         child: Text(
-          cpNames[e]!,
+          paidCpNames[e]!,
           style: const TextStyle(color: Colors.blue),
         ),
       );
@@ -352,20 +268,16 @@ class _ChatBatScreenState extends State<ChatBatScreen> {
   }
 
   /// 当切换了云平台时，要同步切换选中的大模型
-  onCloudPlatformChanged(CloudPlatform? value) {
+  onCloudPlatformChanged(ApiPlatform? value) {
     // 如果平台被切换，则更新当前的平台为选中的平台，且重置模型为符合该平台的模型的第一个
     if (value != selectedPlatform) {
       // 更新被选中的平台为当前选中平台
-      selectedPlatform = value ?? CloudPlatform.baidu;
+      selectedPlatform = value ?? ApiPlatform.lingyiwanwu;
 
       // 用于显示下拉的模型，也要根据入口来
       // 先找到符合平台的模型（？？？理论上一定不为空，为空了就是有问题的数据）
-      var temp = PlatformLLM.values
-          .where((e) => e.name.startsWith(selectedPlatform.name))
-          .toList();
-
-      // 默认就是免费的了，模型仅是FREE结尾
-      temp = temp.where((e) => e.name.endsWith("FREE")).toList();
+      var temp =
+          CCM.values.where((e) => e.name == selectedPlatform.name).toList();
 
       setState(() {
         selectedLlm = temp.first;
@@ -377,22 +289,16 @@ class _ChatBatScreenState extends State<ChatBatScreen> {
     }
   }
 
-  List<DropdownMenuItem<PlatformLLM>> buildPlatformLLMs() {
-    // 用于下拉的模型首先是需要以平台前缀命名的
-    var llms = PlatformLLM.values
-        .where((m) => m.name.startsWith(selectedPlatform.name));
-
-    text(ChatLLMSpec e) => e.name;
-
-    // 默认就是免费的了，模型仅是指定平台前缀+以FREE结尾
-    llms = llms.where((m) => m.name.endsWith("FREE")).toList();
-
-    return llms
-        .map((e) => DropdownMenuItem<PlatformLLM>(
+  List<DropdownMenuItem<CCM>> buildPlatformLLMs() {
+    // 这里是rag，模型仅是RAG结尾
+    return CCM.values
+        .where((m) => m.name.toLowerCase().endsWith("rag"))
+        .toList()
+        .map((e) => DropdownMenuItem<CCM>(
               value: e,
               alignment: AlignmentDirectional.center,
               child: Text(
-                text(newLLMSpecs[e]!),
+                ccmSpecList[e]!.name,
                 style: const TextStyle(color: Colors.blue),
               ),
             ))
@@ -467,7 +373,7 @@ class _ChatBatScreenState extends State<ChatBatScreen> {
                   userInput = "";
                 });
               },
-              isMessageTooLong: isMessageTooLong,
+              isMessageTooLong: isMessageTooLong, // 修改这里
             ),
           ],
         ),
@@ -501,7 +407,7 @@ class _ChatBatScreenState extends State<ChatBatScreen> {
   /// 构建appbar区域
   buildAppbarArea() {
     return AppBar(
-      title: const Text('你问我答'),
+      title: const Text('全网搜索'),
       actions: [
         /// 创建新对话
         IconButton(
@@ -776,7 +682,7 @@ class _ChatBatScreenState extends State<ChatBatScreen> {
         const Text("平台:"),
         SizedBox(width: 10.sp),
         Expanded(
-          child: DropdownButton<CloudPlatform?>(
+          child: DropdownButton<ApiPlatform?>(
             value: selectedPlatform,
             isDense: true,
             // icon: Icon(Icons.arrow_drop_down, size: 36.sp), // 自定义图标
@@ -786,32 +692,6 @@ class _ChatBatScreenState extends State<ChatBatScreen> {
             onChanged: onCloudPlatformChanged,
           ),
         ),
-
-        /// 选择“更快”就使用流式请求，否则就一般的非流式
-        ToggleSwitch(
-          minHeight: 26.sp,
-          minWidth: 48.sp,
-          fontSize: 13.sp,
-          cornerRadius: 5.sp,
-          dividerMargin: 0.sp,
-          // isVertical: true,
-          // // 激活时按钮的前景背景色
-          // activeFgColor: Colors.black,
-          // activeBgColor: [Colors.green],
-          // // 未激活时的前景背景色
-          // inactiveBgColor: Colors.grey,
-          // inactiveFgColor: Colors.white,
-          initialLabelIndex: isStream ? 0 : 1,
-          totalSwitches: 2,
-          labels: const ['更快', '更省'],
-          // radiusStyle: true,
-          onToggle: (index) {
-            setState(() {
-              isStream = index == 0 ? true : false;
-            });
-          },
-        ),
-        SizedBox(width: 10.sp),
       ],
     );
 
@@ -826,7 +706,7 @@ class _ChatBatScreenState extends State<ChatBatScreen> {
           //     border: Border.all(color: Colors.grey, width: 1.0),
           //     borderRadius: BorderRadius.circular(4),
           //   ),
-          child: DropdownButton<PlatformLLM?>(
+          child: DropdownButton<CCM?>(
             value: selectedLlm,
             isDense: true,
             underline: Container(),
@@ -850,7 +730,8 @@ class _ChatBatScreenState extends State<ChatBatScreen> {
             commonHintDialog(
               context,
               "模型说明",
-              newLLMSpecs[selectedLlm]!.spec ?? "",
+              "${ccmSpecList[selectedLlm]!.feature ?? ""}\n\n${ccmSpecList[selectedLlm]!.useCase ?? ""}",
+              msgFontSize: 15.sp,
             );
           },
           icon: Icon(Icons.help_outline, color: Theme.of(context).primaryColor),
@@ -953,9 +834,6 @@ class _ChatBatScreenState extends State<ChatBatScreen> {
             padding: EdgeInsets.all(5.sp),
             child: Column(
               children: [
-                // 如果是最后一个回复的文本，使用打字机特效
-                // if (index == messages.length - 1)
-                //   TypewriterText(text: messages[index].text),
                 MessageItem(message: messages[index]),
                 // 如果是大模型回复，可以有一些功能按钮
                 if (messages[index].role == 'assistant')
@@ -966,8 +844,7 @@ class _ChatBatScreenState extends State<ChatBatScreen> {
                       // 注意，还要排除占位消息
                       // 限量的没有重新生成，因为不好计算tokens总数
                       if ((index == messages.length - 1) &&
-                          messages[index].isPlaceholder != true &&
-                          selectedPlatform != CloudPlatform.limited)
+                          messages[index].isPlaceholder != true)
                         TextButton(
                           onPressed: () {
                             regenerateLatestQuestion();

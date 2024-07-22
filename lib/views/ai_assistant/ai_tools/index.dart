@@ -1,8 +1,10 @@
 // ignore_for_file: avoid_print
 
 import 'package:flutter/material.dart';
+import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
+import 'aggregate_search/index.dart';
 import 'chat_bot/chat_bat_screen.dart';
 import 'document_summary/index.dart';
 import 'multi_translator/index.dart';
@@ -19,10 +21,8 @@ class AIToolIndex extends StatefulWidget {
 }
 
 class _AIToolIndexState extends State<AIToolIndex> {
-  @override
-  initState() {
-    super.initState();
-  }
+  // 部分花费大的工具，默认先不开启了
+  bool isEnableMyCose = false;
 
   @override
   Widget build(BuildContext context) {
@@ -42,12 +42,26 @@ class _AIToolIndexState extends State<AIToolIndex> {
     return Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
-        title: const Text('AI 智能助手'),
+        title: GestureDetector(
+          onLongPress: () async {
+            // 长按之后，先改变是否使用作者应用的标志
+            setState(() {
+              isEnableMyCose = !isEnableMyCose;
+            });
+            EasyLoading.showInfo("${isEnableMyCose ? "已启用" : "已关闭"}作者API Key");
+          },
+          child: const Text('AI 智能助手'),
+        ),
       ),
       body: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
+          Text(
+            "服务生成的所有内容均由人工智能模型生成，无法确保内容的真实性、准确性和完整性，仅供参考，且不代表开发者的态度或观点。",
+            style: TextStyle(fontSize: 12.sp, color: Colors.grey),
+          ),
+          SizedBox(height: 10.sp),
           // 入口按钮
           SizedBox(
             height: screenBodyHeight - 50.sp,
@@ -112,7 +126,58 @@ class _AIToolIndexState extends State<AIToolIndex> {
                   },
                 ),
                 buildAIToolEntrance(
-                  "聚合\n搜索(TODO)",
+                  "全网\n搜索",
+                  icon: const Icon(Icons.search),
+                  color: Colors.blue[100],
+                  onTap: () {
+                    if (isEnableMyCose) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const AggregateSearch(),
+                        ),
+                      );
+                    } else {
+                      showDialog(
+                        context: context,
+                        builder: (context) {
+                          return AlertDialog(
+                            title: const Text("启用提示"),
+                            content: const Text("确定使用实时全网检索服务吗？\n接口价格会稍微高些。"),
+                            actions: [
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.pop(context, false);
+                                },
+                                child: const Text("取消"),
+                              ),
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.pop(context, true);
+                                },
+                                child: const Text("确认"),
+                              ),
+                            ],
+                          );
+                        },
+                      ).then((value) {
+                        if (value == true) {
+                          setState(() {
+                            isEnableMyCose = true;
+                          });
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const AggregateSearch(),
+                            ),
+                          );
+                        }
+                      });
+                    }
+                  },
+                ),
+                buildAIToolEntrance(
+                  "功能\n占位(TODO)",
                   icon: const Icon(Icons.search),
                 ),
               ],

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../common/constants.dart';
 import '../../../models/llm_chat_state.dart';
@@ -11,6 +12,7 @@ class MessageItem extends StatelessWidget {
 
   const MessageItem({super.key, required this.message});
 
+// 如果是rag时，可能有很长的引用列表，默认只显示少量，点击展开才显示所有
   @override
   Widget build(BuildContext context) {
     // 根据是否是用户输入跳转文本内容布局
@@ -104,6 +106,39 @@ class MessageItem extends StatelessWidget {
                     ),
                   ),
                 ),
+              // 如果是rag，还有引用列表
+              if (message.quotes != null && message.quotes!.isNotEmpty)
+                ...List.generate(
+                    message.quotes?.length ?? 0,
+                    (index) => GestureDetector(
+                        onTap: () => message.quotes![index].url != null
+                            ? _launchUrl(message.quotes![index].url!)
+                            : null,
+                        child: Padding(
+                            padding: EdgeInsets.symmetric(vertical: 5.sp),
+                            child: Text(
+                              '${index + 1}. ${message.quotes![index].title}',
+                              style: TextStyle(
+                                fontSize: 12.sp,
+                                color: Theme.of(context).primaryColor,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            )))
+                    // TextButton(
+                    //   style: TextButton.styleFrom(
+                    //     minimumSize: Size.zero,
+                    //     padding: EdgeInsets.zero, // 设置内边距为零
+                    //   ),
+                    //   onPressed: () => message.quotes![index].url != null
+                    //       ? _launchUrl(message.quotes![index].url!)
+                    //       : null,
+                    //   child: Text(
+                    //     '${index + 1} ${message.quotes![index].title}',
+                    //     style: TextStyle(fontSize: 12.sp),
+                    //   ),
+                    // ),
+                    ).toList()
             ],
           ),
         ),
@@ -116,5 +151,11 @@ class MessageItem extends StatelessWidget {
           ),
       ],
     );
+  }
+}
+
+Future<void> _launchUrl(String url) async {
+  if (!await launchUrl(Uri.parse(url))) {
+    throw Exception('Could not launch $url');
   }
 }

@@ -88,12 +88,42 @@ class CCQuote {
   String toRawJson() => json.encode(toJson());
 
   factory CCQuote.fromJson(Map<String, dynamic> json) => CCQuote(
-        num: int.tryParse(json["num"] ?? "1"),
+        num: int.tryParse(json["num"].toString()),
         url: json["url"],
         title: json["title"],
       );
 
   Map<String, dynamic> toJson() => {"num": num, "url": url, "title": title};
+
+  // 2024-07-22 因为ChatMessage需要从json还原为CCQuote，所以需要对应的完整方法
+  factory CCQuote.fromMap(Map<String, dynamic> map) {
+    return CCQuote(
+      num: map['num'] as int?,
+      url: map['url'] as String?,
+      title: map['title'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'num': num,
+      'url': url,
+      'title': title,
+    };
+  }
+
+  @override
+  String toString() {
+    // 这个对话会被作为string存入数据库，然后再被读取转型为CCQuote。
+    // 所以需要是个完整的json字符串，一般fromMap时可以处理
+    return '''
+    {
+     "num": "$num", 
+     "url": "$url", 
+     "title": "$title"
+    }
+    ''';
+  }
 }
 
 ///

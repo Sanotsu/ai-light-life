@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:intl/intl.dart';
 
 import '../common/constants.dart';
+import 'paid_llm/common_chat_completion_state.dart';
 
 /// 人机对话的每一条消息的结果
 /// 对话页面就是包含一系列时间顺序排序后的对话消息的list
@@ -14,6 +15,8 @@ class ChatMessage {
   final String role;
   // 2024-07-17 之前是text，现在改为content
   final String content; // 文本内容
+  // 2024-07-22 如果是rag的大模型，还会保存检索的索引
+  final List<CCQuote>? quotes;
   // 2024-07-17 有可能对话存在输入图片(假如后续一个用户对话中存在图片切来切去，就最后每个问答来回都存上图片)
   final String? imageUrl;
   final bool? isPlaceholder; // 是否是等待响应时的占位消息
@@ -27,6 +30,7 @@ class ChatMessage {
     required this.dateTime,
     required this.role,
     required this.content,
+    this.quotes,
     this.imageUrl,
     this.isPlaceholder,
     this.inputTokens,
@@ -40,6 +44,7 @@ class ChatMessage {
       'date_time': dateTime,
       'role': role,
       'content': content,
+      'quotes': quotes.toString(),
       'image_url': imageUrl,
       'is_placeholder': isPlaceholder,
       'input_tokens': inputTokens,
@@ -58,6 +63,12 @@ class ChatMessage {
       dateTime: DateTime.parse(map['date_time']),
       role: map['role'] as String,
       content: map['content'] as String,
+      quotes: map['quotes'] != null
+          ? (map['quotes'] as List<dynamic>)
+              .map((quoteMap) =>
+                  CCQuote.fromMap(quoteMap as Map<String, dynamic>))
+              .toList()
+          : null,
       imageUrl: map['image_url'] as String?,
       isPlaceholder: bool.tryParse(map['is_placeholder']),
       inputTokens: int.tryParse(map['input_tokens']),
@@ -71,6 +82,11 @@ class ChatMessage {
         dateTime: DateTime.parse(json["date_time"]),
         role: json["role"],
         content: json["content"],
+        quotes: json["quotes"] == null
+            ? []
+            : List<CCQuote>.from(
+                json["quotes"]!.map((x) => CCQuote.fromJson(x)),
+              ),
         imageUrl: json["image_url"],
         isPlaceholder: bool.tryParse(json["is_placeholder"]),
         inputTokens: int.tryParse(json["input_tokens"]),
@@ -83,6 +99,9 @@ class ChatMessage {
         "date_time": dateTime,
         'role': role,
         "content": content,
+        "quotes": quotes == null
+            ? []
+            : List<dynamic>.from(quotes!.map((x) => x.toJson())),
         "image_url": imageUrl,
         "is_placeholder": isPlaceholder,
         "input_tokens": inputTokens,
@@ -100,6 +119,7 @@ class ChatMessage {
      "date_time": "$dateTime", 
      "role": "$role", 
      "content": ${jsonEncode(content)}, 
+     "quotes": ${jsonEncode(quotes)}, 
      "image_url": "$imageUrl", 
      "is_placeholder":"$isPlaceholder",
      "input_tokens":"$inputTokens",

@@ -11,7 +11,7 @@ enum ApiPlatform {
 }
 
 // 模型对应的中文名
-final Map<ApiPlatform, String> cpNames = {
+final Map<ApiPlatform, String> paidCpNames = {
   ApiPlatform.lingyiwanwu: '零一万物',
 };
 

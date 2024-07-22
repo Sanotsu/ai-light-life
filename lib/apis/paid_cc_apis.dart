@@ -54,6 +54,7 @@ Future<CCRespBody> getChatResp(
     var end = DateTime.now().millisecondsSinceEpoch;
     print("CC 响应耗时: ${(end - start) / 1000} 秒");
 
+    print("-------------在转换前--------$respData----------");
     return CCRespBody.fromJson(respData);
   } on HttpException catch (e) {
     // 这里是拦截器抛出的http异常的处理
@@ -66,10 +67,11 @@ Future<CCRespBody> getChatResp(
     // 这里是其他异常处理
     print("零一万物 bbbbbbbbbbbbbb ${e.runtimeType}---$e");
     // API请求报错，显示报错信息
-    return CCRespBody(
-      customReplyText: e.toString(),
-      // 这里的code和msg就不是api返回的，是自行定义的，应该抽出来
-      error: RespError(code: "10000", type: "其他异常", message: e.toString()),
-    );
+    // return CCRespBody(
+    //   customReplyText: e.toString(),
+    //   // 这里的code和msg就不是api返回的，是自行定义的，应该抽出来
+    //   error: RespError(code: "10000", type: "其他异常", message: e.toString()),
+    // );
+    rethrow;
   }
 }
