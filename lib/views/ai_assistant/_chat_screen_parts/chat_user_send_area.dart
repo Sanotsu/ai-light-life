@@ -5,7 +5,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 /// 用户发送区域
 /// aggregate_search 和 chat_bot 都可以用
 ///
-class UserSendArea extends StatelessWidget {
+class ChatUserSendArea extends StatelessWidget {
   final TextEditingController controller;
   final String hintText;
   final bool isBotThinking;
@@ -14,7 +14,7 @@ class UserSendArea extends StatelessWidget {
   final VoidCallback onSendPressed;
   final bool Function() isMessageTooLong; // 修改这里
 
-  const UserSendArea({
+  const ChatUserSendArea({
     super.key,
     required this.controller,
     required this.hintText,

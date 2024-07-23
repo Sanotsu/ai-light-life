@@ -16,7 +16,16 @@ import '../../../../models/llm_chat_state.dart';
 import '../../../../models/paid_llm/common_chat_completion_state.dart';
 import '../../../../models/paid_llm/common_chat_model_spec.dart';
 import '../../_components/message_item.dart';
-import 'user_send_area.dart';
+import '../../_chat_screen_parts/chat_appbar_area.dart';
+import '../../_chat_screen_parts/chat_default_question_area.dart';
+import '../../_chat_screen_parts/chat_history_drawer.dart';
+import '../../_chat_screen_parts/chat_list_area.dart';
+import '../../_chat_screen_parts/chat_plat_and_llm_area.dart';
+import '../../_chat_screen_parts/history_button_widget.dart';
+import '../../_chat_screen_parts/history_item_widget.dart';
+import '../../_chat_screen_parts/chat_title_area.dart';
+import '../../_chat_screen_parts/title_update_button_widget.dart';
+import '../../_chat_screen_parts/chat_user_send_area.dart';
 
 /// 2024-07-22
 /// 目前支持付费的rag只有零一万物，还有点贵
@@ -25,6 +34,9 @@ import 'user_send_area.dart';
 ///  模型: CCM.YiLargeRag
 ///
 /// 这个和 chat_bat_screen 有很多相似的代码，需要抽离
+/// 2024-07-23
+/// 有在逐步改造两个组件，但这里保留改造前后的代码，因为其他很多对话页面也是类似的，方便比较
+///
 class AggregateSearch extends StatefulWidget {
   const AggregateSearch({super.key});
 
@@ -63,7 +75,7 @@ class _AggregateSearchState extends State<AggregateSearch> {
   ChatSession? chatSession;
 
   // 最近对话需要的记录历史对话的变量
-  List<ChatSession> chatHsitory = [];
+  List<ChatSession> chatHistory = [];
 
   // 等待AI响应时的占位的消息，在构建真实对话的list时要删除
   var placeholderMessage = ChatMessage(
@@ -75,14 +87,15 @@ class _AggregateSearchState extends State<AggregateSearch> {
   );
 
   // 进入对话页面简单预设的一些问题
-  List defaultQuestions = [
+  List<String> defaultQuestions = [
+    "你是谁?",
     "最近一周的10条国际大事要事新闻。",
     "查看一下今天A股的情况。",
     "搜索一下最近的计算机学科研成果，我希望我的数据来源足够专业。并帮我总结这5条科研成果的大致内容。",
   ];
 
   //获取指定分类的历史对话
-  Future<List<ChatSession>> getHsitoryChats() async {
+  Future<List<ChatSession>> getHistoryChats() async {
     // 获取历史记录：默认查询到所有的历史对话，再根据条件过滤(存的时候栏位要一致)
     var list = await _dbHelper.queryChatList(cateType: "rag");
 
@@ -129,6 +142,7 @@ class _AggregateSearchState extends State<AggregateSearch> {
       totalTokens: usage?.totalTokens,
     );
 
+    if (!mounted) return;
     setState(() {
       // AI思考和用户输入是相反的(如果用户输入了，就是在等到机器回到了)
       isBotThinking = (role == "user");
@@ -137,6 +151,13 @@ class _AggregateSearchState extends State<AggregateSearch> {
 
       // 2024-06-01 注意，在每次添加了对话之后，都把整个对话列表存入对话历史中去
       // 当然，要在占位消息之前
+      // 2024-07-23 有个问题：用户发送了消息，等待AI响应时，退出页面。
+      // 此时历史记录中就存在了等待中的数据，而响应返回的不会处理、占位的数据就无法清除
+      // 不过继续询问后占位的还是会被清除。
+      // ！！！但如果像百度接口role必须user、assistant 交替的奇数消息列表，就会报错。
+      //    因为这里是user、(assistant没放到列表)、user，两个连续的user偶数列表
+      //    也就是说，该历史对话，无法继续对话了
+      // 对策：点击指定历史记录，如果最后一条不是assistant，就删除，直到是assistant
       _saveToDb();
 
       _userInputController.clear();
@@ -218,6 +239,7 @@ class _AggregateSearchState extends State<AggregateSearch> {
     }
 
     // 得到回复后要删除表示加载中的占位消息
+    if (!mounted) return;
     setState(() {
       messages.removeWhere((e) => e.isPlaceholder == true);
     });
@@ -321,7 +343,23 @@ class _AggregateSearchState extends State<AggregateSearch> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: buildAppbarArea(),
+      appBar: ChatAppBarArea(
+        title: '全网搜索',
+        onNewChatPressed: () {
+          setState(() {
+            chatSession = null;
+            messages.clear();
+          });
+        },
+        onHistoryPressed: (BuildContext context) async {
+          var list = await getHistoryChats();
+          setState(() {
+            chatHistory = list;
+          });
+          if (!context.mounted) return;
+          Scaffold.of(context).openEndDrawer();
+        },
+      ),
       body: GestureDetector(
         // 允许子控件（如TextField）接收点击事件
         behavior: HitTestBehavior.translucent,
@@ -338,26 +376,68 @@ class _AggregateSearchState extends State<AggregateSearch> {
               color: Colors.grey[300],
               child: Padding(
                 padding: EdgeInsets.only(left: 10.sp),
-                child: buildPlatAndLlmRow(),
+                // child: buildPlatAndLlmRow(),
+                child: PlatAndLlmRow<ApiPlatform, CCM>(
+                  selectedPlatform: selectedPlatform,
+                  onCloudPlatformChanged: onCloudPlatformChanged,
+                  selectedLlm: selectedLlm,
+                  onLlmChanged: (val) {
+                    setState(() {
+                      selectedLlm = val!;
+                      // 2024-06-15 切换模型应该新建对话，因为上下文丢失了。
+                      // 建立新对话就是把已有的对话清空就好(因为保存什么的在发送消息时就处理了)
+                      chatSession = null;
+                      messages.clear();
+                    });
+                  },
+                  buildCloudPlatforms: buildCloudPlatforms,
+                  buildPlatformLLMs: buildPlatformLLMs,
+                  specList: ccmSpecList,
+                  showToggleSwitch: false,
+                ),
               ),
             ),
 
             /// 如果对话是空，显示预设的问题
-            if (messages.isEmpty) ...buildDefaultQuestionArea(),
+            if (messages.isEmpty)
+              SizedBox(
+                height: 0.5.sh,
+                child: ChatDefaultQuestionArea(
+                  defaultQuestions: defaultQuestions,
+                  onQuestionTap: _sendMessage,
+                ),
+              ),
 
             /// 在顶部显示对话标题(避免在appbar显示，内容太挤)
-            if (chatSession != null) buildChatTitleArea(),
+            if (chatSession != null)
+              ChatTitleArea(
+                chatSession: chatSession,
+                onUpdate: (ChatSession e) async {
+                  // 修改对话的标题
+                  await _dbHelper.updateChatSession(e);
+
+                  // 修改后更新标题
+                  setState(() {
+                    chatSession = e;
+                  });
+                },
+              ),
 
             /// 标题和对话正文的分割线
             if (chatSession != null) Divider(height: 3.sp, thickness: 1.sp),
 
             /// 显示对话消息主体
-            buildChatListArea(),
+            ChatListArea(
+              messages: messages,
+              scrollController: _scrollController,
+              regenerateLatestQuestion: regenerateLatestQuestion,
+            ),
 
             /// 显示输入框和发送按钮
             const Divider(),
-            // buildUserSendArea(),
-            UserSendArea(
+
+            /// 用户发送消息的区域
+            ChatUserSendArea(
               controller: _userInputController,
               hintText: '可以向我提任何问题哦',
               isBotThinking: isBotThinking,
@@ -373,39 +453,75 @@ class _AggregateSearchState extends State<AggregateSearch> {
                   userInput = "";
                 });
               },
-              isMessageTooLong: isMessageTooLong, // 修改这里
+              isMessageTooLong: isMessageTooLong,
             ),
           ],
         ),
       ),
-      endDrawer: Drawer(
-        child: ListView(
-          children: <Widget>[
-            SizedBox(
-              // 调整DrawerHeader的高度
-              height: 100.sp,
-              child: DrawerHeader(
-                decoration: const BoxDecoration(color: Colors.lightGreen),
-                child: Center(
-                  child: Text(
-                    '最近对话',
-                    style: TextStyle(
-                      fontSize: 20.sp,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            ...(chatHsitory.map((e) => buildGestureItems(e)).toList()),
-          ],
-        ),
+      endDrawer: ChatHistoryDrawer(
+        chatHistory: chatHistory,
+        onTap: (ChatSession e) {
+          Navigator.of(context).pop();
+          // 点击了知道历史对话，则替换当前对话
+          setState(() {
+            _getChatInfo(e.uuid);
+          });
+        },
+        onUpdate: (ChatSession e) async {
+          // 修改对话的标题
+          await _dbHelper.updateChatSession(e);
+          // 修改成功后重新查询更新
+          var list = await getHistoryChats();
+          setState(() {
+            chatHistory = list;
+          });
+        },
+        onDelete: (ChatSession e) async {
+          // 先删除
+          await _dbHelper.deleteChatById(e.uuid);
+          // 然后重新查询并更新
+          var list = await getHistoryChats();
+          setState(() {
+            chatHistory = list;
+          });
+          // 如果删除的历史对话是当前对话，跳到新开对话页面
+          if (chatSession?.uuid == e.uuid) {
+            setState(() {
+              chatSession = null;
+              messages.clear();
+            });
+          }
+        },
       ),
+
+      // Drawer(
+      //   child: ListView(
+      //     children: <Widget>[
+      //       SizedBox(
+      //         // 调整DrawerHeader的高度
+      //         height: 100.sp,
+      //         child: DrawerHeader(
+      //           decoration: const BoxDecoration(color: Colors.lightGreen),
+      //           child: Center(
+      //             child: Text(
+      //               '最近对话',
+      //               style: TextStyle(
+      //                 fontSize: 20.sp,
+      //                 fontWeight: FontWeight.bold,
+      //               ),
+      //             ),
+      //           ),
+      //         ),
+      //       ),
+      //       ...(chatHistory.map((e) => _buildChatSessionItem(e)).toList()),
+      //     ],
+      //   ),
+      // ),
     );
   }
 
   /// 构建appbar区域
-  buildAppbarArea() {
+  _buildAppbarArea() {
     return AppBar(
       title: const Text('全网搜索'),
       actions: [
@@ -426,11 +542,11 @@ class _AggregateSearchState extends State<AggregateSearch> {
               icon: const Icon(Icons.history),
               onPressed: () async {
                 // 获取历史记录：默认查询到所有的历史对话，再根据条件过滤
-                var list = await getHsitoryChats();
+                var list = await getHistoryChats();
                 // 显示最近的对话
 
                 setState(() {
-                  chatHsitory = list;
+                  chatHistory = list;
                 });
 
                 if (!mounted) return;
@@ -445,7 +561,52 @@ class _AggregateSearchState extends State<AggregateSearch> {
   }
 
   /// 构建在对话历史中的对话标题列表
-  buildGestureItems(ChatSession e) {
+  _buildChatSessionItem(ChatSession e) {
+    return ChatHistoryItem(
+      chatSession: e,
+      onTap: (ChatSession e) {
+        Navigator.of(context).pop();
+        // 点击了知道历史对话，则替换当前对话
+        setState(() {
+          _getChatInfo(e.uuid);
+        });
+      },
+      onUpdate: (ChatSession e) async {
+        // 修改对话的标题
+        await _dbHelper.updateChatSession(e);
+
+        // 修改成功后重新查询更新
+        var list = await getHistoryChats();
+
+        setState(() {
+          chatHistory = list;
+        });
+      },
+      onDelete: (ChatSession e) async {
+        // 先删除
+        await _dbHelper.deleteChatById(e.uuid);
+
+        // 然后重新查询并更新
+        var list = await getHistoryChats();
+
+        setState(() {
+          chatHistory = list;
+        });
+
+        // 如果删除的历史对话是当前对话，跳到新开对话页面
+        if (chatSession?.uuid == e.uuid) {
+          setState(() {
+            chatSession = null;
+            messages.clear();
+          });
+        }
+      },
+      gmtCreate: DateFormat(constDatetimeFormat).format(e.gmtCreate),
+    );
+  }
+
+  /// 构建在对话历史中的对话标题列表
+  _buildGestureItems(ChatSession e) {
     return GestureDetector(
       onTap: () {
         Navigator.of(context).pop();
@@ -484,8 +645,45 @@ class _AggregateSearchState extends State<AggregateSearch> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  _buildUpdateBotton(e),
-                  _buildDeleteBotton(e),
+                  // _buildUpdateBotton(e),
+                  // _buildDeleteBotton(e),
+
+                  ChatHistoryUpdateButton(
+                    chatSession: e,
+                    onUpdate: (ChatSession e) async {
+                      // 修改对话的标题
+                      await _dbHelper.updateChatSession(e);
+
+                      // 修改成功后重新查询更新
+                      var list = await getHistoryChats();
+
+                      setState(() {
+                        chatHistory = list;
+                      });
+                    },
+                  ),
+                  ChatHistoryDeleteButton(
+                    chatSession: e,
+                    onDelete: (ChatSession e) async {
+                      // 先删除
+                      await _dbHelper.deleteChatById(e.uuid);
+
+                      // 然后重新查询并更新
+                      var list = await getHistoryChats();
+
+                      setState(() {
+                        chatHistory = list;
+                      });
+
+                      // 如果删除的历史对话是当前对话，跳到新开对话页面
+                      if (chatSession?.uuid == e.uuid) {
+                        setState(() {
+                          chatSession = null;
+                          messages.clear();
+                        });
+                      }
+                    },
+                  ),
                 ],
               ),
             ),
@@ -528,10 +726,10 @@ class _AggregateSearchState extends State<AggregateSearch> {
               await _dbHelper.deleteChatById(e.uuid);
 
               // 然后重新查询并更新
-              var list = await getHsitoryChats();
+              var list = await getHistoryChats();
 
               setState(() {
-                chatHsitory = list;
+                chatHistory = list;
               });
 
               // 2024-06-11 如果删除的历史对话，就是当前对话，那就要跳到新开对话页面
@@ -601,10 +799,10 @@ class _AggregateSearchState extends State<AggregateSearch> {
               _dbHelper.updateChatSession(temp);
 
               // 修改成功后重新查询更新
-              var list = await getHsitoryChats();
+              var list = await getHistoryChats();
 
               setState(() {
-                chatHsitory = list;
+                chatHistory = list;
               });
             }
           });
@@ -618,7 +816,7 @@ class _AggregateSearchState extends State<AggregateSearch> {
   }
 
   /// 修改当前正在对话的自动生成对话的标题
-  updateChatTile() {
+  _updateChatTile() {
     setState(() {
       _titleController.text = chatSession!.title;
     });
@@ -676,7 +874,7 @@ class _AggregateSearchState extends State<AggregateSearch> {
   }
 
   /// 构建切换平台和模型的行
-  buildPlatAndLlmRow() {
+  _buildPlatAndLlmRow() {
     Widget cpRow = Row(
       children: [
         const Text("平台:"),
@@ -749,7 +947,7 @@ class _AggregateSearchState extends State<AggregateSearch> {
   }
 
   /// 直接进入对话页面，展示预设问题的区域
-  buildDefaultQuestionArea() {
+  _buildDefaultQuestionArea() {
     return [
       Padding(
         padding: EdgeInsets.all(10.sp),
@@ -780,7 +978,7 @@ class _AggregateSearchState extends State<AggregateSearch> {
   }
 
   /// 对话的标题区域
-  buildChatTitleArea() {
+  _buildChatTitleArea() {
     // 点击可修改标题
     return Padding(
       padding: EdgeInsets.all(1.sp),
@@ -802,19 +1000,17 @@ class _AggregateSearchState extends State<AggregateSearch> {
               // textAlign: TextAlign.center,
             ),
           ),
-          SizedBox(
-            width: 56.sp,
-            child: IconButton(
-              onPressed: () {
-                if (chatSession != null) {
-                  updateChatTile();
-                }
-              },
-              icon: Icon(
-                Icons.edit,
-                color: Theme.of(context).primaryColor,
-              ),
-            ),
+          TitleUpdateButton(
+            chatSession: chatSession,
+            onUpdate: (ChatSession e) async {
+              // 修改对话的标题
+              await _dbHelper.updateChatSession(e);
+
+              // 修改后更新标题
+              setState(() {
+                chatSession = e;
+              });
+            },
           ),
         ],
       ),
@@ -822,7 +1018,7 @@ class _AggregateSearchState extends State<AggregateSearch> {
   }
 
   /// 构建对话列表主体
-  buildChatListArea() {
+  _buildChatListArea() {
     return Expanded(
       child: ListView.builder(
         controller: _scrollController, // 设置ScrollController
@@ -889,7 +1085,7 @@ class _AggregateSearchState extends State<AggregateSearch> {
   }
 
   /// 用户发送消息的区域
-  buildUserSendArea() {
+  _buildUserSendArea() {
     return Padding(
       padding: EdgeInsets.all(5.sp),
       child: Row(

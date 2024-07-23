@@ -130,6 +130,39 @@ class ChatMessage {
   }
 }
 
+///
+/// 2024-07-23 过滤对话列表
+/// 比如百度需要role时user和assistant交替出现，那就丢弃后面不是交替出现的部分
+///
+List<ChatMessage> filterAlternatingRoles(List<ChatMessage> messages) {
+  List<ChatMessage> filteredMessages = [];
+  String expectedRole = "user"; // 开始时期望的角色
+
+  for (ChatMessage message in messages) {
+    if (message.role == expectedRole) {
+      // 如果是保存的占位回复，则直接显示重试
+      if (expectedRole == "assistant" && message.isPlaceholder == true) {
+        filteredMessages.add(ChatMessage(
+          messageId: "retry",
+          dateTime: DateTime.now(),
+          role: "assistant",
+          content: "问题回答已遗失，请重新提问",
+          isPlaceholder: false,
+        ));
+      } else {
+        filteredMessages.add(message);
+      }
+      // 切换期望角色
+      expectedRole = expectedRole == "user" ? "assistant" : "user";
+    } else {
+      // 如果角色不匹配，则停止处理并返回已过滤的消息列表
+      break;
+    }
+  }
+
+  return filteredMessages;
+}
+
 /// 对话记录 这个是存入sqlite的表对应的模型
 // 一次对话记录需要一个标题，首次创建的时间，然后包含很多的对话消息
 class ChatSession {

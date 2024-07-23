@@ -2,6 +2,8 @@
 
 import 'dart:convert';
 
+import 'package:logger/logger.dart';
+
 import '../dio_client/cus_http_client.dart';
 import '../dio_client/cus_http_request.dart';
 import '../dio_client/interceptor_error.dart';
@@ -312,6 +314,8 @@ Future<List<CommonRespBody>> getBaiduAigcResp(
 
 String siliconflowAigcUrl = "https://api.siliconflow.cn/v1/chat/completions";
 
+var lr = Logger();
+
 /// 获取流式和非流式的对话响应数据
 Future<List<CommonRespBody>> getSiliconFlowAigcResp(
   List<CommonMessage> messages, {
@@ -341,15 +345,19 @@ Future<List<CommonRespBody>> getSiliconFlowAigcResp(
 
     var end = DateTime.now().millisecondsSinceEpoch;
     print("siliconCloud aigc响应耗时: ${(end - start) / 1000} 秒");
-    print("硅动科技返回的结果：$respData");
+    print("硅动科技返回的结果：${respData.runtimeType} $respData");
+
+    // lr.e(respData);
 
     /// ??? 流式返回都是String，没有区分正常和报错返回
     if (stream) {
+      // 注意：硅动科技流式返回的数据中，除了`data:`开始之外，最后一条时`data: [DONE]`结尾
       List<CommonRespBody> list = (respData as String)
           .split("data:")
-          .where((e) => e.isNotEmpty)
+          .where((e) => e.isNotEmpty && !e.contains("[DONE]"))
           .map((e) => CommonRespBody.fromJson(json.decode(e)))
           .toList();
+
       return list;
     } else {
       /// 2024-06-06 注意，这里报错的时候，响应的是String，而正常获取回复响应是_Map<String, dynamic>
@@ -370,7 +378,7 @@ Future<List<CommonRespBody>> getSiliconFlowAigcResp(
       )
     ];
   } catch (e) {
-    print("ttttttttttttttttttttt ${e.runtimeType}---$e");
+    print("gggggggggggggggggggggggggg ${e.runtimeType}---$e");
     // API请求报错，显示报错信息
     return [
       CommonRespBody(
@@ -382,3 +390,47 @@ Future<List<CommonRespBody>> getSiliconFlowAigcResp(
     ];
   }
 }
+
+var data = {
+  "id": "0190de5df42fb805695fcd64480ec339",
+  "object": "chat.completion.chunk",
+  "created": 1721717617,
+  "model": "Qwen/Qwen2-7B-Instruct",
+  "choices": [
+    {
+      "index": 0,
+      "delta": {"role": "assistant"},
+      "finish_reason": null,
+      "content_filter_results": {
+        "hate": {"filtered": false},
+        "self_harm": {"filtered": false},
+        "sexual": {"filtered": false},
+        "violence": {"filtered": false}
+      }
+    }
+  ],
+  "system_fingerprint": "",
+  "usage": {"prompt_tokens": 24, "completion_tokens": 0, "total_tokens": 24}
+};
+
+var data2 = {
+  "id": "0190de5df42fb805695fcd64480ec339",
+  "object": "chat.completion.chunk",
+  "created": 1721717617,
+  "model": "Qwen/Qwen2-7B-Instruct",
+  "choices": [
+    {
+      "index": 0,
+      "delta": {"content": "你好"},
+      "finish_reason": null,
+      "content_filter_results": {
+        "hate": {"filtered": false},
+        "self_harm": {"filtered": false},
+        "sexual": {"filtered": false},
+        "violence": {"filtered": false}
+      }
+    }
+  ],
+  "system_fingerprint": "",
+  "usage": {"prompt_tokens": 24, "completion_tokens": 1, "total_tokens": 25}
+};

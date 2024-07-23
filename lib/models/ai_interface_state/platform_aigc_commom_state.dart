@@ -22,8 +22,10 @@ class CommonMessage {
       json.encode(toJson(caseType: caseType));
 
   factory CommonMessage.fromJson(Map<String, dynamic> json) => CommonMessage(
-        role: json["role"] ?? json["Role"],
-        content: json["content"] ?? json["Content"],
+        // 2024-07-23 硅动科技流式返回时的choices，第一条只有role，后续的只有content，最后一条是完整的`data: [DONE]`，要过滤
+        // 因此，如果没有role暂定为assistant；没有content暂定为空字符串
+        role: json["role"] ?? json["Role"] ?? "assistant",
+        content: json["content"] ?? json["Content"] ?? "",
       );
 
   Map<String, dynamic> toJson({String? caseType}) {
@@ -95,12 +97,13 @@ class CommonUsage {
 ///
 class CommonChoice {
   CommonMessage message;
-  String finishReason;
+  // 硅动科技的这个可能为null，只有最后才有一个"finish_reason":"stop"
+  String? finishReason;
   int? index;
 
   CommonChoice({
     required this.message,
-    required this.finishReason,
+    this.finishReason,
     this.index,
   });
 
@@ -112,7 +115,7 @@ class CommonChoice {
           json["message"] ?? json["Message"] ?? json["Delta"] ?? json["delta"],
         ),
         finishReason: json["finish_reason"] ?? json["FinishReason"],
-        index: json["index"],
+        index: json["index"] ?? json["Index"],
       );
 
   Map<String, dynamic> toJson({String? caseType}) =>

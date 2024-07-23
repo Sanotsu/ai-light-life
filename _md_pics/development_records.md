@@ -482,6 +482,8 @@ _这个其实是之前(2024-04-09)就单独开发好的 app 了，功能融合�
   - fix: 修正“文档提要”中支持不同编码格式的 txt 文档的解析。
   - feat: 基本完成了“翻译助手”功能大体页面。
   - feat: 基本完成了“全网搜索”功能大体页面(使用`yi-large-rag`,¥25/1M token)。
+- 2024-07-23
+  - refactor: 重构“智能助手”中“文本对话”页面各个部件由内部函数生成，改为可复用的公共部件。
 
 ### TODO
 
@@ -491,3 +493,5 @@ _这个其实是之前(2024-04-09)就单独开发好的 app 了，功能融合�
     - `0.7.2+1` 版本好像修复了
 
 flutter build apk --split-per-abi
+
+flutter build apk --analyze-size --target-platform=android-arm64

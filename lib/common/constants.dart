@@ -88,7 +88,7 @@ List<CusLabel> dishCateOptions = [
 ];
 
 // 进入对话页面简单预设的一些问题
-List defaultChatQuestions = [
+List<String> defaultChatQuestions = [
   "你好，介绍一下你自己。",
   "将“纵观世界风云，风景这边独好”这句话，翻译成英语、日语、俄语和西班牙语。",
   "介绍一下“受害者有罪论”，并分析这个说法是否合理。",

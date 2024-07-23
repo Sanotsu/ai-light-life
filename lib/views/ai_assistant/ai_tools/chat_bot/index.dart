@@ -3,11 +3,7 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_easyloading/flutter_easyloading.dart';
-// import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:intl/intl.dart';
 import 'package:toggle_switch/toggle_switch.dart';
 import 'package:uuid/uuid.dart';
 
@@ -18,22 +14,33 @@ import '../../../../common/db_tools/db_helper.dart';
 import '../../../../models/ai_interface_state/platform_aigc_commom_state.dart';
 import '../../../../models/common_llm_info.dart';
 import '../../../../models/llm_chat_state.dart';
-import '../../_components/message_item.dart';
-import '../aggregate_search/user_send_area.dart';
+import '../../_chat_screen_parts/chat_appbar_area.dart';
+import '../../_chat_screen_parts/chat_history_drawer.dart';
+import '../../_chat_screen_parts/chat_list_area.dart';
+import '../../_chat_screen_parts/chat_plat_and_llm_area.dart';
+import '../../_chat_screen_parts/chat_title_area.dart';
+import '../../_chat_screen_parts/chat_default_question_area.dart';
+import '../../_chat_screen_parts/chat_user_send_area.dart';
 
 /// 2024-07-16
 /// 这个应该会复用，后续抽出chatbatindex出来
+/// 2024-07-23
+/// 页面中各个布局的部件已经抽出来了，放在lib/views/ai_assistant/_chat_screen_parts
+///   目前已经重构的页面：
+///     lib/views/ai_assistant/ai_tools/chat_bot/index.dart
+///     lib/views/ai_assistant/ai_tools/aggregate_search/index.dart
+/// 
 ///
-class ChatBatScreen extends StatefulWidget {
+class ChatBat extends StatefulWidget {
   // 默认只展示FREE结尾的免费模型，且不用用户配置
 
-  const ChatBatScreen({super.key});
+  const ChatBat({super.key});
 
   @override
-  State createState() => _ChatBatScreenState();
+  State createState() => _ChatBatState();
 }
 
-class _ChatBatScreenState extends State<ChatBatScreen> {
+class _ChatBatState extends State<ChatBat> {
   final DBHelper _dbHelper = DBHelper();
 
   // 人机对话消息滚动列表
@@ -43,12 +50,6 @@ class _ChatBatScreenState extends State<ChatBatScreen> {
   final TextEditingController _userInputController = TextEditingController();
   // 用户输入的内容（当不是AI在思考、且输入框有非空文字时才可以点击发送按钮）
   String userInput = "";
-
-  // 要修改某个对话的名称
-  final TextEditingController _titleController = TextEditingController();
-
-  // 要修改最近对话列表中指定的某个对话的名称
-  final _selectedTitleController = TextEditingController();
 
   /// 级联选择效果：云平台-模型名
   /// 2024-06-15 这里限量的，暂时都是阿里云平台的，但单独取名limited？？？
@@ -71,7 +72,7 @@ class _ChatBatScreenState extends State<ChatBatScreen> {
   ChatSession? chatSession;
 
   // 最近对话需要的记录历史对话的变量
-  List<ChatSession> chatHsitory = [];
+  List<ChatSession> chatHistory = [];
 
   // 等待AI响应时的占位的消息，在构建真实对话的list时要删除
   var placeholderMessage = ChatMessage(
@@ -83,12 +84,7 @@ class _ChatBatScreenState extends State<ChatBatScreen> {
   );
 
   // 进入对话页面简单预设的一些问题
-  List defaultQuestions = defaultChatQuestions;
-  //  [
-  //   "你好，介绍一下你自己。",
-  //   "如何制作鱼香肉丝。",
-  //   "苏东坡是谁？详细介绍一下。",
-  // ];
+  List<String> defaultQuestions = defaultChatQuestions;
 
   @override
   void initState() {
@@ -121,7 +117,7 @@ class _ChatBatScreenState extends State<ChatBatScreen> {
   }
 
   //获取指定分类的历史对话
-  Future<List<ChatSession>> getHsitoryChats() async {
+  Future<List<ChatSession>> getHistoryChats() async {
     // 获取历史记录：默认查询到所有的历史对话，再根据条件过滤
     var list = await _dbHelper.queryChatList(cateType: "aigc");
 
@@ -148,8 +144,24 @@ class _ChatBatScreenState extends State<ChatBatScreen> {
         .toList();
 
     if (list.isNotEmpty && list.isNotEmpty) {
+      // 2024-07-23 注意！！！这里要处理该条历史记录中的消息列表，具体看_sendMessage中的说明
+      List<ChatMessage> resultList =
+          filterAlternatingRoles(list.first.messages);
+
+      // 注意，如果遍历结束，但只剩下一条role为user的消息列表，则补一个占位消息
+      if (resultList.length == 1 && resultList.first.role == "user") {
+        resultList.add(ChatMessage(
+          messageId: "retry",
+          dateTime: DateTime.now(),
+          role: "assistant",
+          content: "问题回答已遗失，请重新提问",
+          isPlaceholder: false,
+        ));
+      }
+
       setState(() {
         chatSession = list.first;
+        chatSession?.messages = resultList;
 
         // 如果有存是哪个模型，也默认选中该模型
         // ？？？2024-06-11 虽然同一个对话现在可以切换平台和模型了，但这里只是保留第一次对话取的值
@@ -190,6 +202,7 @@ class _ChatBatScreenState extends State<ChatBatScreen> {
       totalTokens: usage?.totalTokens,
     );
 
+    if (!mounted) return;
     setState(() {
       // AI思考和用户输入是相反的(如果用户输入了，就是在等到机器回到了)
       isBotThinking = (role == "user");
@@ -198,6 +211,13 @@ class _ChatBatScreenState extends State<ChatBatScreen> {
 
       // 2024-06-01 注意，在每次添加了对话之后，都把整个对话列表存入对话历史中去
       // 当然，要在占位消息之前
+      // 2024-07-23 有个问题：用户发送了消息，等待AI响应时，退出页面。
+      // 此时历史记录中就存在了等待中的数据，而响应返回的不会处理、占位的数据就无法清除
+      // 不过继续询问后占位的还是会被清除。
+      // ！！！但如果像百度接口role必须user、assistant 交替的奇数消息列表，就会报错。
+      //    因为这里是user、(assistant没放到列表)、user，两个连续的user偶数列表
+      //    也就是说，该历史对话，无法继续对话了
+      // 对策：点击指定历史记录，如果最后一条不是assistant，就删除，直到是assistant
       _saveToDb();
 
       _userInputController.clear();
@@ -295,6 +315,7 @@ class _ChatBatScreenState extends State<ChatBatScreen> {
     }
 
     // 得到回复后要删除表示加载中的占位消息
+    if (!mounted) return;
     setState(() {
       messages.removeWhere((e) => e.isPlaceholder == true);
     });
@@ -415,7 +436,23 @@ class _ChatBatScreenState extends State<ChatBatScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: buildAppbarArea(),
+      appBar: ChatAppBarArea(
+        title: '你问我答',
+        onNewChatPressed: () {
+          setState(() {
+            chatSession = null;
+            messages.clear();
+          });
+        },
+        onHistoryPressed: (BuildContext context) async {
+          var list = await getHistoryChats();
+          setState(() {
+            chatHistory = list;
+          });
+          if (!context.mounted) return;
+          Scaffold.of(context).openEndDrawer();
+        },
+      ),
       body: GestureDetector(
         // 允许子控件（如TextField）接收点击事件
         behavior: HitTestBehavior.translucent,
@@ -432,26 +469,76 @@ class _ChatBatScreenState extends State<ChatBatScreen> {
               color: Colors.grey[300],
               child: Padding(
                 padding: EdgeInsets.only(left: 10.sp),
-                child: buildPlatAndLlmRow(),
+                // child: buildPlatAndLlmRow(),
+                child: PlatAndLlmRow<CloudPlatform, PlatformLLM>(
+                  selectedPlatform: selectedPlatform,
+                  onCloudPlatformChanged: onCloudPlatformChanged,
+                  selectedLlm: selectedLlm,
+                  onLlmChanged: (val) {
+                    setState(() {
+                      selectedLlm = val!;
+                      // 2024-06-15 切换模型应该新建对话，因为上下文丢失了。
+                      // 建立新对话就是把已有的对话清空就好(因为保存什么的在发送消息时就处理了)
+                      chatSession = null;
+                      messages.clear();
+                    });
+                  },
+                  buildCloudPlatforms: buildCloudPlatforms,
+                  buildPlatformLLMs: buildPlatformLLMs,
+                  specList: newLLMSpecs,
+                  showToggleSwitch: true,
+                  isStream: isStream,
+                  onToggle: (index) {
+                    setState(() {
+                      isStream = index == 0 ? true : false;
+                    });
+                  },
+                ),
               ),
             ),
 
             /// 如果对话是空，显示预设的问题
-            if (messages.isEmpty) ...buildDefaultQuestionArea(),
+            // 不放在一个固定高度，在配合其他组件时的自动扩展会出问题
+            if (messages.isEmpty)
+              SizedBox(
+                height: 0.5.sh,
+                child: ChatDefaultQuestionArea(
+                  defaultQuestions: defaultQuestions,
+                  onQuestionTap: _sendMessage,
+                ),
+              ),
 
+            /// 对话的标题区域
             /// 在顶部显示对话标题(避免在appbar显示，内容太挤)
-            if (chatSession != null) buildChatTitleArea(),
+            if (chatSession != null)
+              ChatTitleArea(
+                chatSession: chatSession,
+                onUpdate: (ChatSession e) async {
+                  // 修改对话的标题
+                  await _dbHelper.updateChatSession(e);
+
+                  // 修改后更新标题
+                  setState(() {
+                    chatSession = e;
+                  });
+                },
+              ),
 
             /// 标题和对话正文的分割线
             if (chatSession != null) Divider(height: 3.sp, thickness: 1.sp),
 
             /// 显示对话消息主体
-            buildChatListArea(),
+            ChatListArea(
+              messages: messages,
+              scrollController: _scrollController,
+              regenerateLatestQuestion: regenerateLatestQuestion,
+            ),
 
             /// 显示输入框和发送按钮
             const Divider(),
-            // buildUserSendArea(),
-            UserSendArea(
+
+            /// 用户发送区域
+            ChatUserSendArea(
               controller: _userInputController,
               hintText: '可以向我提任何问题哦',
               isBotThinking: isBotThinking,
@@ -472,304 +559,48 @@ class _ChatBatScreenState extends State<ChatBatScreen> {
           ],
         ),
       ),
-      endDrawer: Drawer(
-        child: ListView(
-          children: <Widget>[
-            SizedBox(
-              // 调整DrawerHeader的高度
-              height: 100.sp,
-              child: DrawerHeader(
-                decoration: const BoxDecoration(color: Colors.lightGreen),
-                child: Center(
-                  child: Text(
-                    '最近对话',
-                    style: TextStyle(
-                      fontSize: 20.sp,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            ...(chatHsitory.map((e) => buildGestureItems(e)).toList()),
-          ],
-        ),
-      ),
-    );
-  }
 
-  /// 构建appbar区域
-  buildAppbarArea() {
-    return AppBar(
-      title: const Text('你问我答'),
-      actions: [
-        /// 创建新对话
-        IconButton(
-          onPressed: () {
-            // 建立新对话就是把已有的对话清空就好(因为保存什么的在发送消息时就处理了)？？？
+      /// 构建在对话历史中的对话标题列表
+      endDrawer: ChatHistoryDrawer(
+        chatHistory: chatHistory,
+        onTap: (ChatSession e) {
+          Navigator.of(context).pop();
+          // 点击了知道历史对话，则替换当前对话
+          setState(() {
+            _getChatInfo(e.uuid);
+          });
+        },
+        onUpdate: (ChatSession e) async {
+          // 修改对话的标题
+          await _dbHelper.updateChatSession(e);
+          // 修改成功后重新查询更新
+          var list = await getHistoryChats();
+          setState(() {
+            chatHistory = list;
+          });
+        },
+        onDelete: (ChatSession e) async {
+          // 先删除
+          await _dbHelper.deleteChatById(e.uuid);
+          // 然后重新查询并更新
+          var list = await getHistoryChats();
+          setState(() {
+            chatHistory = list;
+          });
+          // 如果删除的历史对话是当前对话，跳到新开对话页面
+          if (chatSession?.uuid == e.uuid) {
             setState(() {
               chatSession = null;
               messages.clear();
             });
-          },
-          icon: const Icon(Icons.add),
-        ),
-        Builder(
-          builder: (BuildContext context) {
-            return IconButton(
-              icon: const Icon(Icons.history),
-              onPressed: () async {
-                // 获取历史记录：默认查询到所有的历史对话，再根据条件过滤
-                var list = await getHsitoryChats();
-                // 显示最近的对话
-
-                setState(() {
-                  chatHsitory = list;
-                });
-
-                if (!mounted) return;
-                // ignore: use_build_context_synchronously
-                Scaffold.of(context).openEndDrawer();
-              },
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-  /// 构建在对话历史中的对话标题列表
-  buildGestureItems(ChatSession e) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.of(context).pop();
-        // 点击了知道历史对话，则替换当前对话
-        setState(() {
-          _getChatInfo(e.uuid);
-        });
-      },
-      child: Card(
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Padding(
-                padding: EdgeInsets.only(left: 5.sp),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      e.title,
-                      style: TextStyle(fontSize: 15.sp),
-                      maxLines: 2,
-                      softWrap: true,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    Text(
-                      DateFormat(constDatetimeFormat).format(e.gmtCreate),
-                      style: TextStyle(fontSize: 12.sp),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            SizedBox(
-              width: 80.sp,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _buildUpdateBotton(e),
-                  _buildDeleteBotton(e),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  _buildDeleteBotton(ChatSession e) {
-    return SizedBox(
-      width: 40.sp,
-      child: IconButton(
-        onPressed: () {
-          showDialog(
-            context: context,
-            builder: (context) {
-              return AlertDialog(
-                title: const Text("确认删除对话记录:"),
-                content: Text(e.title),
-                actions: [
-                  TextButton(
-                    onPressed: () {
-                      Navigator.of(context).pop(false);
-                    },
-                    child: const Text("取消"),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.of(context).pop(true);
-                    },
-                    child: const Text("确定"),
-                  ),
-                ],
-              );
-            },
-          ).then((value) async {
-            if (value == true) {
-              // 先删除
-              await _dbHelper.deleteChatById(e.uuid);
-
-              // 然后重新查询并更新
-              var list = await getHsitoryChats();
-
-              setState(() {
-                chatHsitory = list;
-              });
-
-              // 2024-06-11 如果删除的历史对话，就是当前对话，那就要跳到新开对话页面
-              if (chatSession?.uuid == e.uuid) {
-                setState(() {
-                  chatSession = null;
-                  messages.clear();
-                });
-              }
-            }
-          });
+          }
         },
-        icon: Icon(
-          Icons.delete,
-          color: Theme.of(context).primaryColor,
-        ),
-        padding: EdgeInsets.all(0.sp),
       ),
     );
-  }
-
-  _buildUpdateBotton(ChatSession e) {
-    return SizedBox(
-      width: 40.sp,
-      child: IconButton(
-        onPressed: () {
-          setState(() {
-            _selectedTitleController.text = e.title;
-          });
-          showDialog(
-            context: context,
-            builder: (context) {
-              return AlertDialog(
-                title: Text("修改对话记录标题:", style: TextStyle(fontSize: 18.sp)),
-                content: TextField(
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                  ),
-                  controller: _selectedTitleController,
-                  maxLines: 2,
-                  // autofocus: true,
-                  // onChanged: (v) {
-                  //   print("onChange: $v");
-                  // },
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () {
-                      Navigator.of(context).pop(false);
-                    },
-                    child: const Text("取消"),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.of(context).pop(true);
-                    },
-                    child: const Text("确定"),
-                  ),
-                ],
-              );
-            },
-          ).then((value) async {
-            if (value == true) {
-              var temp = e;
-              temp.title = _selectedTitleController.text.trim();
-              // 修改对话的标题
-              _dbHelper.updateChatSession(temp);
-
-              // 修改成功后重新查询更新
-              var list = await getHsitoryChats();
-
-              setState(() {
-                chatHsitory = list;
-              });
-            }
-          });
-        },
-        icon: Icon(
-          Icons.edit,
-          color: Theme.of(context).primaryColor,
-        ),
-      ),
-    );
-  }
-
-  /// 修改当前正在对话的自动生成对话的标题
-  updateChatTile() {
-    setState(() {
-      _titleController.text = chatSession!.title;
-    });
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text("修改对话标题:", style: TextStyle(fontSize: 20.sp)),
-          content: TextField(
-            decoration: const InputDecoration(
-              border: OutlineInputBorder(),
-            ),
-            controller: _titleController,
-            maxLines: 3,
-            // autofocus: true,
-            // onChanged: (v) {
-            //   print("onChange: $v");
-            // },
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop(false);
-              },
-              child: const Text("取消"),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop(true);
-              },
-              child: const Text("确定"),
-            ),
-          ],
-        );
-      },
-    ).then((value) async {
-      if (value == true) {
-        var temp = chatSession!;
-        temp.title = _titleController.text.trim();
-        // 修改对话的标题
-        _dbHelper.updateChatSession(temp);
-
-        // 修改后更新标题
-        setState(() {
-          chatSession = temp;
-        });
-
-        // // 修改成功后重新查询更新(理论上不用重新查询应该也没问题)
-        // var b = await _dbHelper.queryChatList(uuid: chatSession!.uuid);
-        // setState(() {
-        //   chatSession = b.first;
-        // });
-      }
-    });
   }
 
   /// 构建切换平台和模型的行
+  /// 2024-07-23 这个暂时不抽成共用的是因为平台和模型的枚举类型可能不一样，且有些页面没有这个东西
   buildPlatAndLlmRow() {
     Widget cpRow = Row(
       children: [
@@ -863,221 +694,6 @@ class _ChatBatScreenState extends State<ChatBatScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [cpRow, modelRow],
-      ),
-    );
-  }
-
-  /// 直接进入对话页面，展示预设问题的区域
-  buildDefaultQuestionArea() {
-    return [
-      Padding(
-        padding: EdgeInsets.all(10.sp),
-        child: Text(" 你可以试着问我：", style: TextStyle(fontSize: 18.sp)),
-      ),
-      Expanded(
-        flex: 2,
-        child: ListView.builder(
-          itemCount: defaultQuestions.length,
-          itemBuilder: (context, index) {
-            return Card(
-              elevation: 2,
-              child: ListTile(
-                title: Text(
-                  defaultQuestions[index],
-                  style: const TextStyle(color: Colors.blue),
-                ),
-                trailing: const Icon(Icons.touch_app, color: Colors.blue),
-                onTap: () {
-                  _sendMessage(defaultQuestions[index]);
-                },
-              ),
-            );
-          },
-        ),
-      ),
-    ];
-  }
-
-  /// 对话的标题区域
-  buildChatTitleArea() {
-    // 点击可修改标题
-    return Padding(
-      padding: EdgeInsets.all(1.sp),
-      child: Row(
-        children: [
-          const Icon(Icons.title),
-          SizedBox(width: 10.sp),
-          Expanded(
-            child: Text(
-              '${(chatSession != null) ? chatSession?.title : '<暂未建立对话>'}',
-              maxLines: 2,
-              softWrap: true,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 15.sp,
-                fontWeight: FontWeight.bold,
-                // color: Theme.of(context).primaryColor,
-              ),
-              // textAlign: TextAlign.center,
-            ),
-          ),
-          SizedBox(
-            width: 56.sp,
-            child: IconButton(
-              onPressed: () {
-                if (chatSession != null) {
-                  updateChatTile();
-                }
-              },
-              icon: Icon(
-                Icons.edit,
-                color: Theme.of(context).primaryColor,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// 构建对话列表主体
-  buildChatListArea() {
-    return Expanded(
-      child: ListView.builder(
-        controller: _scrollController, // 设置ScrollController
-        // reverse: true, // 反转列表，使新消息出现在底部
-        itemCount: messages.length,
-        itemBuilder: (context, index) {
-          // 构建MessageItem
-          return Padding(
-            padding: EdgeInsets.all(5.sp),
-            child: Column(
-              children: [
-                // 如果是最后一个回复的文本，使用打字机特效
-                // if (index == messages.length - 1)
-                //   TypewriterText(text: messages[index].text),
-                MessageItem(message: messages[index]),
-                // 如果是大模型回复，可以有一些功能按钮
-                if (messages[index].role == 'assistant')
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      // 其中，是大模型最后一条回复，则可以重新生成
-                      // 注意，还要排除占位消息
-                      // 限量的没有重新生成，因为不好计算tokens总数
-                      if ((index == messages.length - 1) &&
-                          messages[index].isPlaceholder != true &&
-                          selectedPlatform != CloudPlatform.limited)
-                        TextButton(
-                          onPressed: () {
-                            regenerateLatestQuestion();
-                          },
-                          child: const Text("重新生成"),
-                        ),
-
-                      // 如果不是等待响应才可以点击复制该条回复
-                      if (messages[index].isPlaceholder != true)
-                        IconButton(
-                          onPressed: () {
-                            Clipboard.setData(
-                              ClipboardData(text: messages[index].content),
-                            );
-
-                            EasyLoading.showToast(
-                              "已复制到剪贴板",
-                              duration: const Duration(seconds: 3),
-                              toastPosition: EasyLoadingToastPosition.center,
-                            );
-                          },
-                          icon: const Icon(Icons.copy),
-                        ),
-
-                      SizedBox(width: 10.sp),
-
-                      // 如果不是等待响应才显示token数量
-                      if (messages[index].isPlaceholder != true)
-                        Text(
-                          "tokens 输入:${messages[index].inputTokens} 输出:${messages[index].outputTokens} 总计:${messages[index].totalTokens}",
-                          style: TextStyle(fontSize: 10.sp),
-                        ),
-                      SizedBox(width: 10.sp),
-                    ],
-                  )
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  /// 用户发送消息的区域
-  buildUserSendArea() {
-    return Padding(
-      padding: EdgeInsets.all(5.sp),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _userInputController,
-
-              decoration: const InputDecoration(
-                hintText: '可以向我提任何问题哦',
-                border: OutlineInputBorder(),
-              ),
-              // ？？？2024-07-14 如果屏幕太小，键盘弹出来之后挤占屏幕高度，这里可能会出现溢出问题
-              maxLines: 2,
-              minLines: 1,
-              onChanged: (String? text) {
-                if (text != null) {
-                  setState(() {
-                    userInput = text.trim();
-                  });
-                }
-              },
-            ),
-          ),
-          IconButton(
-            // 如果AI正在响应，或者输入框没有任何文字，不让点击发送
-            onPressed: isBotThinking || userInput.isEmpty
-                ? null
-                : () {
-                    if (!isMessageTooLong()) {
-                      // 在当前上下文中查找最近的 FocusScope 并使其失去焦点，从而收起键盘。
-                      FocusScope.of(context).unfocus();
-
-                      // 用户发送消息
-                      _sendMessage(userInput);
-
-                      // 发送完要清空记录用户输的入变量
-                      setState(() {
-                        userInput = "";
-                      });
-                    } else {
-                      showDialog(
-                        context: context,
-                        builder: (BuildContext context) {
-                          return AlertDialog(
-                            title: const Text('对话过长'),
-                            content: const Text(
-                              '注意，由于免费API的使用压力，单个聊天对话的总长度不能超过8000字，请新开对话，谢谢。',
-                            ),
-                            actions: <Widget>[
-                              TextButton(
-                                onPressed: () {
-                                  Navigator.of(context).pop();
-                                },
-                                child: const Text('确定'),
-                              ),
-                            ],
-                          );
-                        },
-                      );
-                    }
-                  },
-            icon: const Icon(Icons.send),
-          ),
-        ],
       ),
     );
   }
