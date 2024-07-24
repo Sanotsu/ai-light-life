@@ -103,7 +103,7 @@ class ChatMessage {
 
   Map<String, dynamic> toJson() => {
         "message_id": messageId,
-        "date_time": dateTime,
+        "date_time": dateTime.toIso8601String(),
         'role': role,
         "content": content,
         "quotes": quotes == null

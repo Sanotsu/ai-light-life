@@ -7,10 +7,13 @@ class CusMultiSelectDialog extends StatefulWidget {
   final List<CusLabel> selectedItems;
   // 所有的待选条目
   final List<CusLabel> items;
+  // 弹窗的标题，用户可自定
+  final String? title;
   const CusMultiSelectDialog({
     super.key,
     required this.selectedItems,
     required this.items,
+    this.title,
   });
 
   @override
@@ -47,7 +50,7 @@ class _CusMultiSelectDialogState extends State<CusMultiSelectDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('多选'),
+      title: Text(widget.title ?? '多选'),
       content: SizedBox(
         width: double.maxFinite,
         child: ListView.builder(
@@ -57,6 +60,7 @@ class _CusMultiSelectDialogState extends State<CusMultiSelectDialog> {
             return CheckboxListTile(
               title: Text(widget.items[index].cnLabel),
               value: _selectedItems.contains(widget.items[index]),
+              dense: true,
               onChanged: (bool? value) {
                 _onItemCheckedChange(widget.items[index], value!);
               },

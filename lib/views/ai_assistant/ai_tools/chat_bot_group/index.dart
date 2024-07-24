@@ -1,5 +1,7 @@
 // ignore_for_file: avoid_print,
 
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:uuid/uuid.dart';
@@ -8,6 +10,7 @@ import '../../../../apis/common_chat_apis.dart';
 import '../../../../apis/paid_cc_apis.dart';
 import '../../../../common/components/tool_widget.dart';
 import '../../../../common/constants.dart';
+import '../../../../common/utils/tools.dart';
 import '../../../../models/ai_interface_state/platform_aigc_commom_state.dart';
 import '../../../../models/common_llm_info.dart';
 import '../../../../models/llm_chat_state.dart';
@@ -75,7 +78,12 @@ class _ChatBatGroupState extends State<ChatBatGroup> {
   void initState() {
     super.initState();
 
-    _selectedItems = [_allItems[0], _allItems[2]];
+    _selectedItems = [
+      _allItems[2],
+      _allItems[4],
+      _allItems[7],
+      _allItems[11],
+    ];
   }
 
   // 先多选了几个模型，发送后，每个模型都要调用
@@ -373,6 +381,7 @@ class _ChatBatGroupState extends State<ChatBatGroup> {
                   return CusMultiSelectDialog(
                     items: _allItems,
                     selectedItems: _selectedItems,
+                    title: "模型多选",
                   );
                 },
               ).then((selectedItems) {
@@ -384,9 +393,37 @@ class _ChatBatGroupState extends State<ChatBatGroup> {
                     messages.clear();
                     msgMap.clear();
                   });
-                  print('Selected items: $selectedItems');
                 }
               });
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.download),
+            onPressed: () async {
+              // 将 ChatMessage 列表转换为可以序列化的格式
+              final Map<String, dynamic> serializableMsgMap = {};
+              msgMap.forEach((key, messages) {
+                final List<dynamic> serializedMessages =
+                    messages.map((m) => m.toJson()).toList();
+                serializableMsgMap[key] = serializedMessages;
+              });
+
+              // 将 Map 转换为 JSON 字符串
+              final jsonString = jsonEncode(serializableMsgMap);
+
+              // 对话的第一条用户输入的内容为标题
+              var tempTitle = msgMap.values.first.first.content;
+              tempTitle = tempTitle.length > 15
+                  ? tempTitle.substring(0, 15)
+                  : tempTitle;
+
+              /// 这个直接保存记录json文件到设备指定文件夹
+              await saveTextFileToStorage(
+                jsonString,
+                SAVE_MODEL_BATTLE_DIR,
+                tempTitle,
+                extension: 'json',
+              );
             },
           ),
         ],
@@ -403,18 +440,20 @@ class _ChatBatGroupState extends State<ChatBatGroup> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             /// 选中的平台模型
-            Container(
+            SizedBox(
               height: 50.sp,
               width: double.infinity,
-              color: Colors.grey[300],
               child: Padding(
                 padding: EdgeInsets.only(left: 10.sp, right: 10.sp),
                 child: SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: Row(
                       children: [
-                        const Text("选中的模型\n可横向滚动"),
-                        SizedBox(width: 10.sp),
+                        // Text(
+                        //   "选中的模型\n可横向滚动",
+                        //   style: TextStyle(fontSize: 10.sp),
+                        // ),
+                        // SizedBox(width: 10.sp),
                         Wrap(
                           direction: Axis.horizontal,
                           spacing: 5,
@@ -423,8 +462,8 @@ class _ChatBatGroupState extends State<ChatBatGroup> {
                             _selectedItems.length,
                             (index) => buildSmallButtonTag(
                               _selectedItems[index].cnLabel,
-                              bgColor: Colors.lightBlue,
-                              labelTextSize: 12,
+                              bgColor: Colors.lightGreen[100],
+                              labelTextSize: 12.sp,
                             ),
                           ).toList(),
                         ),
@@ -443,6 +482,8 @@ class _ChatBatGroupState extends State<ChatBatGroup> {
                 // ),
               ),
             ),
+
+            Divider(height: 1.sp),
 
             /// 如果对话是空，显示预设的问题
             if (msgMap.values.isEmpty)

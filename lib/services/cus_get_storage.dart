@@ -78,4 +78,11 @@ class MyGetStorage {
   }
 
   bool getIsBriefMode() => box.read("is_brief_mode") ?? false;
+
+  // 2024-07-24 文本对话的对话列表的缩放比例
+  Future<void> setChatListAreaScale(double? flag) async {
+    await box.write("chat_list_area_scale", flag);
+  }
+
+  double getChatListAreaScale() => box.read("chat_list_area_scale") ?? 1.0;
 }

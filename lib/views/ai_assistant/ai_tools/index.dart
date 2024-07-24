@@ -190,10 +190,10 @@ class _AIToolIndexState extends State<AIToolIndex> {
                     );
                   },
                 ),
-                buildAIToolEntrance(
-                  "功能\n占位(TODO)",
-                  icon: const Icon(Icons.search),
-                ),
+                // buildAIToolEntrance(
+                //   "功能\n占位(TODO)",
+                //   icon: const Icon(Icons.search),
+                // ),
               ],
             ),
           ),

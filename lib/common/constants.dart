@@ -121,6 +121,10 @@ List<String> chatQuestionSamples = [
 final SAVE_TRANSLATION_DIR =
     Directory('/storage/emulated/0/AILightLife/translations');
 
+/// 智能群聊的对话内容保存为json(本来应该存数据库的太麻烦了，这里保存文件意思一下)
+final SAVE_MODEL_BATTLE_DIR =
+    Directory('/storage/emulated/0/AILightLife/chat_records');
+
 /// 用于智能群聊页面中用户可以多选的模型列表(免费的和便宜付费的)
 final BATTLE_MODEL_LIST = [
   CusLabel(

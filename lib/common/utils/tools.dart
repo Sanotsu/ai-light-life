@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../apis/_self_keys.dart';
@@ -202,4 +203,41 @@ String formatFileSize(int bytes, {int decimals = 2}) {
   const suffixes = ["B", "KB", "MB", "GB", "TB"];
   var i = (log(bytes) / log(1024)).floor();
   return '${(bytes / pow(1024, i)).toStringAsFixed(decimals)} ${suffixes[i]}';
+}
+
+/// 保存文本文件到外部存储(如果是pdf等还需要改造，传入保存方法等)
+Future<void> saveTextFileToStorage(
+  String text,
+  Directory dir,
+  String title, {
+  String? extension = 'txt',
+}) async {
+  try {
+    // 首先获取设备外部存储管理权限
+    if (!(await requestStoragePermission())) {
+      return EasyLoading.showError("未授权访问设备外部存储，无法保存文档");
+    }
+
+    // 翻译保存的文本，放到设备外部存储固定位置，不存在文件夹则先创建
+    if (!await dir.exists()) {
+      await dir.create(recursive: true);
+    }
+
+    final file = File(
+      '${dir.path}/$title-${DateTime.now().microsecondsSinceEpoch}.$extension',
+    );
+
+    await file.writeAsString(text);
+
+    // 保存成功/失败弹窗提示
+    EasyLoading.showSuccess(
+      '文档已保存到 ${file.path}',
+      duration: const Duration(seconds: 5),
+    );
+  } catch (e) {
+    return EasyLoading.showError(
+      "保存文档失败: ${e.toString()}",
+      duration: const Duration(seconds: 5),
+    );
+  }
 }
