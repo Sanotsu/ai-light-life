@@ -318,7 +318,7 @@ class _PhotoTranslationState extends State<PhotoTranslation> {
                     commonHintDialog(
                       context,
                       "说明",
-                      "点击图片可预览,支持jpg/png/bmp\n要求base64编码后大小不超过4M;\n最短边至少15px，最长边最大4096px.",
+                      "1. 点击图片可预览、缩放\n2. 支持 JPEG/PNG 格式\n3. 图片最大支持 2048*1080\n4. base64编码后大小不超过4M\n5. 图片越大，处理耗时越久",
                       msgFontSize: 15.sp,
                     );
                   },

@@ -6,6 +6,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import 'aggregate_search/index.dart';
 import 'chat_bot/index.dart';
+import 'chat_bot_group/index.dart';
 import 'document_summary/index.dart';
 import 'multi_translator/index.dart';
 import 'photo_translation/index.dart';
@@ -174,6 +175,19 @@ class _AIToolIndexState extends State<AIToolIndex> {
                         }
                       });
                     }
+                  },
+                ),
+                buildAIToolEntrance(
+                  "智能\n群聊",
+                  color: Colors.blue[100],
+                  icon: const Icon(Icons.balance),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ChatBatGroup(),
+                      ),
+                    );
                   },
                 ),
                 buildAIToolEntrance(

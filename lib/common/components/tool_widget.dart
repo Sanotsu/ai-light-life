@@ -450,7 +450,7 @@ buildSmallChip(
 }
 
 // 用一个按钮假装是一个标签，用来展示
-buildSmallButtonTag(
+Widget buildSmallButtonTag(
   String labelText, {
   Color? bgColor,
   double? labelTextSize,

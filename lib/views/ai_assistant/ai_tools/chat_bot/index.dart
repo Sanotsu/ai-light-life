@@ -4,11 +4,9 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:toggle_switch/toggle_switch.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../../apis/common_chat_apis.dart';
-import '../../../../common/components/tool_widget.dart';
 import '../../../../common/constants.dart';
 import '../../../../common/db_tools/db_helper.dart';
 import '../../../../models/ai_interface_state/platform_aigc_commom_state.dart';
@@ -29,7 +27,7 @@ import '../../_chat_screen_parts/chat_user_send_area.dart';
 ///   目前已经重构的页面：
 ///     lib/views/ai_assistant/ai_tools/chat_bot/index.dart
 ///     lib/views/ai_assistant/ai_tools/aggregate_search/index.dart
-/// 
+///
 ///
 class ChatBat extends StatefulWidget {
   // 默认只展示FREE结尾的免费模型，且不用用户配置
@@ -469,7 +467,6 @@ class _ChatBatState extends State<ChatBat> {
               color: Colors.grey[300],
               child: Padding(
                 padding: EdgeInsets.only(left: 10.sp),
-                // child: buildPlatAndLlmRow(),
                 child: PlatAndLlmRow<CloudPlatform, PlatformLLM>(
                   selectedPlatform: selectedPlatform,
                   onCloudPlatformChanged: onCloudPlatformChanged,
@@ -498,14 +495,17 @@ class _ChatBatState extends State<ChatBat> {
             ),
 
             /// 如果对话是空，显示预设的问题
-            // 不放在一个固定高度，在配合其他组件时的自动扩展会出问题
+            // 预设的问题标题
             if (messages.isEmpty)
-              SizedBox(
-                height: 0.5.sh,
-                child: ChatDefaultQuestionArea(
-                  defaultQuestions: defaultQuestions,
-                  onQuestionTap: _sendMessage,
-                ),
+              Padding(
+                padding: EdgeInsets.all(10.sp),
+                child: Text(" 你可以试着问我：", style: TextStyle(fontSize: 18.sp)),
+              ),
+            // 预设的问题列表
+            if (messages.isEmpty)
+              ChatDefaultQuestionArea(
+                defaultQuestions: defaultQuestions,
+                onQuestionTap: _sendMessage,
               ),
 
             /// 对话的标题区域
@@ -595,105 +595,6 @@ class _ChatBatState extends State<ChatBat> {
             });
           }
         },
-      ),
-    );
-  }
-
-  /// 构建切换平台和模型的行
-  /// 2024-07-23 这个暂时不抽成共用的是因为平台和模型的枚举类型可能不一样，且有些页面没有这个东西
-  buildPlatAndLlmRow() {
-    Widget cpRow = Row(
-      children: [
-        const Text("平台:"),
-        SizedBox(width: 10.sp),
-        Expanded(
-          child: DropdownButton<CloudPlatform?>(
-            value: selectedPlatform,
-            isDense: true,
-            // icon: Icon(Icons.arrow_drop_down, size: 36.sp), // 自定义图标
-            underline: Container(), // 取消默认的下划线
-            // alignment: AlignmentDirectional.center,
-            items: buildCloudPlatforms(),
-            onChanged: onCloudPlatformChanged,
-          ),
-        ),
-
-        /// 选择“更快”就使用流式请求，否则就一般的非流式
-        ToggleSwitch(
-          minHeight: 26.sp,
-          minWidth: 48.sp,
-          fontSize: 13.sp,
-          cornerRadius: 5.sp,
-          dividerMargin: 0.sp,
-          // isVertical: true,
-          // // 激活时按钮的前景背景色
-          // activeFgColor: Colors.black,
-          // activeBgColor: [Colors.green],
-          // // 未激活时的前景背景色
-          // inactiveBgColor: Colors.grey,
-          // inactiveFgColor: Colors.white,
-          initialLabelIndex: isStream ? 0 : 1,
-          totalSwitches: 2,
-          labels: const ['更快', '更省'],
-          // radiusStyle: true,
-          onToggle: (index) {
-            setState(() {
-              isStream = index == 0 ? true : false;
-            });
-          },
-        ),
-        SizedBox(width: 10.sp),
-      ],
-    );
-
-    Widget modelRow = Row(
-      children: [
-        const Text("模型:"),
-        SizedBox(width: 10.sp),
-        Expanded(
-          // 下拉框有个边框，需要放在容器中
-          // child: Container(
-          //   decoration: BoxDecoration(
-          //     border: Border.all(color: Colors.grey, width: 1.0),
-          //     borderRadius: BorderRadius.circular(4),
-          //   ),
-          child: DropdownButton<PlatformLLM?>(
-            value: selectedLlm,
-            isDense: true,
-            underline: Container(),
-            // alignment: AlignmentDirectional.center,
-            menuMaxHeight: 300.sp,
-            items: buildPlatformLLMs(),
-            onChanged: (val) {
-              setState(() {
-                selectedLlm = val!;
-                // 2024-06-15 切换模型应该新建对话，因为上下文丢失了。
-                // 建立新对话就是把已有的对话清空就好(因为保存什么的在发送消息时就处理了)
-                chatSession = null;
-                messages.clear();
-              });
-            },
-          ),
-        ),
-        // ),
-        IconButton(
-          onPressed: () {
-            commonHintDialog(
-              context,
-              "模型说明",
-              newLLMSpecs[selectedLlm]!.spec ?? "",
-            );
-          },
-          icon: Icon(Icons.help_outline, color: Theme.of(context).primaryColor),
-        ),
-      ],
-    );
-
-    return Padding(
-      padding: EdgeInsets.all(5.sp),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [cpRow, modelRow],
       ),
     );
   }

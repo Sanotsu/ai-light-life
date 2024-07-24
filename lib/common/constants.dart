@@ -3,6 +3,9 @@
 
 import 'dart:io';
 
+import '../models/common_llm_info.dart';
+import '../models/paid_llm/common_chat_model_spec.dart';
+
 const constDatetimeFormat = "yyyy-MM-dd HH:mm:ss";
 const constDateFormat = "yyyy-MM-dd";
 const constMonthFormat = "yyyy-MM";
@@ -27,12 +30,12 @@ class CusDataResult {
 
 // 自定义标签，常用来存英文、中文、全小写带下划线的英文等。
 class CusLabel {
-  final String enLabel;
+  final String? enLabel;
   final String cnLabel;
   final dynamic value;
 
   CusLabel({
-    required this.enLabel,
+    this.enLabel,
     required this.cnLabel,
     required this.value,
   });
@@ -108,6 +111,101 @@ List<String> defaultChatQuestions = [
   // "一个长方体的棱长和是144厘米，它的长、宽、高之比是4:3:2，长方体的体积是多少？",
 ];
 
+List<String> chatQuestionSamples = [
+  "你好，介绍一下你自己。",
+  "如何制作鱼香肉丝。",
+  "苏东坡是谁？详细介绍一下。",
+];
+
 /// 保存翻译结果的目录
 final SAVE_TRANSLATION_DIR =
     Directory('/storage/emulated/0/AILightLife/translations');
+
+/// 用于智能群聊页面中用户可以多选的模型列表(免费的和便宜付费的)
+final BATTLE_MODEL_LIST = [
+  CusLabel(
+    cnLabel: "ERNIESpeed8K",
+    enLabel: CloudPlatform.baidu.name,
+    value: newLLMSpecs[PlatformLLM.baiduErnieSpeed8KFREE]!,
+  ),
+  CusLabel(
+    cnLabel: "ERNIESpeed128K",
+    enLabel: CloudPlatform.baidu.name,
+    value: newLLMSpecs[PlatformLLM.baiduErnieSpeed128KFREE]!,
+  ),
+  CusLabel(
+    cnLabel: "ERNIELite8K",
+    enLabel: CloudPlatform.baidu.name,
+    value: newLLMSpecs[PlatformLLM.baiduErnieLite8KFREE]!,
+  ),
+  CusLabel(
+    cnLabel: "ERNIETiny8K",
+    enLabel: CloudPlatform.baidu.name,
+    value: newLLMSpecs[PlatformLLM.baiduErnieTiny8KFREE]!,
+  ),
+  CusLabel(
+    cnLabel: "通义千问开源版1.8B",
+    enLabel: CloudPlatform.aliyun.name,
+    value: newLLMSpecs[PlatformLLM.aliyunQwen1p8BChatFREE]!,
+  ),
+  CusLabel(
+    cnLabel: "通义千问1.5开源版1.8B",
+    enLabel: CloudPlatform.aliyun.name,
+    value: newLLMSpecs[PlatformLLM.aliyunQwen1p51p8BChatFREE]!,
+  ),
+  CusLabel(
+    cnLabel: "通义千问1.5开源版0.5B",
+    enLabel: CloudPlatform.aliyun.name,
+    value: newLLMSpecs[PlatformLLM.aliyunQwen1p50p5BChatFREE]!,
+  ),
+  CusLabel(
+    cnLabel: "混元Lite",
+    enLabel: CloudPlatform.tencent.name,
+    value: newLLMSpecs[PlatformLLM.tencentHunyuanLiteFREE]!,
+  ),
+  CusLabel(
+    cnLabel: "通义千问2开源版7B",
+    enLabel: CloudPlatform.siliconCloud.name,
+    value: newLLMSpecs[PlatformLLM.siliconCloud_Qwen2_7B_Instruct_FREE]!,
+  ),
+  CusLabel(
+    cnLabel: "通义千问2开源版1.5B",
+    enLabel: CloudPlatform.siliconCloud.name,
+    value: newLLMSpecs[PlatformLLM.siliconCloud_Qwen2_1p5B_Instruct_FREE]!,
+  ),
+  CusLabel(
+    cnLabel: "通义千问1.5开源版7B",
+    enLabel: CloudPlatform.siliconCloud.name,
+    value: newLLMSpecs[PlatformLLM.siliconCloud_Qwen1p5_7B_Chat_FREE]!,
+  ),
+  CusLabel(
+    cnLabel: "GLM4开源版9B",
+    enLabel: CloudPlatform.siliconCloud.name,
+    value: newLLMSpecs[PlatformLLM.siliconCloud_GLM4_9B_Chat_FREE]!,
+  ),
+  CusLabel(
+    cnLabel: "ChatGLM3开源版6B",
+    enLabel: CloudPlatform.siliconCloud.name,
+    value: newLLMSpecs[PlatformLLM.siliconCloud_ChatGLM3_6B_FREE]!,
+  ),
+  CusLabel(
+    cnLabel: "零一万物1.5开源版9B",
+    enLabel: CloudPlatform.siliconCloud.name,
+    value: newLLMSpecs[PlatformLLM.siliconCloud_Yi1p5_9B_Chat_16K_FREE]!,
+  ),
+  CusLabel(
+    cnLabel: "零一万物1.5开源版6B",
+    enLabel: CloudPlatform.siliconCloud.name,
+    value: newLLMSpecs[PlatformLLM.siliconCloud_Yi1p5_6B_Chat_FREE]!,
+  ),
+  CusLabel(
+    cnLabel: "YiSpark",
+    enLabel: ApiPlatform.lingyiwanwu.name,
+    value: ccmSpecList[CCM.YiSpark]!,
+  ),
+  CusLabel(
+    cnLabel: "YiMedium",
+    enLabel: ApiPlatform.lingyiwanwu.name,
+    value: ccmSpecList[CCM.YiMedium]!,
+  ),
+];

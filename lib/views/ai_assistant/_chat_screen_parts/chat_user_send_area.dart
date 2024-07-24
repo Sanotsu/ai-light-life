@@ -12,7 +12,7 @@ class ChatUserSendArea extends StatelessWidget {
   final String userInput;
   final Function(String) onChanged;
   final VoidCallback onSendPressed;
-  final bool Function() isMessageTooLong; // 修改这里
+  final bool Function()? isMessageTooLong;
 
   const ChatUserSendArea({
     super.key,
@@ -22,7 +22,7 @@ class ChatUserSendArea extends StatelessWidget {
     required this.userInput,
     required this.onChanged,
     required this.onSendPressed,
-    required this.isMessageTooLong, // 修改这里
+    this.isMessageTooLong,
   });
 
   @override
@@ -38,7 +38,7 @@ class ChatUserSendArea extends StatelessWidget {
                 hintText: hintText,
                 border: const OutlineInputBorder(),
               ),
-              maxLines: 2,
+              maxLines: 3,
               minLines: 1,
               onChanged: onChanged,
             ),
@@ -47,11 +47,8 @@ class ChatUserSendArea extends StatelessWidget {
             onPressed: isBotThinking || userInput.isEmpty
                 ? null
                 : () {
-                    if (!isMessageTooLong()) {
-                      // 修改这里
-                      FocusScope.of(context).unfocus();
-                      onSendPressed();
-                    } else {
+                    // 有传长度限制函数、且限制的结果为true，才显示弹窗
+                    if (isMessageTooLong != null && isMessageTooLong!()) {
                       showDialog(
                         context: context,
                         builder: (BuildContext context) {
@@ -71,6 +68,9 @@ class ChatUserSendArea extends StatelessWidget {
                           );
                         },
                       );
+                    } else {
+                      FocusScope.of(context).unfocus();
+                      onSendPressed();
                     }
                   },
             icon: const Icon(Icons.send),

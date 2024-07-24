@@ -156,7 +156,7 @@ final Map<PlatformLLM, ChatLLMSpec> newLLMSpecs = {
       spec:
           '"通义千问-开源版-1.8B"是通义千问对外开源的1.8B规模参数量的经过人类指令对齐的chat模型，模型支持 8k tokens上下文，API限定用户输入为6k Tokens。'),
   PlatformLLM.aliyunQwen1p51p8BChatFREE: ChatLLMSpec(
-      "qwen1.5-1.8b-chat", '通义千问1.5开源版', 8 * 1000, dt3, num3, 0.0, 0.0,
+      "qwen1.5-1.8b-chat", '通义千问1.5开源版1.8B', 8 * 1000, dt3, num3, 0.0, 0.0,
       spec:
           '通义千问1.5-开源版-1.8B"是通义千问1.5对外开源的1.8B规模参数量是经过人类指令对齐的chat模型，模型支持 32k tokens上下文，API限定用户输入为30k Tokens。'),
   PlatformLLM.aliyunQwen1p50p5BChatFREE: ChatLLMSpec(

@@ -8,7 +8,7 @@ import 'paid_llm/common_chat_completion_state.dart';
 /// 人机对话的每一条消息的结果
 /// 对话页面就是包含一系列时间顺序排序后的对话消息的list
 class ChatMessage {
-  final String messageId; // 每个消息有个ID方便整个对话列表的保存？？？
+  String messageId; // 每个消息有个ID方便整个对话列表的保存？？？
   DateTime dateTime; // 时间
   // 2024-07-17 对话模型role和context都存上
   // 之前有个isFromUser来区分用户和AI助手，但没法保存system，所以直接改为role
@@ -24,6 +24,9 @@ class ChatMessage {
   final int? inputTokens;
   final int? outputTokens;
   final int? totalTokens;
+  // 2024-07-24 如果是多个模型在一个页面同时响应的话，则需要显示每个消息对应的模型名称
+  // 具体是什么文本，根据需求来定
+  String? modelLabel;
 
   ChatMessage({
     required this.messageId,
@@ -36,6 +39,7 @@ class ChatMessage {
     this.inputTokens,
     this.outputTokens,
     this.totalTokens,
+    this.modelLabel,
   });
 
   Map<String, dynamic> toMap() {
@@ -50,6 +54,7 @@ class ChatMessage {
       'input_tokens': inputTokens,
       'output_tokens': outputTokens,
       'total_tokens': totalTokens,
+      'model_label': modelLabel,
     };
   }
 
@@ -74,6 +79,7 @@ class ChatMessage {
       inputTokens: int.tryParse(map['input_tokens']),
       outputTokens: int.tryParse(map['output_tokens']),
       totalTokens: int.tryParse(map['total_tokens']),
+      modelLabel: map['model_label'] as String?,
     );
   }
 
@@ -92,6 +98,7 @@ class ChatMessage {
         inputTokens: int.tryParse(json["input_tokens"]),
         outputTokens: int.tryParse(json["output_tokens"]),
         totalTokens: int.tryParse(json["total_tokens"]),
+        modelLabel: json["model_label"],
       );
 
   Map<String, dynamic> toJson() => {
@@ -107,6 +114,7 @@ class ChatMessage {
         "input_tokens": inputTokens,
         "output_tokens": outputTokens,
         "total_tokens": totalTokens,
+        "model_label": modelLabel,
       };
 
   @override
@@ -124,7 +132,8 @@ class ChatMessage {
      "is_placeholder":"$isPlaceholder",
      "input_tokens":"$inputTokens",
      "output_tokens":"$outputTokens",
-     "total_tokens":"$totalTokens"
+     "total_tokens":"$totalTokens",
+     "model_label":"$modelLabel"
     }
     ''';
   }

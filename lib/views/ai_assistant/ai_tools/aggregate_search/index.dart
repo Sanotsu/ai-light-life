@@ -399,13 +399,17 @@ class _AggregateSearchState extends State<AggregateSearch> {
             ),
 
             /// 如果对话是空，显示预设的问题
+            // 预设的问题标题
             if (messages.isEmpty)
-              SizedBox(
-                height: 0.5.sh,
-                child: ChatDefaultQuestionArea(
-                  defaultQuestions: defaultQuestions,
-                  onQuestionTap: _sendMessage,
-                ),
+              Padding(
+                padding: EdgeInsets.all(10.sp),
+                child: Text(" 你可以试着问我：", style: TextStyle(fontSize: 18.sp)),
+              ),
+            // 预设的问题列表
+            if (messages.isEmpty)
+              ChatDefaultQuestionArea(
+                defaultQuestions: defaultQuestions,
+                onQuestionTap: _sendMessage,
               ),
 
             /// 在顶部显示对话标题(避免在appbar显示，内容太挤)
