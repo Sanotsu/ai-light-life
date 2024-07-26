@@ -3,7 +3,6 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:uuid/uuid.dart';
 
@@ -13,7 +12,6 @@ import '../../../../common/db_tools/db_helper.dart';
 import '../../../../models/ai_interface_state/platform_aigc_commom_state.dart';
 import '../../../../models/common_llm_info.dart';
 import '../../../../models/llm_chat_state.dart';
-import '../../../../services/cus_get_storage.dart';
 import '../../_chat_screen_parts/chat_appbar_area.dart';
 import '../../_chat_screen_parts/chat_history_drawer.dart';
 import '../../_chat_screen_parts/chat_list_area.dart';
@@ -86,19 +84,11 @@ class _ChatBatState extends State<ChatBat> {
   // 进入对话页面简单预设的一些问题
   List<String> defaultQuestions = chatQuestionSamples;
 
-  // 2024-07-24
-  // 默认的页面主体的缩放比例(对话太小了就可以等比放大)
-  // 暂时就在“你问我答”页面测试，且只缩放问答列表(因为其他布局放大可能会有溢出问题)
-  // ？？？后续可能作为配置，直接全局缓存，所有使用ChatListArea的地方都改了(现在不是所有地方都用的这个部件)
-  double _textScaleFactor = 1.0;
-
   @override
   void initState() {
     super.initState();
 
     initCusConfig();
-
-    _textScaleFactor = MyGetStorage().getChatListAreaScale();
   }
 
   // 进入自行配置的对话页面，看看用户配置有没有生效
@@ -446,59 +436,6 @@ class _ChatBatState extends State<ChatBat> {
     return Scaffold(
       appBar: ChatAppBarArea(
         title: '你问我答',
-        // showZoomOutButton: true,
-        // onZoomOutPressed: () {
-        //   if (_textScaleFactor <= 0.7) {
-        //     EasyLoading.showInfo("缩放比例已最小");
-        //     return;
-        //   }
-
-        //   setState(() {
-        //     _textScaleFactor <= 0.7
-        //         ? _textScaleFactor = 0.7
-        //         : _textScaleFactor -= 0.1;
-        //     EasyLoading.showInfo("缩放比例${_textScaleFactor.toStringAsFixed(1)}倍");
-        //   });
-        // },
-        // showZoomInButton: true,
-        // onZoomInPressed: () {
-        //   if (_textScaleFactor >= 1.5) {
-        //     EasyLoading.showInfo("缩放比例已最大");
-        //     return;
-        //   }
-
-        //   setState(() {
-        //     _textScaleFactor >= 1.5
-        //         ? _textScaleFactor = 1.5
-        //         : _textScaleFactor += 0.1;
-        //     EasyLoading.showInfo("缩放比例${_textScaleFactor.toStringAsFixed(1)}倍");
-        //   });
-        // },
-        showScaleButton: true,
-        onScalePressed: () async {
-          if (!mounted) return;
-          setState(() {
-            if (_textScaleFactor < 2.2) {
-              _textScaleFactor += 0.2;
-            } else if (_textScaleFactor == 2.2) {
-              _textScaleFactor = 0.6; // 循环回最小值
-            } else if (_textScaleFactor < 0.6) {
-              _textScaleFactor = 0.6; // 如果不小心越界，纠正回最小值
-            }
-
-            // 使用了数学取余运算 (remainder) 来确保 _textScaleFactor 总是在 [0.6 ,2.2) 的范围(闭开区间)内循环，
-            // 即使在多次连续点击的情况下也能保持正确的值。
-            _textScaleFactor = (_textScaleFactor - 0.6).remainder(1.6) + 0.6;
-
-            EasyLoading.showInfo(
-              "缩放 ${_textScaleFactor.toStringAsFixed(1)} 倍",
-            );
-          });
-          // 缩放比例存入缓存
-          await MyGetStorage().setChatListAreaScale(
-            _textScaleFactor,
-          );
-        },
         onNewChatPressed: () {
           setState(() {
             chatSession = null;
@@ -593,7 +530,6 @@ class _ChatBatState extends State<ChatBat> {
             /// 显示对话消息主体
             ChatListArea(
               messages: messages,
-              textScaleFactor: _textScaleFactor,
               scrollController: _scrollController,
               regenerateLatestQuestion: regenerateLatestQuestion,
             ),

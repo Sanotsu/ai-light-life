@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
+import '../../../services/cus_get_storage.dart';
 import 'aggregate_search/index.dart';
 import 'chat_bot/index.dart';
 import 'chat_bot_group/index.dart';
@@ -24,6 +25,12 @@ class AIToolIndex extends StatefulWidget {
 class _AIToolIndexState extends State<AIToolIndex> {
   // 部分花费大的工具，默认先不开启了
   bool isEnableMyCose = false;
+
+  // 2024-07-26
+  // 默认的页面主体的缩放比例(对话太小了就可以等比放大)
+  // 暂时就在“你问我答”页面测试，且只缩放问答列表(因为其他布局放大可能会有溢出问题)
+  // ？？？后续可能作为配置，直接全局缓存，所有使用ChatListArea的地方都改了(现在不是所有地方都用的这个部件)
+  double _textScaleFactor = 1.0;
 
   @override
   Widget build(BuildContext context) {
@@ -53,6 +60,36 @@ class _AIToolIndexState extends State<AIToolIndex> {
           },
           child: const Text('AI 智能助手'),
         ),
+        actions: [
+          IconButton(
+            onPressed: () async {
+              if (!mounted) return;
+              setState(() {
+                if (_textScaleFactor < 2.2) {
+                  _textScaleFactor += 0.2;
+                } else if (_textScaleFactor == 2.2) {
+                  _textScaleFactor = 0.6; // 循环回最小值
+                } else if (_textScaleFactor < 0.6) {
+                  _textScaleFactor = 0.6; // 如果不小心越界，纠正回最小值
+                }
+
+                // 使用了数学取余运算 (remainder) 来确保 _textScaleFactor 总是在 [0.6 ,2.2) 的范围(闭开区间)内循环，
+                // 即使在多次连续点击的情况下也能保持正确的值。
+                _textScaleFactor =
+                    (_textScaleFactor - 0.6).remainder(1.6) + 0.6;
+
+                EasyLoading.showInfo(
+                  "连续对话文本缩放 ${_textScaleFactor.toStringAsFixed(1)} 倍",
+                );
+              });
+              // 缩放比例存入缓存
+              await MyGetStorage().setChatListAreaScale(
+                _textScaleFactor,
+              );
+            },
+            icon: const Icon(Icons.crop_free),
+          ),
+        ],
       ),
       body: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -68,14 +105,17 @@ class _AIToolIndexState extends State<AIToolIndex> {
             height: screenBodyHeight - 50.sp,
             child: GridView.count(
               primary: false,
-              padding: EdgeInsets.symmetric(horizontal: 20.sp),
-              crossAxisSpacing: 20,
-              mainAxisSpacing: 20,
+              padding: EdgeInsets.symmetric(horizontal: 5.sp),
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
               crossAxisCount: 2,
-              childAspectRatio: 4 / 3,
+              childAspectRatio: 2 / 1,
               children: <Widget>[
+                ///
+                /// 使用的对话模型，可以连续问答对话
+                ///
                 buildAIToolEntrance(
-                  "你问\n我答",
+                  "你问我答",
                   icon: const Icon(Icons.chat_outlined),
                   color: Colors.blue[100],
                   onTap: () {
@@ -87,47 +127,23 @@ class _AIToolIndexState extends State<AIToolIndex> {
                     );
                   },
                 ),
+
                 buildAIToolEntrance(
-                  "拍照\n翻译",
-                  icon: const Icon(Icons.photo_camera_outlined),
+                  "智能群聊",
                   color: Colors.blue[100],
+                  icon: const Icon(Icons.balance),
                   onTap: () {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => const PhotoTranslation(),
+                        builder: (context) => const ChatBatGroup(),
                       ),
                     );
                   },
                 ),
+
                 buildAIToolEntrance(
-                  "翻译\n助手",
-                  icon: const Icon(Icons.translate),
-                  color: Colors.blue[100],
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const MultiTranslator(),
-                      ),
-                    );
-                  },
-                ),
-                buildAIToolEntrance(
-                  "文档\n提要",
-                  icon: const Icon(Icons.newspaper),
-                  color: Colors.blue[100],
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const DocumentSummary(),
-                      ),
-                    );
-                  },
-                ),
-                buildAIToolEntrance(
-                  "全网\n搜索",
+                  "全网搜索",
                   icon: const Icon(Icons.search),
                   color: Colors.blue[100],
                   onTap: () {
@@ -177,19 +193,51 @@ class _AIToolIndexState extends State<AIToolIndex> {
                     }
                   },
                 ),
+
+                ///
+                /// 特定功能，就上下两个区域，没有连续问答
+                ///
                 buildAIToolEntrance(
-                  "智能\n群聊",
+                  "拍照翻译",
+                  icon: const Icon(Icons.photo_camera_outlined),
                   color: Colors.blue[100],
-                  icon: const Icon(Icons.balance),
                   onTap: () {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => const ChatBatGroup(),
+                        builder: (context) => const PhotoTranslation(),
                       ),
                     );
                   },
                 ),
+
+                buildAIToolEntrance(
+                  "翻译助手",
+                  icon: const Icon(Icons.translate),
+                  color: Colors.blue[100],
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const MultiTranslator(),
+                      ),
+                    );
+                  },
+                ),
+                buildAIToolEntrance(
+                  "文档提要",
+                  icon: const Icon(Icons.newspaper),
+                  color: Colors.blue[100],
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const DocumentSummary(),
+                      ),
+                    );
+                  },
+                ),
+
                 // buildAIToolEntrance(
                 //   "功能\n占位(TODO)",
                 //   icon: const Icon(Icons.search),
@@ -212,7 +260,7 @@ class _AIToolIndexState extends State<AIToolIndex> {
     return InkWell(
       onTap: onTap,
       child: Container(
-        padding: EdgeInsets.all(5.sp),
+        // padding: EdgeInsets.all(2.sp),
         decoration: BoxDecoration(
           // 设置圆角半径为10
           borderRadius: BorderRadius.all(Radius.circular(15.sp)),
