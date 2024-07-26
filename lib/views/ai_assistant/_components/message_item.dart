@@ -6,13 +6,20 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../common/constants.dart';
 import '../../../models/llm_chat_state.dart';
+import '../../../models/paid_llm/common_chat_completion_state.dart';
 
 class MessageItem extends StatelessWidget {
   final ChatMessage message;
+  // 2024-07-26 是否头像在顶部
+  // (默认头像在左右两侧，就像对话一样。如果在顶部，文本内容更宽一点)
+  final bool isAvatarTop;
 
-  const MessageItem({super.key, required this.message});
+  const MessageItem({
+    super.key,
+    required this.message,
+    this.isAvatarTop = false,
+  });
 
-// 如果是rag时，可能有很长的引用列表，默认只显示少量，点击展开才显示所有
   @override
   Widget build(BuildContext context) {
     // 根据是否是用户输入跳转文本内容布局
@@ -26,136 +33,155 @@ class MessageItem extends StatelessWidget {
     Color textColor = isFromUser ? Colors.blue : Colors.black;
 
     /// 这里暂时不考虑外边框的距离，使用时在外面加padding之类的
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // 头像，展示机器和用户用于区分即可
-        // 如果是AI回复的，头像在前面；用户发的，头像在Row最后面
-        if (!isFromUser)
-          CircleAvatar(
-            radius: 18.sp,
-            backgroundColor: Colors.grey,
-            child: const Icon(Icons.code), // Icons.bolt/lightbulb
-          ),
-        SizedBox(width: 3.sp), // 头像和文本之间的间距
-        // 消息内容
-        Expanded(
-          child: Column(
-            crossAxisAlignment: crossAlignment,
+    /// 如果头像在上方，那么头像和正文是两行放在一个column中
+    /// 否则，就是头像和正文放在一个row中
+    return isAvatarTop
+        ? Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 这里可以根据需要添加时间戳等
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 3.sp),
-                child: Text(
-                  DateFormat(constDatetimeFormat).format(message.dateTime),
-                  // 根据来源设置不同颜色
-                  style: TextStyle(fontSize: 12.sp, color: textColor),
+              /// 头像和时间戳
+              _buildAvatarAndTimestamp(context, isFromUser, textColor),
+
+              /// 消息内容
+              Column(
+                crossAxisAlignment: crossAlignment,
+                children: [
+                  // 消息正文
+                  _buildMessageContent(context, textColor),
+                  // 消息引用
+                  if (message.quotes != null && message.quotes!.isNotEmpty)
+                    ..._buildQuotes(context, message.quotes!),
+                ],
+              ),
+            ],
+          )
+        : Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              /// 头像，根据是否用户输入放在左边或右边
+              if (!isFromUser) _buildAvatar(isFromUser),
+              SizedBox(width: 3.sp),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: crossAlignment,
+                  children: [
+                    /// 时间戳
+                    _buildTimestamp(context, textColor),
+
+                    /// 消息正文
+                    _buildMessageContent(context, textColor),
+
+                    /// 消息引用
+                    if (message.quotes != null && message.quotes!.isNotEmpty)
+                      ..._buildQuotes(context, message.quotes!),
+                  ],
                 ),
               ),
-              // 如果是占位的消息，则显示装圈圈
-              if (message.isPlaceholder == true)
-                Card(
-                  elevation: 3,
-                  child: Padding(
-                    padding: EdgeInsets.all(5.sp),
-                    child: Row(
-                      crossAxisAlignment: crossAlignment,
-                      children: [
-                        Text(
-                          message.content,
-                          style: const TextStyle(color: Colors.black),
-                        ),
-                        SizedBox(
-                          height: 20.sp,
-                          width: 20.sp,
-                          child: const CircularProgressIndicator(),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-              // 如果不是占位的消息，则正常显示
-              if (message.isPlaceholder != true)
-                Card(
-                  elevation: 3,
-                  child: Padding(
-                    padding: EdgeInsets.all(5.sp),
-
-                    /// 这里考虑根据 格式等格式化显示内容
-                    child: SingleChildScrollView(
-                      // 2024-05-31 现在版本长按选中会报错，信息类似如下：
-                      // https://github.com/flutter/flutter/issues/148792
-                      // 所以暂时不让选择
-                      child: MarkdownBody(
-                        data: message.content,
-                        selectable: true,
-                        // 设置Markdown文本全局样式
-                        styleSheet: MarkdownStyleSheet(
-                          // 普通段落文本颜色(假定用户输入就是普通段落文本)
-                          p: TextStyle(color: textColor),
-                          // ... 其他级别的标题样式
-                          // 可以继续添加更多Markdown元素的样式
-                        ),
-                      ),
-                      // Text(
-                      //   message.text,
-                      //   // 根据来源设置不同颜色
-                      //   style: TextStyle(color: textColor),
-                      // ),
-                    ),
-                  ),
-                ),
-              // 如果是rag，还有引用列表
-              if (message.quotes != null && message.quotes!.isNotEmpty)
-                ...List.generate(
-                    message.quotes?.length ?? 0,
-                    (index) => GestureDetector(
-                        onTap: () => message.quotes![index].url != null
-                            ? _launchUrl(message.quotes![index].url!)
-                            : null,
-                        child: Padding(
-                            padding: EdgeInsets.symmetric(vertical: 5.sp),
-                            child: Text(
-                              '${index + 1}. ${message.quotes![index].title}',
-                              style: TextStyle(
-                                fontSize: 12.sp,
-                                color: Theme.of(context).primaryColor,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            )))
-                    // TextButton(
-                    //   style: TextButton.styleFrom(
-                    //     minimumSize: Size.zero,
-                    //     padding: EdgeInsets.zero, // 设置内边距为零
-                    //   ),
-                    //   onPressed: () => message.quotes![index].url != null
-                    //       ? _launchUrl(message.quotes![index].url!)
-                    //       : null,
-                    //   child: Text(
-                    //     '${index + 1} ${message.quotes![index].title}',
-                    //     style: TextStyle(fontSize: 12.sp),
-                    //   ),
-                    // ),
-                    ).toList()
+              if (isFromUser) _buildAvatar(isFromUser),
             ],
+          );
+  }
+
+  Widget _buildAvatarAndTimestamp(
+      BuildContext context, bool isFromUser, Color textColor) {
+    return SizedBox(
+      height: 40.sp,
+      child: Row(
+        // 来自用户，头像在右边；不是来自用户头像在左边。对齐方向同理
+        mainAxisAlignment:
+            isFromUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+        children: [
+          if (!isFromUser) _buildAvatar(isFromUser),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 3.sp),
+            child: Text(
+              DateFormat(constDatetimeFormat).format(message.dateTime),
+              style: TextStyle(fontSize: 12.sp, color: textColor),
+            ),
           ),
-        ),
-        // 如果是用户发的，头像在Row最后面
-        if (isFromUser)
-          CircleAvatar(
-            radius: 18.sp,
-            backgroundColor: Colors.lightBlue,
-            child: const Icon(Icons.person),
-          ),
-      ],
+          if (isFromUser) _buildAvatar(isFromUser),
+        ],
+      ),
     );
   }
-}
 
-Future<void> _launchUrl(String url) async {
-  if (!await launchUrl(Uri.parse(url))) {
-    throw Exception('Could not launch $url');
+  Widget _buildAvatar(bool isFromUser) {
+    return CircleAvatar(
+      radius: 18.sp,
+      backgroundColor: isFromUser ? Colors.lightBlue : Colors.grey,
+      child: Icon(isFromUser ? Icons.person : Icons.code),
+    );
+  }
+
+  Widget _buildTimestamp(BuildContext context, Color textColor) {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 3.sp),
+      child: Text(
+        DateFormat(constDatetimeFormat).format(message.dateTime),
+        style: TextStyle(fontSize: 12.sp, color: textColor),
+      ),
+    );
+  }
+
+  Widget _buildMessageContent(BuildContext context, Color textColor) {
+    return Card(
+      elevation: 3,
+      child: Padding(
+        padding: EdgeInsets.all(5.sp),
+        child: (message.isPlaceholder == true)
+            // 如果是占位的消息，则显示装圈圈
+            ? Row(
+                children: [
+                  Text(
+                    message.content,
+                    style: const TextStyle(color: Colors.black),
+                  ),
+                  SizedBox(
+                    height: 20.sp,
+                    width: 20.sp,
+                    child: const CircularProgressIndicator(),
+                  ),
+                ],
+              )
+            // 如果不是占位的消息，则正常显示
+            : SingleChildScrollView(
+                child: MarkdownBody(
+                  data: message.content,
+                  selectable: true,
+                  styleSheet: MarkdownStyleSheet(
+                    p: TextStyle(color: textColor),
+                  ),
+                ),
+              ),
+      ),
+    );
+  }
+
+  List<Widget> _buildQuotes(BuildContext context, List<CCQuote> quotes) {
+    return List.generate(
+      quotes.length,
+      (index) => GestureDetector(
+        onTap: () =>
+            quotes[index].url != null ? _launchUrl(quotes[index].url!) : null,
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 5.sp),
+          child: Text(
+            '${index + 1}. ${quotes[index].title}',
+            style: TextStyle(
+              fontSize: 12.sp,
+              color: Theme.of(context).primaryColor,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _launchUrl(String url) async {
+    if (!await launchUrl(Uri.parse(url))) {
+      throw Exception('Could not launch $url');
+    }
   }
 }

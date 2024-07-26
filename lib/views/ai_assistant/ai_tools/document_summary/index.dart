@@ -11,8 +11,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_charset_detector/flutter_charset_detector.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:open_filex/open_filex.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../../apis/common_chat_apis.dart';
@@ -41,23 +39,26 @@ class _DocumentSummaryState extends State<DocumentSummary> {
   PlatformFile? _selectedFile;
   // 文档解析出来的内容
   String _fileContent = '';
+  // 是否在解析文件中
+  bool isLoadingDocument = false;
 
   // 默认进入对话页面应该就是啥都没有，然后根据这空来显示预设对话
   List<ChatMessage> messages = [];
-
-  // 是否在解析文件中
-  bool isLoadingDocument = false;
 
   // 用户输入的文本控制器
   final _userInputController = TextEditingController();
   // 用户输入的内容（当不是AI在思考、且输入框有非空文字时才可以点击发送按钮）
   String userInput = "";
-  String userInputForRegen = "";
 
-  ///
-  /// ===================
-  ///
+  // 2024-07-26因为每次发送之后都会清空输入，所以重新生成时要传上一次保留的文档内容
+  String docForRegen = "";
 
+  String hintInfo = """1. 目前仅支持上传单个文档文件
+2. 上传文档目前仅支持 pdf、txt、docx、doc 格式
+3. 上传的文档和手动输入的文档总内容不超过8000字符
+4. 输入的文档和总结可以上下滚动查看""";
+
+  /// 选择文件并解析
   Future<void> _pickAndReadFile() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
@@ -84,8 +85,8 @@ class _DocumentSummaryState extends State<DocumentSummary> {
               File(file.path!).readAsBytesSync(),
             );
             text = result.string;
-            print(result.charset);
-            print(result.string);
+          // print(result.charset);
+          // print(result.string);
           case 'pdf':
             text = await compute(extractTextFromPdf, file.path!);
           case 'docx':
@@ -101,32 +102,20 @@ class _DocumentSummaryState extends State<DocumentSummary> {
           _selectedFile = file;
           _fileContent = text;
           isLoadingDocument = false;
-          l.i("=========文档内容长度==========${_fileContent.length}");
-          l.i('上传文档解析出来的内容：$_fileContent');
+          // l.i("=========文档内容长度==========${_fileContent.length}");
+          // l.i('上传文档解析出来的内容：$_fileContent');
         });
       } catch (e) {
-        l.e("解析文档出错:${e.toString()}");
+        // l.e("解析文档出错:${e.toString()}");
+
+        EasyLoading.showError(e.toString());
+
         setState(() {
           _selectedFile = file;
           _fileContent = "";
           isLoadingDocument = false;
         });
         rethrow;
-      }
-    }
-  }
-
-  // 这个打开文件整的就只是调用设备中支持的打开对应文件的程序，用第三方程序打开文件而已
-  openFiles() async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles();
-
-    if (result != null) {
-      PlatformFile file = result.files.first;
-
-      if (await Permission.manageExternalStorage.request().isGranted) {
-        var result = await OpenFilex.open(file.path);
-
-        l.i("文件地址---${file.path} type=${result.type}  message=${result.message}");
       }
     }
   }
@@ -141,29 +130,32 @@ class _DocumentSummaryState extends State<DocumentSummary> {
   /// 这个按钮只有用户点击，每次点击效果是一样的
   ///
   getSummaryResult({bool? isRegen}) async {
-    // 点击分析前，显示占位的
+    // 2024-07-26 需要被总结的文档(解析的文档和用户输入的文档用md格式完整显示)
+    var docToBeSummarized = "";
 
-    var userContent = "";
-
-    if (_selectedFile != null) {
-      userContent += "需要分析的文档文件:\n\n${_selectedFile!.name}\n\n";
-    }
-
-    // 如果是重新生成，那用户输入的内容其实已经清空了，要使用刻意备份的字符串
-    if (isRegen == true && userInputForRegen.isNotEmpty) {
-      userContent += "手动输入的文档内容:\n\n$userInputForRegen\n\n";
+    // 如果是重新生成，则使用备份的上次的文档内容；否则就新的内容
+    if (isRegen == true) {
+      docToBeSummarized = docForRegen;
     } else {
-      // 理论上重新生成和用户输入为空不会都为true，但为了避免意外，强行2选1
+      // 有选中文件
+      if (_selectedFile != null) {
+        docToBeSummarized += "**文档内容一**:\n\n$_fileContent\n\n";
+      }
+
+      // 有手动输入
       if (userInput.isNotEmpty) {
-        userContent += "手动输入的文档内容:\n\n$userInput\n\n";
+        docToBeSummarized +=
+            "**文档内容${_selectedFile != null ? '二' : '一'}**:\n\n$userInput";
       }
     }
 
+    var totolLength = docToBeSummarized.length;
+
     // ？？？2024-07-19 文本太长了暂时就算了
-    if ((_fileContent.length + userInput.length) > 8000) {
-      print("总文档长度:======= ${(_fileContent.length + userInput.length)}");
+    if (totolLength > 8000) {
+      print("总文档长度:======= $totolLength");
       EasyLoading.showInfo(
-        "文档内容太长(${(_fileContent.length + userInput.length)}字符)，暂不支持超过8000字符的阅读总结，请谅解。",
+        "文档内容太长($totolLength字符)，暂不支持超过8000字符的阅读总结，请谅解。",
         duration: const Duration(seconds: 5),
       );
 
@@ -171,6 +163,8 @@ class _DocumentSummaryState extends State<DocumentSummary> {
     }
 
     setState(() {
+      // 把整理好的文档赋值给可能用于重新生成的变量
+      docForRegen = docToBeSummarized;
       // 先清除占位的等待对话，再添加占位的等待信息
       messages.clear();
 
@@ -179,7 +173,7 @@ class _DocumentSummaryState extends State<DocumentSummary> {
         messageId: const Uuid().v4(),
         dateTime: DateTime.now(),
         role: "user",
-        content: userContent,
+        content: docToBeSummarized,
       ));
 
       // 在大模型响应时，显示占位的内容
@@ -196,17 +190,14 @@ class _DocumentSummaryState extends State<DocumentSummary> {
     List<CommonMessage> msgs = [
       CommonMessage(
         role: "user",
-        content: "请阅读以下文档内容，并总结出文档的主要内容:\n$_fileContent",
+        content: "请阅读以下文档内容，并总结出文档的主要内容:\n$docToBeSummarized",
       ),
     ];
 
     // 发送完要清空记录用户输的入变量
-    // 2024-07-19 注意这里只清空控制器的文本，而不是记录用户输入的变量
-    //  因为如果这里都清空了，那么重新生成函数中就取不到用户输入的文档内容了
-    // 又因为在判断是否可以点击发送按钮时，直接使用_userInputController.text是没有实时状态改变所以不准确的
+    // 因为在判断是否可以点击发送按钮时，直接使用_userInputController.text是没有实时状态改变所以不准确的
     // 因此，专门多一个变量来处理重新生成函数
     setState(() {
-      userInputForRegen = userInput;
       _userInputController.clear();
       userInput = "";
     });
@@ -281,18 +272,12 @@ class _DocumentSummaryState extends State<DocumentSummary> {
               commonHintDialog(
                 context,
                 '温馨提示',
-                '1 目前仅支持上传单个文档文件;\n\n2 上传文档目前仅支持 pdf、txt、docx、doc 格式; \n\n3 上传的文档和手动输入的文档总内容不超过8000字符.',
+                hintInfo,
                 msgFontSize: 15.sp,
               );
             },
             icon: const Icon(Icons.help),
           ),
-          // IconButton(
-          //   onPressed: () {
-          //     openFiles();
-          //   },
-          //   icon: const Icon(Icons.file_open),
-          // )
         ],
       ),
       body: Column(
@@ -349,19 +334,12 @@ class _DocumentSummaryState extends State<DocumentSummary> {
                                 maxLines: 2,
                                 style: TextStyle(fontSize: 12.sp),
                               ),
-                              // Text(
-                              //   _selectedFile?.size != null
-                              //       ? "${formatFileSize(_selectedFile!.size)} 文档已解析完成, 共有 ${_fileContent.length} 字符"
-                              //       : '',
-                              //   style: TextStyle(fontSize: 10.sp),
-                              // ),
                               RichText(
                                 softWrap: true,
                                 overflow: TextOverflow.ellipsis,
                                 maxLines: 2,
                                 text: TextSpan(
                                   children: [
-                                    // 为了分类占的宽度一致才用的，只是显示的话可不必
                                     TextSpan(
                                       text: formatFileSize(_selectedFile!.size),
                                       style: TextStyle(
@@ -414,7 +392,6 @@ class _DocumentSummaryState extends State<DocumentSummary> {
                       Expanded(
                         child: TextField(
                           controller: _userInputController,
-
                           decoration: const InputDecoration(
                             hintText: '上传文档文件或者输入文档内容',
                             // 全边框线
@@ -429,10 +406,6 @@ class _DocumentSummaryState extends State<DocumentSummary> {
                             if (text != null) {
                               setState(() {
                                 userInput = text.trim();
-                                // 如果用户既上传了文件，又输入了内容，则将内容添加到文件内容中
-                                if (_fileContent.isNotEmpty) {
-                                  _fileContent += userInput;
-                                }
                               });
                             }
                           },
@@ -464,6 +437,19 @@ class _DocumentSummaryState extends State<DocumentSummary> {
 
   /// 构建对话列表主体
   buildReadSummaryChatArea() {
+    // 计算屏幕剩余的高度
+    // 设备屏幕的总高度
+    //  - 屏幕顶部的安全区域高度，即状态栏的高度
+    //  - 屏幕底部的安全区域高度，即导航栏的高度或者虚拟按键的高度
+    //  - 应用程序顶部的工具栏（如 AppBar）的高度
+    //  - 应用程序底部的导航栏的高度
+    double screenBodyHeight = MediaQuery.of(context).size.height -
+        MediaQuery.of(context).padding.top -
+        MediaQuery.of(context).padding.bottom -
+        kToolbarHeight -
+        // kBottomNavigationBarHeight;
+        110.sp; // 底部发送按钮区域的高度
+
     return Expanded(
       child: ListView.builder(
         itemCount: messages.length,
@@ -471,58 +457,86 @@ class _DocumentSummaryState extends State<DocumentSummary> {
           // 构建MessageItem
           return Padding(
             padding: EdgeInsets.all(5.sp),
-            child: Column(
-              children: [
-                MessageItem(message: messages[index]),
-                // 如果是大模型回复，可以有一些功能按钮
-                if (messages[index].role == 'assistant')
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      // 如果是最后一条，且不是占位对话，可能重新生成
-                      if ((index == messages.length - 1) &&
-                          messages[index].isPlaceholder != true)
-                        TextButton(
-                          onPressed: () {
-                            regenerateLatestQuestion();
-                          },
-                          child: const Text("重新生成"),
-                        ),
-
-                      // 如果不是等待响应才可以点击复制该条回复
-                      if (messages[index].isPlaceholder != true)
-                        TextButton(
-                          onPressed: () {
-                            Clipboard.setData(
-                              ClipboardData(text: messages[index].content),
-                            );
-
-                            EasyLoading.showToast(
-                              "已复制到剪贴板",
-                              duration: const Duration(seconds: 3),
-                              toastPosition: EasyLoadingToastPosition.center,
-                            );
-                          },
-                          child: const Text("复制"),
-                        ),
-
-                      SizedBox(width: 10.sp),
-                      // 如果不是等待响应才显示token数量
-                      if (messages[index].isPlaceholder != true)
-                        Text(
-                          "tokens 输入:${messages[index].inputTokens} \n输出:${messages[index].outputTokens} 总计:${messages[index].totalTokens}",
-                          style: TextStyle(fontSize: 10.sp),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      SizedBox(width: 10.sp),
-                    ],
-                  )
-              ],
+            // 因为只有单纯的用户输入文档和AI总结文档两部分，所以希望各占一半，各自可以滚动
+            child: SizedBox(
+              height: screenBodyHeight / 2,
+              child: _buildMessageArea(
+                messages,
+                index,
+                () => regenerateLatestQuestion(),
+              ),
             ),
           );
         },
       ),
     );
   }
+}
+
+// 构建单个消息的内容
+_buildMessageArea(
+  List<ChatMessage> messages,
+  int index,
+  void Function()? onRegenPressed,
+) {
+  // 如果是用户输入，仅展示即可；否则可能会有其他功能按钮
+  return (messages[index].role == 'user')
+      ? SingleChildScrollView(
+          child: MessageItem(
+            message: messages[index],
+            isAvatarTop: true,
+          ),
+        )
+      : SingleChildScrollView(
+          child: Column(
+            children: [
+              MessageItem(
+                message: messages[index],
+                isAvatarTop: true,
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  // 如果是最后一条，且不是占位对话，可能重新生成
+                  if ((index == messages.length - 1) &&
+                      messages[index].isPlaceholder != true)
+                    TextButton(
+                      onPressed: onRegenPressed,
+                      child: const Text("重新生成"),
+                    ),
+
+                  // 如果不是等待响应才可以点击复制该条回复
+                  if (messages[index].isPlaceholder != true)
+                    TextButton(
+                      onPressed: () {
+                        Clipboard.setData(
+                          ClipboardData(text: messages[index].content),
+                        );
+
+                        EasyLoading.showToast(
+                          "已复制到剪贴板",
+                          duration: const Duration(seconds: 3),
+                          toastPosition: EasyLoadingToastPosition.center,
+                        );
+                      },
+                      child: const Text("复制"),
+                    ),
+
+                  SizedBox(width: 10.sp),
+                  // 如果不是等待响应才显示token数量
+                  if (messages[index].isPlaceholder != true)
+                    Text(
+                      "token 总计: ${messages[index].totalTokens}\n输入: ${messages[index].inputTokens} 输出: ${messages[index].outputTokens}",
+                      style: TextStyle(fontSize: 10.sp),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.right,
+                    ),
+                  SizedBox(width: 10.sp),
+                ],
+              ),
+              SizedBox(height: 10.sp),
+            ],
+          ),
+        );
 }
