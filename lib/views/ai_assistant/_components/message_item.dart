@@ -130,19 +130,46 @@ class MessageItem extends StatelessWidget {
         padding: EdgeInsets.all(5.sp),
         child: (message.isPlaceholder == true)
             // 如果是占位的消息，则显示装圈圈
-            ? Row(
-                children: [
-                  Text(
-                    message.content,
-                    style: const TextStyle(color: Colors.black),
-                  ),
-                  SizedBox(
-                    height: 20.sp,
-                    width: 20.sp,
-                    child: const CircularProgressIndicator(),
-                  ),
-                ],
+            ? Builder(
+                builder: (context) {
+                  // RichText 组件允许在文本中嵌入其他小部件，并应用文本缩放因子。
+                  // 因为richtext无法自动获取到缩放因子，所以需要手动获取全局的文本缩放因子
+                  return RichText(
+                    // 应用文本缩放因子
+                    textScaler: MediaQuery.of(context).textScaler,
+                    text: TextSpan(
+                      children: [
+                        TextSpan(
+                          text: message.content,
+                          style: const TextStyle(color: Colors.black),
+                        ),
+                        // 设置一个固定宽度，以确保 CircularProgressIndicator 不会占用太多空间
+                        WidgetSpan(
+                          child: SizedBox(
+                            width: 15.sp,
+                            height: 15.sp,
+                            child: CircularProgressIndicator(strokeWidth: 2.sp),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
               )
+            // Wrap(
+            //     children: [
+            //       Text(
+            //         message.content,
+            //         softWrap: true,
+            //         style: const TextStyle(color: Colors.black),
+            //       ),
+            //       SizedBox(
+            //         height: 20.sp,
+            //         width: 20.sp,
+            //         child: const CircularProgressIndicator(),
+            //       ),
+            //     ],
+            //   )
             // 如果不是占位的消息，则正常显示
             : SingleChildScrollView(
                 child: MarkdownBody(
