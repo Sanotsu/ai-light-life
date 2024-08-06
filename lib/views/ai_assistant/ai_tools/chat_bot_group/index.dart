@@ -4,10 +4,12 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:path/path.dart' as path;
 import 'package:uuid/uuid.dart';
 
 import '../../../../apis/common_chat_apis.dart';
 import '../../../../apis/paid_cc_apis.dart';
+import '../../../../apis/voice_recognition/xunfei_apis.dart';
 import '../../../../common/components/tool_widget.dart';
 import '../../../../common/constants.dart';
 import '../../../../common/utils/tools.dart';
@@ -17,7 +19,8 @@ import '../../../../models/llm_chat_state.dart';
 import '../../../../models/paid_llm/common_chat_completion_state.dart';
 import '../../../../models/paid_llm/common_chat_model_spec.dart';
 import '../../_chat_screen_parts/chat_default_question_area.dart';
-import '../../_chat_screen_parts/chat_user_send_area.dart';
+import '../../_chat_screen_parts/chat_user_send_area_with_voice.dart';
+import '../_audio_send/utils/recorder.dart';
 import 'message_list_widget.dart';
 import 'multi_select_dialog.dart';
 
@@ -565,7 +568,26 @@ class _ChatBatGroupState extends State<ChatBatGroup> {
             const Divider(),
 
             /// 用户发送区域
-            ChatUserSendArea(
+            // ChatUserSendArea(
+            //   controller: _userInputController,
+            //   hintText: '可以向我提任何问题哦',
+            //   isBotThinking: isBotThinking,
+            //   userInput: userInput,
+            //   onChanged: (text) {
+            //     setState(() {
+            //       userInput = text.trim();
+            //     });
+            //   },
+            //   onSendPressed: () {
+            //     _userSendMessage(userInput);
+            //     setState(() {
+            //       userInput = "";
+            //     });
+            //   },
+            // ),
+
+            /// 用户发送区域
+            ChatUserVoiceSendArea(
               controller: _userInputController,
               hintText: '可以向我提任何问题哦',
               isBotThinking: isBotThinking,
@@ -580,6 +602,28 @@ class _ChatBatGroupState extends State<ChatBatGroup> {
                 setState(() {
                   userInput = "";
                 });
+              },
+
+              // 点击了语音发送，可能是文件，也可能是语音转的文字
+              onSendSounds: (type, content) async {
+                print("语音发送的玩意儿 $type $content");
+
+                if (type == SendContentType.text) {
+                  _userSendMessage(content);
+                } else if (type == SendContentType.voice) {
+                  //
+
+                  /// 同一份语言有两个部分，一个是原始录制的m4a的格式，一个是转码厚的pcm格式
+                  /// 前者用于语音识别，后者用于播放
+                  String fullPathWithoutExtension = path.join(
+                    path.dirname(content),
+                    path.basenameWithoutExtension(content),
+                  );
+
+                  var transcription =
+                      await sendAudioToServer("$fullPathWithoutExtension.pcm");
+                  _userSendMessage(transcription);
+                }
               },
             ),
           ],

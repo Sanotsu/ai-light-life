@@ -62,7 +62,7 @@ class _HomePageState extends State<HomePage> {
           builder: (context) {
             return AlertDialog(
               title: const Text("退出确认"),
-              content: const Text("确认退出 AI Light Life 吗？"),
+              content: const Text("确认退出智能生活助手吗？"),
               actions: [
                 TextButton(
                   onPressed: () {

@@ -239,6 +239,20 @@ class _AIToolIndexState extends State<AIToolIndex> {
                 ),
 
                 // buildAIToolEntrance(
+                //   "语音输入",
+                //   icon: const Icon(Icons.newspaper),
+                //   color: Colors.blue[100],
+                //   onTap: () {
+                //     Navigator.push(
+                //       context,
+                //       MaterialPageRoute(
+                //         builder: (context) => const AudioSendScreen(),
+                //       ),
+                //     );
+                //   },
+                // ),
+
+                // buildAIToolEntrance(
                 //   "功能\n占位(TODO)",
                 //   icon: const Icon(Icons.search),
                 // ),

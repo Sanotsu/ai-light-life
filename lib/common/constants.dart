@@ -125,6 +125,10 @@ final SAVE_TRANSLATION_DIR =
 final SAVE_MODEL_BATTLE_DIR =
     Directory('/storage/emulated/0/AILightLife/chat_records');
 
+/// 智能群聊的对话语音文件目录
+final CHAT_AUDIO_DIR =
+    Directory('/storage/emulated/0/AILightLife/chat_audio');
+
 /// 用于智能群聊页面中用户可以多选的模型列表(免费的和便宜付费的)
 final BATTLE_MODEL_LIST = [
   CusLabel(

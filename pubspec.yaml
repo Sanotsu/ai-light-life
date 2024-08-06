@@ -89,6 +89,13 @@ dependencies:
   docx_to_text: ^1.0.1
   # 检测文档的编码
   flutter_charset_detector: ^3.1.0
+  # 生成波形，同时以给定编码器支持的任何文件格式或音频文件录制音频
+  audio_waveforms: ^1.0.5
+  # 使用ws
+  web_socket_channel: ^3.0.1
+  json_annotation: ^4.9.0
+  # 可以音频转码
+  ffmpeg_kit_flutter: ^6.0.3
 
 dev_dependencies:
   flutter_test:
@@ -100,6 +107,8 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^2.0.0
+  build_runner: ^2.4.11
+  json_serializable: ^6.8.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

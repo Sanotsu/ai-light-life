@@ -3,18 +3,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
-// import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:intl/intl.dart';
+import 'package:path/path.dart' as path;
 import 'package:uuid/uuid.dart';
 
 import '../../../../apis/paid_cc_apis.dart';
+import '../../../../apis/voice_recognition/xunfei_apis.dart';
 import '../../../../common/components/tool_widget.dart';
 import '../../../../common/constants.dart';
 import '../../../../common/db_tools/db_helper.dart';
 import '../../../../models/llm_chat_state.dart';
 import '../../../../models/paid_llm/common_chat_completion_state.dart';
 import '../../../../models/paid_llm/common_chat_model_spec.dart';
+import '../../_chat_screen_parts/chat_user_send_area_with_voice.dart';
 import '../../_components/message_item.dart';
 import '../../_chat_screen_parts/chat_appbar_area.dart';
 import '../../_chat_screen_parts/chat_default_question_area.dart';
@@ -25,7 +27,7 @@ import '../../_chat_screen_parts/history_button_widget.dart';
 import '../../_chat_screen_parts/history_item_widget.dart';
 import '../../_chat_screen_parts/chat_title_area.dart';
 import '../../_chat_screen_parts/title_update_button_widget.dart';
-import '../../_chat_screen_parts/chat_user_send_area.dart';
+import '../_audio_send/utils/recorder.dart';
 
 /// 2024-07-22
 /// 目前支持付费的rag只有零一万物，还有点贵
@@ -440,8 +442,8 @@ class _AggregateSearchState extends State<AggregateSearch> {
             /// 显示输入框和发送按钮
             const Divider(),
 
-            /// 用户发送消息的区域
-            ChatUserSendArea(
+            /// 用户发送区域
+            ChatUserVoiceSendArea(
               controller: _userInputController,
               hintText: '可以向我提任何问题哦',
               isBotThinking: isBotThinking,
@@ -458,7 +460,48 @@ class _AggregateSearchState extends State<AggregateSearch> {
                 });
               },
               isMessageTooLong: isMessageTooLong,
+              // 点击了语音发送，可能是文件，也可能是语音转的文字
+              onSendSounds: (type, content) async {
+                print("语音发送的玩意儿 $type $content");
+
+                if (type == SendContentType.text) {
+                  _sendMessage(content);
+                } else if (type == SendContentType.voice) {
+                  //
+
+                  /// 同一份语言有两个部分，一个是原始录制的m4a的格式，一个是转码厚的pcm格式
+                  /// 前者用于语音识别，后者用于播放
+                  String fullPathWithoutExtension = path.join(
+                    path.dirname(content),
+                    path.basenameWithoutExtension(content),
+                  );
+
+                  var transcription =
+                      await sendAudioToServer("$fullPathWithoutExtension.pcm");
+                  _sendMessage(transcription);
+                }
+              },
             ),
+
+            /// 用户发送消息的区域
+            // ChatUserSendArea(
+            //   controller: _userInputController,
+            //   hintText: '可以向我提任何问题哦',
+            //   isBotThinking: isBotThinking,
+            //   userInput: userInput,
+            //   onChanged: (text) {
+            //     setState(() {
+            //       userInput = text.trim();
+            //     });
+            //   },
+            //   onSendPressed: () {
+            //     _sendMessage(userInput);
+            //     setState(() {
+            //       userInput = "";
+            //     });
+            //   },
+            //   isMessageTooLong: isMessageTooLong,
+            // ),
           ],
         ),
       ),

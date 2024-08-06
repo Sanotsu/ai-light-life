@@ -92,6 +92,17 @@ Future<bool> requestStoragePermission() async {
   }
 }
 
+/// 请求麦克风权限
+Future<bool> requestMicrophonePermission() async {
+  final state = await Permission.microphone.request();
+
+  return state == PermissionStatus.granted;
+}
+
+Future<PermissionStatus> getPermissionMicrophoneStatus() async {
+  return await Permission.microphone.status;
+}
+
 // 根据数据库拼接的字符串值转回对应选项
 List<CusLabel> genSelectedCusLabelOptions(
   String? optionsStr,

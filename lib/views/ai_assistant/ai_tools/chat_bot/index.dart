@@ -4,9 +4,11 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:path/path.dart' as path;
 import 'package:uuid/uuid.dart';
 
 import '../../../../apis/common_chat_apis.dart';
+import '../../../../apis/voice_recognition/xunfei_apis.dart';
 import '../../../../common/constants.dart';
 import '../../../../common/db_tools/db_helper.dart';
 import '../../../../models/ai_interface_state/platform_aigc_commom_state.dart';
@@ -18,7 +20,8 @@ import '../../_chat_screen_parts/chat_list_area.dart';
 import '../../_chat_screen_parts/chat_plat_and_llm_area.dart';
 import '../../_chat_screen_parts/chat_title_area.dart';
 import '../../_chat_screen_parts/chat_default_question_area.dart';
-import '../../_chat_screen_parts/chat_user_send_area.dart';
+import '../../_chat_screen_parts/chat_user_send_area_with_voice.dart';
+import '../_audio_send/utils/recorder.dart';
 
 /// 2024-07-16
 /// 这个应该会复用，后续抽出chatbatindex出来
@@ -538,7 +541,7 @@ class _ChatBatState extends State<ChatBat> {
             const Divider(),
 
             /// 用户发送区域
-            ChatUserSendArea(
+            ChatUserVoiceSendArea(
               controller: _userInputController,
               hintText: '可以向我提任何问题哦',
               isBotThinking: isBotThinking,
@@ -555,6 +558,27 @@ class _ChatBatState extends State<ChatBat> {
                 });
               },
               isMessageTooLong: isMessageTooLong,
+              // 点击了语音发送，可能是文件，也可能是语音转的文字
+              onSendSounds: (type, content) async {
+                print("语音发送的玩意儿 $type $content");
+
+                if (type == SendContentType.text) {
+                  _sendMessage(content);
+                } else if (type == SendContentType.voice) {
+                  //
+
+                  /// 同一份语言有两个部分，一个是原始录制的m4a的格式，一个是转码厚的pcm格式
+                  /// 前者用于语音识别，后者用于播放
+                  String fullPathWithoutExtension = path.join(
+                    path.dirname(content),
+                    path.basenameWithoutExtension(content),
+                  );
+
+                  var transcription =
+                      await sendAudioToServer("$fullPathWithoutExtension.pcm");
+                  _sendMessage(transcription);
+                }
+              },
             ),
           ],
         ),
