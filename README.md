@@ -221,3 +221,7 @@ Tools • Dart 3.4.1 • DevTools 2.34.3
 - 一开始就只是想试一下百度的两个免费的模型 API，没有对平台和模型进行兼容性设计。
   - 目前提供免费 token 的大模型和云平台有很多，这一块会继续完善。
 - 其实目前大模型 token 都很便宜，但是具体能用来做什么，真的不知道。
+
+```sh
+dart run build_runner build --delete-conflicting-outputs
+```
