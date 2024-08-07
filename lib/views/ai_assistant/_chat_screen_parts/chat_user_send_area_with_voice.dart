@@ -5,8 +5,8 @@ import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../../../common/utils/tools.dart';
-import '../ai_tools/_audio_send/sounds_button/sounds_button.dart';
-import '../ai_tools/_audio_send/utils/recorder.dart';
+import '../ai_tools/_sounds_message_button/button_widget/sounds_message_button.dart';
+import '../ai_tools/_sounds_message_button/utils/sounds_recorder_controller.dart';
 
 ///
 /// 用户发送区域

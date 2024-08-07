@@ -21,7 +21,7 @@ import '../../_chat_screen_parts/chat_plat_and_llm_area.dart';
 import '../../_chat_screen_parts/chat_title_area.dart';
 import '../../_chat_screen_parts/chat_default_question_area.dart';
 import '../../_chat_screen_parts/chat_user_send_area_with_voice.dart';
-import '../_audio_send/utils/recorder.dart';
+import '../_sounds_message_button/utils/sounds_recorder_controller.dart';
 
 /// 2024-07-16
 /// 这个应该会复用，后续抽出chatbatindex出来

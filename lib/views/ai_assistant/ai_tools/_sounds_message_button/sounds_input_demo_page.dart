@@ -8,9 +8,8 @@ import 'package:path/path.dart' as path;
 
 import '../../../../apis/voice_recognition/xunfei_apis.dart';
 import '../../../../common/utils/tools.dart';
-import 'sounds_button/sounds_button.dart';
-// import 'sounds_button_single/sounds_button.dart';
-import 'utils/recorder.dart';
+import 'button_widget/sounds_message_button.dart';
+import 'utils/sounds_recorder_controller.dart';
 
 class AudioSendScreen extends StatefulWidget {
   const AudioSendScreen({super.key});
@@ -40,6 +39,7 @@ class _AudioSendScreenState extends State<AudioSendScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(title: const Text("语音聊天示例页面")),
       backgroundColor: const Color(0xfff2f2f2),
       resizeToAvoidBottomInset: false,
       body: VoiceChatView(

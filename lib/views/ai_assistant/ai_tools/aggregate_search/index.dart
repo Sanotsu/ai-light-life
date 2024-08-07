@@ -27,7 +27,7 @@ import '../../_chat_screen_parts/history_button_widget.dart';
 import '../../_chat_screen_parts/history_item_widget.dart';
 import '../../_chat_screen_parts/chat_title_area.dart';
 import '../../_chat_screen_parts/title_update_button_widget.dart';
-import '../_audio_send/utils/recorder.dart';
+import '../_sounds_message_button/utils/sounds_recorder_controller.dart';
 
 /// 2024-07-22
 /// 目前支持付费的rag只有零一万物，还有点贵

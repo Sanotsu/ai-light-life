@@ -5,19 +5,19 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:path/path.dart' as path;
 
 import '../../../../../apis/voice_recognition/xunfei_apis.dart';
-import '../../../../../common/utils/tools.dart';
-import '../utils/data.dart';
-import '../utils/recorder.dart';
-import 'wave.dart';
+import '../utils/recording_mask_overlay_data.dart';
+import '../utils/sounds_recorder_controller.dart';
 
 part 'recording_status_mask.dart';
-part 'canvas.dart';
+part 'custom_canvas.dart';
 
+///
+/// 语音发送按钮
+///
 class SoundsMessageButton extends StatefulWidget {
   const SoundsMessageButton({
     super.key,
@@ -47,22 +47,19 @@ class SoundsMessageButton extends StatefulWidget {
 }
 
 class _SoundsMessageButtonState extends State<SoundsMessageButton> {
-  /// 录音状态
-  // final _status = ValueNotifier(SoundsMessageStatus.none);
-
   /// 屏幕大小
   final scSize = Size(ScreenUtil().screenWidth, ScreenUtil().screenHeight);
 
   /// 遮罩图层
   OverlayEntry? _entry;
 
-  /// 录音
+  /// 录音控制器
   final _soundsRecorder = SoundsRecorderController();
 
   @override
   void initState() {
     super.initState();
-    // print(scSize);
+
     _soundsRecorder.status.addListener(() {
       widget.onChanged?.call(_soundsRecorder.status.value);
     });
@@ -75,7 +72,14 @@ class _SoundsMessageButtonState extends State<SoundsMessageButton> {
     super.dispose();
   }
 
+  // 移除录音时的遮罩
   _removeMask() {
+    // 不过是取消、发送原语言还是发送了转换后的文本，操作完成之后都重置转换后的文本为空
+    setState(() {
+      _soundsRecorder.textProcessedController.text = "";
+    });
+
+    // 如果遮罩存在，则移除，并更新当前状态为未录音
     if (_entry != null) {
       _entry!.remove();
       _entry = null;
@@ -83,6 +87,7 @@ class _SoundsMessageButtonState extends State<SoundsMessageButton> {
     }
   }
 
+  // 按住说话时显示遮罩
   _showRecordingMask() {
     _entry = OverlayEntry(
       builder: (context) {
@@ -94,7 +99,9 @@ class _SoundsMessageButtonState extends State<SoundsMessageButton> {
             },
             onVoiceSend: () {
               widget.onSendSounds?.call(
-                  SendContentType.voice, _soundsRecorder.path.value ?? '');
+                SendContentType.voice,
+                _soundsRecorder.path.value ?? '',
+              );
               _removeMask();
             },
             onTextSend: () {
@@ -103,9 +110,6 @@ class _SoundsMessageButtonState extends State<SoundsMessageButton> {
                 _soundsRecorder.textProcessedController.text,
               );
               _removeMask();
-
-              // 发送之后就清除了
-              _soundsRecorder.textProcessedController.text = "";
             },
           ),
         );
@@ -118,30 +122,8 @@ class _SoundsMessageButtonState extends State<SoundsMessageButton> {
   Widget build(BuildContext context) {
     return GestureDetector(
       onLongPress: () async {
-        // 额外添加首次授权时，不能开启录音
-        if (!await _soundsRecorder.hasPermission()) {
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                behavior: SnackBarBehavior.floating,
-                content: Text('未获取录音权限'),
-              ),
-            );
-          }
-          return;
-        }
-
-        // 首先获取设备外部存储管理权限，如果没有存储权限，就不可录音，直接返回
-        // 2024-08-03 ？？？有问题，授权之后，因为已经松开长按了，所以就不会触发取消长按时的发送操作了
-        if (!(await requestStoragePermission())) {
-          EasyLoading.showError("未授权访问设备外部存储，无法录音");
-
-          return;
-        }
-
-        print("没存储权限应该不能打印-----------");
-
-        // 显示语音输入UI
+        // 2024-08-07 我在点击说话按钮前已经有必须授权的设定了，所以这里不需要再次判断
+        // 直接显示语音输入UI
         _showRecordingMask();
 
         // 录制
@@ -149,16 +131,10 @@ class _SoundsMessageButtonState extends State<SoundsMessageButton> {
           onStateChanged: (state) {
             debugPrint('________  onStateChanged: $state ');
           },
-          onAmplitudeChanged: (amplitude) {
-            // debugPrint(
-            //     '________  onAmplitudeChanged: ${amplitude.current} , ${amplitude.max} ');
-          },
           onDurationChanged: (duration) {
             debugPrint('________  onDurationChanged: $duration ');
           },
           onCompleted: (path, duration) {
-            // _removeMask();
-
             debugPrint('________  onCompleted: $path , $duration ');
 
             if (duration.inSeconds < 1) {
@@ -192,43 +168,41 @@ class _SoundsMessageButtonState extends State<SoundsMessageButton> {
                 SoundsMessageStatus.canceling) {
               _removeMask();
             }
-            // 转文字时完成语音输入，则包含额外的选择操作
+            // 转文字时完成语音输入，则包含额外的选择操作(取消、发送原语音、发送)
+            // 这里默认是能转换完成，(如果转换失败什么的，一直在textProcessing中可能就会显示的和实际的不一致了)
             else if (_soundsRecorder.status.value ==
                 SoundsMessageStatus.textProcessing) {
               _soundsRecorder.updateStatus(SoundsMessageStatus.textProcessed);
-              // _removeMask();
             }
-
-            // 语音转文字结束状态，通过按钮触发具体的发送内容
-            // else if (_soundsRecorder.status.value ==
-            //     SoundsMessageStatus.textProcessed) {
-            //   // widget.onSendSounds?.call(path!);
-            // }
           },
         );
       },
+      // 录音状态下的手势移动处理(注意长按下移动的位置要对得上各自功能区域)
       onLongPressMoveUpdate: (details) {
-        // 录音状态下的手势移动处理
         if (_soundsRecorder.status.value == SoundsMessageStatus.none) {
           return;
         }
         final offset = details.globalPosition;
+        // 如果滑到了录音扇形区域之外
         if ((scSize.height - offset.dy.abs()) >
             widget.maskData.sendAreaHeight) {
           final cancelOffset = offset.dx < scSize.width / 2;
+          // 左边是取消、右边是语言转文字
           if (cancelOffset) {
             _soundsRecorder.updateStatus(SoundsMessageStatus.canceling);
           } else {
             _soundsRecorder.updateStatus(SoundsMessageStatus.textProcessing);
           }
         } else {
+          // 还在录音扇形区域之内就继续录音
           _soundsRecorder.updateStatus(SoundsMessageStatus.recording);
         }
       },
+      // 长按结束时结束录音
       onLongPressEnd: (details) async {
-        // 手势结束音频
         _soundsRecorder.endRec();
       },
+      // 按钮组件
       child: ValueListenableBuilder(
         valueListenable: _soundsRecorder.status,
         builder: (context, value, child) {
@@ -237,24 +211,21 @@ class _SoundsMessageButtonState extends State<SoundsMessageButton> {
           }
 
           return Container(
-            // margin: const EdgeInsets.symmetric(horizontal: 16),
+            // margin: EdgeInsets.symmetric(horizontal: 16.sp),
+            height: 44.sp,
             width: double.infinity,
-            // height: 44,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: BorderRadius.circular(4.sp),
               color: Colors.white,
-              border: Border.all(color: Colors.grey, width: 1.0),
+              border: Border.all(color: Colors.grey, width: 1.sp),
               boxShadow: const [
                 BoxShadow(color: Color(0xffeeeeee), blurRadius: 2)
               ],
             ),
             child: Text(
               value.title,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold),
             ),
           );
         },

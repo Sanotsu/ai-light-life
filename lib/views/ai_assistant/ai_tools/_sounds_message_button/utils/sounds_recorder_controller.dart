@@ -12,27 +12,30 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../../../../../common/constants.dart';
 
+/// 按住说话最后发送的类型(转换后的文本还是原音频文件)
 enum SendContentType {
   voice,
   text,
 }
 
+/// 录音过程中，UI对应的状态枚举
 enum SoundsMessageStatus {
   /// 默认状态 未交互/交互完成
   none,
 
-  /// 录制
+  /// 录制中
   recording,
 
   /// 取消录制
   canceling,
 
-  /// 语音转文字
+  /// 语音转文字中
   textProcessing,
 
-  /// 语音转文字 - 管理操作
+  /// 语音转文字完成
   textProcessed;
 
+  /// 按钮显示的文字内容
   String get title {
     switch (this) {
       case none:
@@ -52,63 +55,38 @@ enum SoundsMessageStatus {
 class SoundsRecorderController {
   SoundsRecorderController();
 
-  /// 修改语音转文字的内容
-  final TextEditingController textProcessedController = TextEditingController();
-
-  /// 是否完成了语音转文字的操作
-  bool isTranslated = false;
-
-  /// 音频地址
-  final path = ValueNotifier<String?>('');
-
-  /// 录音操作的状态
-  final status = ValueNotifier(SoundsMessageStatus.none);
-
-  /// 当前区间间隔的音频振幅
-  // final amplitude = ValueNotifier<Amplitude>(Amplitude(current: 0, max: 1));
-
-  /// 录音操作时间内的音频振幅集合，最新值在前
-  /// [0.0 ~ 1.0]
-  final amplitudeList = ValueNotifier<List<double>>([]);
-
+  // 录音控制器
   RecorderController? recorderController;
-  // StreamSubscription<RecordState>? _recordSub;
-  // StreamSubscription<Amplitude>? _amplitudeSub;
-
+  // 修改语音转文字的内容
+  final textProcessedController = TextEditingController();
+  // 是否完成了语音转文字的操作
+  bool isTranslated = false;
+  // 音频地址
+  final path = ValueNotifier<String?>('');
+  // 录音操作的状态
+  final status = ValueNotifier(SoundsMessageStatus.none);
+  // 录音操作时间内的音频振幅集合，最新值在前 [0.0 ~ 1.0]
+  final amplitudeList = ValueNotifier<List<double>>([]);
+  // 录音时长
   final duration = ValueNotifier<Duration>(Duration.zero);
-  Timer? _timer;
-
-  /// 开始录制前就已经结束
-  /// 用于录音还未开始，用户就已经松开手指结束录制的特殊情况
-  //  bool beforeEnd = false;
-  /// 用途同上
+  // 录制结束后的处理回调
   Function(String? path, Duration duration)? _onAllCompleted;
 
   /// 录制
   beginRec({
-    /// 录制状态
+    // 录制状态
     ValueChanged<RecorderState>? onStateChanged,
-
-    /// 音频振幅
-    ValueChanged<List<double>>? onAmplitudeChanged,
-
-    /// 录制时间
+    // 录制时间
     ValueChanged<Duration>? onDurationChanged,
-
-    /// 结束录制
-    /// 录制时长超过60s时，自动断开的处理
+    // 结束录制（录制时长超过60s时，自动断开的处理）
     required Function(String? path, Duration duration) onCompleted,
   }) async {
     try {
+      // 重置录音时长
       reset();
 
+      // 将录制结束后的处理回调保存起来
       _onAllCompleted = onCompleted;
-
-      // recorderController = RecorderController()
-      //   ..androidEncoder = AndroidEncoder.aac
-      //   ..androidOutputFormat = AndroidOutputFormat.mpeg4
-      //   ..iosEncoder = IosEncoder.kAudioFormatMPEG4AAC
-      //   ..sampleRate = 44100;
 
       /// 2024-08-03 配合讯飞语音听写的格式（好像无法直接支持，只能转码）
       /// https://www.xfyun.cn/doc/asr/voicedictation/API.html
@@ -118,25 +96,29 @@ class SoundsRecorderController {
         ..iosEncoder = IosEncoder.kAudioFormatMPEG4AAC
         ..sampleRate = 16000;
 
+      // 更新录制状态
       updateStatus(SoundsMessageStatus.recording);
 
-      // 录制状态
+      // 录制状态变化监听
       recorderController?.onRecorderStateChanged.listen((state) {
         onStateChanged?.call(state);
       });
 
-      // 时间间隔
+      // 录制时间变化监听
       recorderController?.onCurrentDuration.listen((value) {
+        // 实时更新时长
         duration.value = value;
 
+        // 录制时长超过60s，自动断开
         if (value.inSeconds >= 60) {
           endRec();
         }
 
+        // 录制时长有变化实时更新
         onDurationChanged?.call(value);
 
+        // 音频振幅(绘制振幅画布时用到)
         amplitudeList.value = recorderController!.waveData.reversed.toList();
-        print(duration);
       });
 
       // 外部存储权限的获取在按下说话按钮前就判断了，能到这里来一定是有权限了
@@ -148,8 +130,8 @@ class SoundsRecorderController {
         '${CHAT_AUDIO_DIR.path}/${DateTime.now().microsecondsSinceEpoch}.m4a',
       );
 
-      // 录制
-      await recorderController!.record(path: file.path); // Path is optional
+      // 录制(path参数 是可选的，这里指定固定位置)
+      await recorderController!.record(path: file.path);
     } catch (e) {
       debugPrint(e.toString());
     } finally {}
@@ -188,22 +170,12 @@ class SoundsRecorderController {
     reset();
   }
 
-  /// 重置
-  // reset() {
-  //   _timer?.cancel();
-  //   duration.value = Duration.zero;
-  //   recorderController?.dispose();
-  // }
-
-  /// 重置
-  /// 2024-08-03 原作者的写法会在后续录制时出现错误：A ValueNotifier<int> was used after being disposed.
-  /// 看起来就是重置时控制器被释放了，后续再使用时就不是同一个
-  /// 在SoundsMessageButton有使用到释放控制器，所以拆成2个方法
+  /// 重置(录制时长归零)
   reset() {
-    _timer?.cancel();
     duration.value = Duration.zero;
   }
 
+  /// 释放控制器
   dispose() {
     recorderController?.dispose();
   }
@@ -211,7 +183,6 @@ class SoundsRecorderController {
   /// 权限
   Future<bool> hasPermission() async {
     final state = await Permission.microphone.request();
-
     return state == PermissionStatus.granted;
   }
 
@@ -237,7 +208,7 @@ Future<void> convertToPcm({
   final session = await FFmpegKit.execute(command);
   final returnCode = await session.getReturnCode();
   if (!ReturnCode.isSuccess(returnCode)) {
-    throw Exception('FFmpeg conversion failed');
+    throw Exception('FFmpeg m4a 转 pcm 失败');
   }
 }
 
@@ -250,6 +221,6 @@ Future<void> convertToM4a({
   final session = await FFmpegKit.execute(command);
   final returnCode = await session.getReturnCode();
   if (!ReturnCode.isSuccess(returnCode)) {
-    throw Exception('FFmpeg conversion failed');
+    throw Exception('FFmpeg pcm 转 m4a 失败');
   }
 }

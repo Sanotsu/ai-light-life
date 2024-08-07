@@ -20,7 +20,7 @@ import '../../../../models/paid_llm/common_chat_completion_state.dart';
 import '../../../../models/paid_llm/common_chat_model_spec.dart';
 import '../../_chat_screen_parts/chat_default_question_area.dart';
 import '../../_chat_screen_parts/chat_user_send_area_with_voice.dart';
-import '../_audio_send/utils/recorder.dart';
+import '../_sounds_message_button/utils/sounds_recorder_controller.dart';
 import 'message_list_widget.dart';
 import 'multi_select_dialog.dart';
 

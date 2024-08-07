@@ -1,7 +1,8 @@
 // ignore_for_file: avoid_print
 
-part of 'sounds_button.dart';
+part of 'sounds_message_button.dart';
 
+/// 聚合数据，用于整个UI的配置数据流通
 class PolymerData {
   PolymerData(this.controller, this.data);
 
@@ -12,6 +13,7 @@ class PolymerData {
   final RecordingMaskOverlayData data;
 }
 
+/// 聚合状态
 class PolymerState extends InheritedWidget {
   const PolymerState({
     super.key,
@@ -33,8 +35,7 @@ class PolymerState extends InheritedWidget {
   }
 }
 
-const _duration = Duration(milliseconds: 220);
-
+/// 录音时的遮罩视图
 class RecordingStatusMaskView extends StatelessWidget {
   const RecordingStatusMaskView(
     this.polymerData, {
@@ -44,15 +45,13 @@ class RecordingStatusMaskView extends StatelessWidget {
     this.onTextSend,
   });
 
+  // 聚合数据
   final PolymerData polymerData;
-
-  /// 取消发送
+  // 取消发送
   final VoidCallback? onCancelSend;
-
-  /// 原音发送
+  // 原音发送
   final VoidCallback? onVoiceSend;
-
-  /// 文字发送
+  // 文字发送
   final VoidCallback? onTextSend;
 
   @override
@@ -64,16 +63,38 @@ class RecordingStatusMaskView extends StatelessWidget {
 
     return Material(
       // type: MaterialType.transparency,
-      color: Colors.black.withOpacity(0.7),
       // color: Colors.transparent,
+      color: Colors.black.withOpacity(0.7),
       child: PolymerState(
         data: polymerData,
+        // 状态监听
         child: ValueListenableBuilder(
           valueListenable: polymerData.controller.status,
           builder: (context, value, child) {
+            /// 如果语音转文字已经完成时的布局(即长按松开滑向转文字后)
             if (value == SoundsMessageStatus.textProcessed) {
               return _MaskStackView(
                 children: [
+                  /// 从上往下、从左往右
+
+                  /// 语音转文字显示的气泡
+                  _Bubble(paddingSide: paddingSide),
+
+                  /// 取消发送的按钮的位置
+                  Positioned(
+                    bottom: data.sendAreaHeight + data.iconFocusSize / 3,
+                    right: paddingSide + data.iconFocusSize + 45 * 4,
+                    child: _TextCancelSend(onCancelSend),
+                  ),
+
+                  /// 发送语音的按钮的位置
+                  Positioned(
+                    bottom: data.sendAreaHeight + data.iconFocusSize / 3,
+                    right: paddingSide + data.iconFocusSize + 45,
+                    child: _TextVoiceSend(onVoiceSend),
+                  ),
+
+                  /// 语言转文字发送的按钮的位置
                   Positioned(
                     bottom: polymerData.data.sendAreaHeight + 15,
                     right: paddingSide,
@@ -83,8 +104,10 @@ class RecordingStatusMaskView extends StatelessWidget {
                       onLoading: () async {
                         print("在这里进行语言转文字？？？？？？？？？？？？？？");
 
-                        print(polymerData.controller.path.value ?? '');
+                        // 2024-08-07 这里的一切都是按照正常成功的逻辑来写的；
+                        // 如果发生了异常(比如网络不通什么的)，就没有处理
 
+                        // 语音文件地址
                         var pathUrl = polymerData.controller.path.value ?? '';
 
                         /// 同一份语言有两个部分，一个是原始录制的m4a的格式，一个是转码厚的pcm格式
@@ -99,62 +122,43 @@ class RecordingStatusMaskView extends StatelessWidget {
 
                         print("识别---的结果====--$transcription");
 
+                        // 更新完文字之后，转换标志就为true了
                         polymerData.controller
                             .updateTextProcessed(transcription);
 
-                        print(
-                            "polymerData.controller.isTranslated--${polymerData.controller.isTranslated}");
-
-                        /// 没有文字内容时，进行语音转文字操作
-                        if (!polymerData.controller.isTranslated) {
-                          await Future.delayed(Durations.extralong4);
-
-                          // polymerData.controller
-                          //     .updateTextProcessed('我是语音转文字内容');
-                        }
                         return true;
                       },
                     ),
-                  ),
-                  Positioned(
-                    bottom: data.sendAreaHeight + data.iconFocusSize / 3,
-                    right: paddingSide + data.iconFocusSize + 45,
-                    child: _TextVoiceSend(onVoiceSend),
-                  ),
-                  Positioned(
-                    bottom: data.sendAreaHeight + data.iconFocusSize / 3,
-                    right: paddingSide + data.iconFocusSize + 45 * 4,
-                    child: _TextCancelSend(onCancelSend),
-                  ),
-                  _Bubble(
-                    paddingSide: paddingSide,
                   ),
                 ],
               );
             }
 
+            /// 默认就是长按录制语言时的布局
             return _MaskStackView(
               children: [
+                // 左侧取消按钮
                 Positioned(
                   bottom: data.sendAreaHeight + 15,
                   left: paddingSide,
-                  child: _Circle(
+                  child: _CircleButton(
                     title: value.title,
                     isFocus: value == SoundsMessageStatus.canceling,
                   ),
                 ),
+                // 右侧转文字按钮
                 Positioned(
                   bottom: data.sendAreaHeight + 15,
                   right: paddingSide,
-                  child: _Circle(
+                  child: _CircleButton(
                     title: value.title,
                     isFocus: value == SoundsMessageStatus.textProcessing,
                     isLeft: false,
                   ),
                 ),
-                _Bubble(
-                  paddingSide: paddingSide,
-                ),
+                // 上方录制语音的振幅气泡
+                _Bubble(paddingSide: paddingSide),
+                // 下方松开就发送的小扇形区域
                 Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -164,9 +168,10 @@ class RecordingStatusMaskView extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     CustomPaint(
-                      // size: Size(double.infinity, data.sendAreaHeight),
+                      size: Size(double.infinity, data.sendAreaHeight),
                       painter: _RecordingPainter(
-                          value == SoundsMessageStatus.recording),
+                        value == SoundsMessageStatus.recording,
+                      ),
                       child: Container(
                         width: double.infinity,
                         height: data.sendAreaHeight,
@@ -185,30 +190,99 @@ class RecordingStatusMaskView extends StatelessWidget {
   }
 }
 
-class VoiceIcon extends StatelessWidget {
-  const VoiceIcon({
-    super.key,
-    this.color,
-    this.size,
+/// 圆形按钮
+class _CircleButton extends StatelessWidget {
+  const _CircleButton({
+    required this.title,
+    this.isFocus = false,
+    this.isLeft = true,
   });
 
-  final Color? color;
+  final String title;
 
+  /// 是否为焦点
+  final bool isFocus;
+
+  /// 是否为左边
+  final bool isLeft;
+
+  @override
+  Widget build(BuildContext context) {
+    final polymerState = PolymerState.of(context);
+
+    final data = polymerState.data;
+
+    final size = isFocus ? data.iconFocusSize : data.iconSize;
+
+    double marginSide =
+        0 + (isFocus ? 0.5 : 1) * (data.iconFocusSize - data.iconSize);
+
+    return Column(
+      children: [
+        Visibility(
+          visible: isFocus,
+          child: Text(title, style: data.maskTxtStyle),
+        ),
+        // const SizedBox(height: 10),
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeInOut,
+          margin: EdgeInsets.all(marginSide),
+          width: size,
+          height: size,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: isFocus ? data.iconFocusColor : data.iconColor,
+            borderRadius: BorderRadius.circular(data.iconFocusSize),
+          ),
+          child: Transform.rotate(
+            angle: isLeft ? -0.2 : 0.2,
+            child: isLeft
+                ? Icon(
+                    Icons.close,
+                    size: 28.sp,
+                    color: isFocus ? data.iconFocusTxtColor : data.iconTxtColor,
+                  )
+                // : Icon(
+                //     Icons.text_decrease,
+                //     size: 28.sp,
+                //     color:
+                //         isFocus ? data.iconFocusTxtColor : data.iconTxtColor,
+                //   )
+                : Text(
+                    '文',
+                    style: TextStyle(
+                      fontSize: 22.sp,
+                      fontWeight: FontWeight.bold,
+                      color:
+                          isFocus ? data.iconFocusTxtColor : data.iconTxtColor,
+                    ),
+                  ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// 声音图标(其他地方也可以用)
+class VoiceIcon extends StatelessWidget {
+  const VoiceIcon({super.key, this.color, this.size});
+
+  final Color? color;
   final double? size;
 
   @override
   Widget build(BuildContext context) {
     return Transform.rotate(
       angle: pi / 2,
-      child: Icon(
-        Icons.wifi_rounded,
-        size: size ?? 26.w,
-        color: color,
-      ),
+      child: Icon(Icons.wifi_rounded, size: size ?? 26.w, color: color),
     );
   }
 }
 
+/// 绘制弹框背景
+///   整个页面使用 Stack 布局更为简单，那背景就是一个渐变色叠层。
 class _MaskStackView extends StatelessWidget {
   const _MaskStackView({
     required this.children,
@@ -224,46 +298,49 @@ class _MaskStackView extends StatelessWidget {
       onTap: () {
         FocusScope.of(context).unfocus();
       },
-      child: Stack(alignment: Alignment.bottomCenter, children: [
-        Positioned(
-          child: Container(
-            decoration: const BoxDecoration(
+      child: Stack(
+        alignment: Alignment.bottomCenter,
+        children: [
+          Positioned(
+            child: Container(
+              decoration: const BoxDecoration(
                 gradient: LinearGradient(
-              begin: Alignment.bottomCenter,
-              end: Alignment.topCenter,
-              colors: [
-                Color(0xFF474747),
-                Color(0x00474747),
-              ],
-            )),
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                  colors: [
+                    Color(0xFF474747),
+                    Color(0x00474747),
+                  ],
+                ),
+              ),
+            ),
           ),
-        ),
-        Positioned(
-          child: Container(
-            height: polymerState.data.sendAreaHeight +
-                polymerState.data.iconFocusSize,
-            decoration: const BoxDecoration(
+          Positioned(
+            child: Container(
+              height: polymerState.data.sendAreaHeight +
+                  polymerState.data.iconFocusSize,
+              decoration: const BoxDecoration(
                 gradient: LinearGradient(
-              begin: Alignment.bottomCenter,
-              end: Alignment.topCenter,
-              colors: [
-                Color(0xFF474747),
-                Color(0x22474747),
-              ],
-            )),
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                  colors: [
+                    Color(0xFF474747),
+                    Color(0x22474747),
+                  ],
+                ),
+              ),
+            ),
           ),
-        ),
-        ...children,
-      ]),
+          ...children,
+        ],
+      ),
     );
   }
 }
 
-/// 显示气泡
+/// 语音转文字语音录制时的振幅样式的气泡
 class _Bubble extends StatelessWidget {
-  const _Bubble({
-    required this.paddingSide,
-  });
+  const _Bubble({required this.paddingSide});
 
   final double paddingSide;
 
@@ -275,24 +352,29 @@ class _Bubble extends StatelessWidget {
     final status = polymerState.controller.status.value;
 
     // 80 是气泡整体高度
-    const height = 64.0;
-    Rect rect = const Rect.fromLTRB(24, 0, 24, height);
+    var height = 64.sp;
+    Rect rect = Rect.fromLTRB(24.sp, 0, 24.sp, height);
 
     if (status == SoundsMessageStatus.recording) {
-      rect = Rect.fromLTRB(paddingSide + data.iconFocusSize / 2, 0,
-          paddingSide + data.iconFocusSize / 2, height);
+      rect = Rect.fromLTRB(
+        paddingSide + data.iconFocusSize / 2,
+        0,
+        paddingSide + data.iconFocusSize / 2,
+        height,
+      );
     } else if (status == SoundsMessageStatus.canceling) {
       rect = Rect.fromLTRB(
-          paddingSide - 5,
-          0,
-          ScreenUtil().screenWidth - data.iconFocusSize - paddingSide - 10,
-          height);
+        paddingSide - 5.sp,
+        0,
+        ScreenUtil().screenWidth - data.iconFocusSize - paddingSide - 10.sp,
+        height,
+      );
     }
 
     double bottom = 0;
     if (status == SoundsMessageStatus.textProcessing ||
         status == SoundsMessageStatus.textProcessed) {
-      bottom = 20;
+      bottom = 20.sp;
     }
 
     final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
@@ -303,10 +385,10 @@ class _Bubble extends StatelessWidget {
       // 键盘高度
       bottom:
           max(keyboardHeight, data.sendAreaHeight * 2 + data.iconFocusSize) +
-              20,
+              20.sp,
       // bottom: data.sendAreaHeight * 2 + data.iconFocusSize,
       child: AnimatedContainer(
-        duration: _duration,
+        duration: const Duration(milliseconds: 220),
         curve: Curves.easeInOut,
         margin: EdgeInsets.only(left: rect.left, right: rect.right, bottom: 0),
         // height: rect.height,
@@ -321,12 +403,12 @@ class _Bubble extends StatelessWidget {
           child: CustomPaint(
             painter: _BubblePainter(data, status, paddingSide),
             child: Container(
-              padding: const EdgeInsets.only(
-                  left: 10, right: 10, top: 10, bottom: 10),
+              padding: EdgeInsets.all(10.sp),
+              // 根据状态判断是否显示文字还是录制中的振幅动画
               child: status == SoundsMessageStatus.textProcessing ||
                       status == SoundsMessageStatus.textProcessed
                   ? const _TextProcessedContent()
-                  : const AmpContent(),
+                  : const _AmpContent(),
             ),
           ),
         ),
@@ -336,8 +418,8 @@ class _Bubble extends StatelessWidget {
 }
 
 /// 振幅动画
-class AmpContent extends StatelessWidget {
-  const AmpContent({super.key});
+class _AmpContent extends StatelessWidget {
+  const _AmpContent();
 
   @override
   Widget build(BuildContext context) {
@@ -345,14 +427,90 @@ class AmpContent extends StatelessWidget {
     return CustomPaint(
       painter: WavePainter(polymerState.controller.amplitudeList),
     );
-
-    // return ValueListenableBuilder(
-    //   valueListenable: polymerState.controller.amplitudeList,
-    //   builder: (context, value, child) {
-    //     return SoundsAmplitudes(value);
-    //   },
-    // );
   }
+}
+
+/// 绘制振幅波形动画(其他地方也可以用)
+class WavePainter extends CustomPainter {
+  WavePainter(this.items) : super(repaint: items);
+
+  /// values 0.0 ~ 1.0
+  final ValueNotifier<List<double>> items;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // 振幅数量
+    const count = 13;
+    const centerConut = count ~/ 2;
+
+    final lineSize = Size(3, size.height - 10);
+    const lineSpec = 3.0;
+    const radius = Radius.circular(2);
+
+    final center = Offset(size.width / 2, size.height / 2);
+
+    final tempList = List.generate(count, (index) {
+      if (index < items.value.length - 1) {
+        return items.value[index];
+      }
+      return 0.0;
+    });
+
+    final paint = Paint()
+      ..color = Colors.grey
+      ..style = PaintingStyle.fill;
+
+    final height = lineSize.height;
+
+    lineHeight(double scale) {
+      return height * min(max(scale * 1.5, 0.1), 1);
+    }
+
+    // 中间值
+    canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromCenter(
+            center: center,
+            width: lineSize.width,
+            height: lineHeight(tempList[centerConut]),
+          ),
+          radius,
+        ),
+        paint);
+
+    // 边缘值
+    for (var i = 0; i <= centerConut; i++) {
+      canvas.drawRRect(
+          RRect.fromRectAndRadius(
+            Rect.fromCenter(
+              center: Offset(
+                  center.dx + (lineSize.width + lineSpec) * i, center.dy),
+              width: lineSize.width,
+              height: lineHeight(tempList[i]),
+            ),
+            radius,
+          ),
+          paint);
+
+      canvas.drawRRect(
+          RRect.fromRectAndRadius(
+            Rect.fromCenter(
+              center: Offset(
+                  center.dx - (lineSize.width + lineSpec) * i, center.dy),
+              width: lineSize.width,
+              height: lineHeight(tempList[i]),
+            ),
+            radius,
+          ),
+          paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(WavePainter oldDelegate) => true;
+
+  @override
+  bool shouldRebuildSemantics(WavePainter oldDelegate) => false;
 }
 
 /// 文字输入和振幅动画
@@ -402,87 +560,11 @@ class _TextProcessedContentState extends State<_TextProcessedContent> {
             child: const Positioned(
               right: 40,
               bottom: 5,
-              child: AmpContent(),
+              child: _AmpContent(),
             ),
           )
         ],
       ),
-    );
-  }
-}
-
-/// 圆形按钮
-class _Circle extends StatelessWidget {
-  const _Circle({
-    required this.title,
-    this.isFocus = false,
-    this.isLeft = true,
-  });
-
-  final String title;
-
-  /// 是否为焦点
-  final bool isFocus;
-
-  /// 是否为左边
-  final bool isLeft;
-
-  @override
-  Widget build(BuildContext context) {
-    final polymerState = PolymerState.of(context);
-
-    final data = polymerState.data;
-
-    final size = isFocus ? data.iconFocusSize : data.iconSize;
-
-    double marginSide =
-        0 + (isFocus ? 0.5 : 1) * (data.iconFocusSize - data.iconSize);
-
-    return Column(
-      children: [
-        Visibility(
-          visible: isFocus,
-          child: Text(title, style: data.maskTxtStyle),
-        ),
-        // const SizedBox(height: 10),
-        AnimatedContainer(
-          duration: _duration,
-          curve: Curves.easeInOut,
-          margin: EdgeInsets.all(marginSide),
-          width: size,
-          height: size,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: isFocus ? data.iconFocusColor : data.iconColor,
-            borderRadius: BorderRadius.circular(data.iconFocusSize),
-          ),
-          child: Transform.rotate(
-              angle: isLeft ? -0.2 : 0.2,
-              child: isLeft
-                  ? Icon(
-                      Icons.close,
-                      size: 28,
-                      color:
-                          isFocus ? data.iconFocusTxtColor : data.iconTxtColor,
-                    )
-                  : Icon(
-                      Icons.text_decrease,
-                      size: 28,
-                      color:
-                          isFocus ? data.iconFocusTxtColor : data.iconTxtColor,
-                    )
-              // : Text(
-              //     '文',
-              //     style: TextStyle(
-              //       fontSize: 22,
-              //       fontWeight: FontWeight.bold,
-              //       color:
-              //           isFocus ? data.iconFocusTxtColor : data.iconTxtColor,
-              //     ),
-              //   ),
-              ),
-        ),
-      ],
     );
   }
 }
@@ -559,14 +641,11 @@ class _TextVoiceSend extends StatelessWidget {
       onTap: onTap,
       child: Column(
         children: [
-          VoiceIcon(
-            color: Colors.white,
-            size: 20.w,
-          ),
-          const SizedBox(height: 5),
-          const Text(
+          VoiceIcon(color: Colors.white, size: 20.sp),
+          SizedBox(height: 5.sp),
+          Text(
             '发送原语音',
-            style: TextStyle(fontSize: 13, color: Colors.white),
+            style: TextStyle(fontSize: 13.sp, color: Colors.white),
           ),
         ],
       ),
@@ -587,15 +666,11 @@ class _TextCancelSend extends StatelessWidget {
       onTap: onTap,
       child: Column(
         children: [
-          Icon(
-            Icons.close_rounded,
-            size: 20.w,
-            color: Colors.white,
-          ),
-          const SizedBox(height: 5),
-          const Text(
+          Icon(Icons.close_rounded, size: 20.sp, color: Colors.white),
+          SizedBox(height: 5.sp),
+          Text(
             '取消',
-            style: TextStyle(fontSize: 13, color: Colors.white),
+            style: TextStyle(fontSize: 13.sp, color: Colors.white),
           ),
         ],
       ),
