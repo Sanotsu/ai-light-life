@@ -191,12 +191,20 @@ class _ChatBatState extends State<ChatBat> {
 
   // 这个发送消息实际是将对话文本添加到对话列表中
   // 但是在用户发送消息之后，需要等到AI响应，成功响应之后将响应加入对话中
-  _sendMessage(String text, {String? role = "user", CommonUsage? usage}) {
+  _sendMessage(
+    String text, {
+    String? role = "user",
+    // 2024-08-07 可能text是语音转的文字，保留语音文件路径
+    String? contentVoicePath,
+    CommonUsage? usage,
+  }) {
     // 发送消息的逻辑，这里只是简单地将消息添加到列表中
     var temp = ChatMessage(
       messageId: const Uuid().v4(),
       role: role ?? "user",
       content: text,
+      // 没有录音文件就存空字符串，避免内部转化为“null”字符串
+      contentVoicePath: contentVoicePath ?? "",
       dateTime: DateTime.now(),
       inputTokens: usage?.inputTokens,
       outputTokens: usage?.outputTokens,
@@ -545,19 +553,20 @@ class _ChatBatState extends State<ChatBat> {
               controller: _userInputController,
               hintText: '可以向我提任何问题哦',
               isBotThinking: isBotThinking,
+              isMessageTooLong: isMessageTooLong,
               userInput: userInput,
               onChanged: (text) {
                 setState(() {
                   userInput = text.trim();
                 });
               },
+              // onSendPressed 和 onSendSounds 理论上不会都触发的
               onSendPressed: () {
                 _sendMessage(userInput);
                 setState(() {
                   userInput = "";
                 });
               },
-              isMessageTooLong: isMessageTooLong,
               // 点击了语音发送，可能是文件，也可能是语音转的文字
               onSendSounds: (type, content) async {
                 print("语音发送的玩意儿 $type $content");
@@ -576,7 +585,12 @@ class _ChatBatState extends State<ChatBat> {
 
                   var transcription =
                       await sendAudioToServer("$fullPathWithoutExtension.pcm");
-                  _sendMessage(transcription);
+                  // 注意：语言转换文本必须pcm格式，但是需要点击播放的语音则需要原本的m4a格式
+                  // 都在同一个目录下同一路径不同扩展名
+                  _sendMessage(
+                    transcription,
+                    contentVoicePath: "$fullPathWithoutExtension.m4a",
+                  );
                 }
               },
             ),

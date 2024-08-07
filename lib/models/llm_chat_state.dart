@@ -15,6 +15,8 @@ class ChatMessage {
   final String role;
   // 2024-07-17 之前是text，现在改为content
   final String content; // 文本内容
+  // 2024-08-07 输入的文本可能是语言转的，保留语言文件地址
+  String? contentVoicePath;
   // 2024-07-22 如果是rag的大模型，还会保存检索的索引
   final List<CCQuote>? quotes;
   // 2024-07-17 有可能对话存在输入图片(假如后续一个用户对话中存在图片切来切去，就最后每个问答来回都存上图片)
@@ -33,6 +35,7 @@ class ChatMessage {
     required this.dateTime,
     required this.role,
     required this.content,
+    this.contentVoicePath,
     this.quotes,
     this.imageUrl,
     this.isPlaceholder,
@@ -48,6 +51,7 @@ class ChatMessage {
       'date_time': dateTime,
       'role': role,
       'content': content,
+      'content_voice_path': contentVoicePath,
       'quotes': quotes.toString(),
       'image_url': imageUrl,
       'is_placeholder': isPlaceholder,
@@ -68,6 +72,7 @@ class ChatMessage {
       dateTime: DateTime.parse(map['date_time']),
       role: map['role'] as String,
       content: map['content'] as String,
+      contentVoicePath: map['content_voice_path'] as String?,
       quotes: map['quotes'] != null
           ? (map['quotes'] as List<dynamic>)
               .map((quoteMap) =>
@@ -88,6 +93,7 @@ class ChatMessage {
         dateTime: DateTime.parse(json["date_time"]),
         role: json["role"],
         content: json["content"],
+        contentVoicePath: json["content_voice_path"],
         quotes: json["quotes"] == null
             ? []
             : List<CCQuote>.from(
@@ -106,6 +112,7 @@ class ChatMessage {
         "date_time": dateTime.toIso8601String(),
         'role': role,
         "content": content,
+        "content_voice_path": contentVoicePath,
         "quotes": quotes == null
             ? []
             : List<dynamic>.from(quotes!.map((x) => x.toJson())),
@@ -127,6 +134,7 @@ class ChatMessage {
      "date_time": "$dateTime", 
      "role": "$role", 
      "content": ${jsonEncode(content)}, 
+     "content_voice_path":"$contentVoicePath",
      "quotes": ${jsonEncode(quotes)}, 
      "image_url": "$imageUrl", 
      "is_placeholder":"$isPlaceholder",

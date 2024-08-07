@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../common/constants.dart';
 import '../../../models/llm_chat_state.dart';
 import '../../../models/paid_llm/common_chat_completion_state.dart';
+import 'voice_chat_bubble.dart';
 
 class MessageItem extends StatelessWidget {
   final ChatMessage message;
@@ -171,13 +172,34 @@ class MessageItem extends StatelessWidget {
             //     ],
             //   )
             // 如果不是占位的消息，则正常显示
+            // : SingleChildScrollView(
+            //     child: MarkdownBody(
+            //       data: message.content,
+            //       selectable: true,
+            //       styleSheet: MarkdownStyleSheet(
+            //         p: TextStyle(color: textColor),
+            //       ),
+            //     ),
+            //   ),
             : SingleChildScrollView(
-                child: MarkdownBody(
-                  data: message.content,
-                  selectable: true,
-                  styleSheet: MarkdownStyleSheet(
-                    p: TextStyle(color: textColor),
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    MarkdownBody(
+                      data: message.content,
+                      selectable: true,
+                      styleSheet: MarkdownStyleSheet(
+                        p: TextStyle(color: textColor),
+                      ),
+                    ),
+                    // Text(message.contentVoicePath ?? ''),
+                    if (message.contentVoicePath != null &&
+                        message.contentVoicePath!.trim() != "")
+                      VoiceWaveBubble(
+                        path: message.contentVoicePath!,
+                      ),
+                  ],
                 ),
               ),
       ),
