@@ -1,3 +1,5 @@
+import 'package:dio/dio.dart';
+
 import 'cus_http_request.dart';
 
 // 来源：https://www.cnblogs.com/luoshang/p/16987781.html
@@ -28,6 +30,7 @@ class HttpUtils {
     required String path,
     required HttpMethod method,
     dynamic headers,
+    ResponseType? responseType,
     dynamic data,
     bool showLoading = true,
     bool showErrorMessage = true,
@@ -35,6 +38,7 @@ class HttpUtils {
     return httpRequest.request(
       path: path,
       method: HttpMethod.post,
+      responseType: responseType,
       headers: headers,
       data: data,
       showLoading: showLoading,

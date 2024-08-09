@@ -1,5 +1,6 @@
 // ignore_for_file: avoid_print,
 
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -7,13 +8,13 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:path/path.dart' as path;
 import 'package:uuid/uuid.dart';
 
-import '../../../../apis/common_chat_apis.dart';
+import '../../../../apis/chat_completion/common_cc_apis.dart';
 import '../../../../apis/voice_recognition/xunfei_apis.dart';
 import '../../../../common/constants.dart';
 import '../../../../common/db_tools/db_helper.dart';
 import '../../../../models/ai_interface_state/platform_aigc_commom_state.dart';
-import '../../../../models/common_llm_info.dart';
-import '../../../../models/llm_chat_state.dart';
+import '../../../../models/llm_spec/cc_llm_spec_free.dart';
+import '../../../../models/chat_completion/common_cc_state.dart';
 import '../../_chat_screen_parts/chat_appbar_area.dart';
 import '../../_chat_screen_parts/chat_history_drawer.dart';
 import '../../_chat_screen_parts/chat_list_area.dart';
@@ -33,8 +34,6 @@ import '../_sounds_message_button/utils/sounds_recorder_controller.dart';
 ///
 ///
 class ChatBat extends StatefulWidget {
-  // 默认只展示FREE结尾的免费模型，且不用用户配置
-
   const ChatBat({super.key});
 
   @override
@@ -53,10 +52,8 @@ class _ChatBatState extends State<ChatBat> {
   String userInput = "";
 
   /// 级联选择效果：云平台-模型名
-  /// 2024-06-15 这里限量的，暂时都是阿里云平台的，但单独取名limited？？？
-  /// 也没有其他可修改的地方
-  CloudPlatform selectedPlatform = CloudPlatform.limited;
-  PlatformLLM selectedLlm = PlatformLLM.limitedYiLarge;
+  FreeCP selectedPlatform = FreeCP.siliconCloud;
+  FreeCCLLM selectedLlm = FreeCCLLM.siliconCloud_Qwen2_7B_Instruct;
 
   // AI是否在思考中(如果是，则不允许再次发送)
   bool isBotThinking = false;
@@ -64,7 +61,7 @@ class _ChatBatState extends State<ChatBat> {
   /// 2024-06-11 默认使用流式请求，更快;但是同样的问题，流式使用的token会比非流式更多
   /// 2024-06-15 限时限量的可能都是收费的，本来就慢，所以默认就流式，不用切换
   /// 2024-06-20 流式使用的token太多了，还是默认更省的
-  bool isStream = false;
+  bool isStream = true;
 
   // 默认进入对话页面应该就是啥都没有，然后根据这空来显示预设对话
   List<ChatMessage> messages = [];
@@ -87,6 +84,9 @@ class _ChatBatState extends State<ChatBat> {
   // 进入对话页面简单预设的一些问题
   List<String> defaultQuestions = chatQuestionSamples;
 
+  // 当前正在响应的api返回流(放在全局为了可以手动取消)
+  StreamWithCancel<CommonRespBody>? respStream;
+
   @override
   void initState() {
     super.initState();
@@ -94,55 +94,38 @@ class _ChatBatState extends State<ChatBat> {
     initCusConfig();
   }
 
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    _userInputController.dispose();
+    super.dispose();
+  }
+
   // 进入自行配置的对话页面，看看用户配置有没有生效
   initCusConfig() {
-    // 2024-07-14 每次进来都随机选一个(注意：不能有limited的那个，因为那个没有FREE结尾的)
-    List<CloudPlatform> values = CloudPlatform.values
-        .where((platform) => platform != CloudPlatform.limited)
-        .toList();
+    // 2024-07-14 每次进来都随机选一个
+    List<FreeCP> values = FreeCP.values.toList();
     selectedPlatform = values[Random().nextInt(values.length)];
 
     setState(() {
       // 2024-07-14 同样的，选中的平台后也随机选择一个模型
-      List<PlatformLLM> models = PlatformLLM.values
-          .where((m) =>
-              m.name.startsWith(selectedPlatform.name) &&
-              m.name.endsWith("FREE"))
+      List<FreeCCLLM> models = FreeCCLLM.values
+          .where((m) => m.name.startsWith(selectedPlatform.name))
           .toList();
 
       selectedLlm = models[Random().nextInt(models.length)];
     });
-
-    // print("配置选中后的平台和模型");
-    // print("$selectedPlatform $selectedLlm");
   }
 
   //获取指定分类的历史对话
   Future<List<ChatSession>> getHistoryChats() async {
-    // 获取历史记录：默认查询到所有的历史对话，再根据条件过滤
-    var list = await _dbHelper.queryChatList(cateType: "aigc");
-
-    // 默认就是免费的了，平台非limited，模型仅是FREE结尾
-    list = list
-        .where((e) =>
-            e.cloudPlatformName != CloudPlatform.limited.name &&
-            e.llmName.endsWith("FREE"))
-        .toList();
-
-    return list;
+    return await _dbHelper.queryChatList(cateType: "aigc");
   }
 
   /// 获取指定对话列表
   _getChatInfo(String chatId) async {
     // 默认查询到所有的历史对话(这里有uuid了，应该就只有1条存在才对)
     var list = await _dbHelper.queryChatList(uuid: chatId, cateType: "aigc");
-
-    // 默认就是免费的了，平台非limited，模型仅是FREE结尾
-    list = list
-        .where((e) =>
-            e.cloudPlatformName != CloudPlatform.limited.name &&
-            e.llmName.endsWith("FREE"))
-        .toList();
 
     if (list.isNotEmpty && list.isNotEmpty) {
       // 2024-07-23 注意！！！这里要处理该条历史记录中的消息列表，具体看_sendMessage中的说明
@@ -160,6 +143,7 @@ class _ChatBatState extends State<ChatBat> {
         ));
       }
 
+      if (!mounted) return;
       setState(() {
         chatSession = list.first;
         chatSession?.messages = resultList;
@@ -167,13 +151,13 @@ class _ChatBatState extends State<ChatBat> {
         // 如果有存是哪个模型，也默认选中该模型
         // ？？？2024-06-11 虽然同一个对话现在可以切换平台和模型了，但这里只是保留第一次对话取的值
         // 后面对话过程中切换平台和模型，只会在该次对话过程中有效
-        var tempLlms = newLLMSpecs.entries
+        var tempLlms = Free_CC_LLM_SPEC_MAP.entries
             // 数据库存的模型名就是自定义的模型名
             .where((e) => e.key.name == list.first.llmName)
             .toList();
 
         // 被选中的平台也就是记录中存放的平台
-        var tempCps = CloudPlatform.values
+        var tempCps = FreeCP.values
             .where((e) => e.name.contains(list.first.cloudPlatformName ?? ""))
             .toList();
 
@@ -191,9 +175,12 @@ class _ChatBatState extends State<ChatBat> {
 
   // 这个发送消息实际是将对话文本添加到对话列表中
   // 但是在用户发送消息之后，需要等到AI响应，成功响应之后将响应加入对话中
-  _sendMessage(
+  ///
+  /// 2024-08-08 从目前使用来看，只有API响应时传入的role才不是user
+  // 而使用流式响应时，显示的文本时追加的，此时再调用这个函数就会出现一次响应被当作多个对话条目去了
+  // 所以这个改为只为用户发送，API响应直接在响应函数中处理
+  _userSendMessage(
     String text, {
-    String? role = "user",
     // 2024-08-07 可能text是语音转的文字，保留语音文件路径
     String? contentVoicePath,
     CommonUsage? usage,
@@ -201,7 +188,7 @@ class _ChatBatState extends State<ChatBat> {
     // 发送消息的逻辑，这里只是简单地将消息添加到列表中
     var temp = ChatMessage(
       messageId: const Uuid().v4(),
-      role: role ?? "user",
+      role: "user",
       content: text,
       // 没有录音文件就存空字符串，避免内部转化为“null”字符串
       contentVoicePath: contentVoicePath ?? "",
@@ -213,20 +200,11 @@ class _ChatBatState extends State<ChatBat> {
 
     if (!mounted) return;
     setState(() {
-      // AI思考和用户输入是相反的(如果用户输入了，就是在等到机器回到了)
-      isBotThinking = (role == "user");
+      isBotThinking = true;
 
       messages.add(temp);
 
-      // 2024-06-01 注意，在每次添加了对话之后，都把整个对话列表存入对话历史中去
-      // 当然，要在占位消息之前
-      // 2024-07-23 有个问题：用户发送了消息，等待AI响应时，退出页面。
-      // 此时历史记录中就存在了等待中的数据，而响应返回的不会处理、占位的数据就无法清除
-      // 不过继续询问后占位的还是会被清除。
-      // ！！！但如果像百度接口role必须user、assistant 交替的奇数消息列表，就会报错。
-      //    因为这里是user、(assistant没放到列表)、user，两个连续的user偶数列表
-      //    也就是说，该历史对话，无法继续对话了
-      // 对策：点击指定历史记录，如果最后一条不是assistant，就删除，直到是assistant
+      // 在每次添加了对话之后，都把整个对话列表存入对话历史中去
       _saveToDb();
 
       _userInputController.clear();
@@ -238,15 +216,12 @@ class _ChatBatState extends State<ChatBat> {
       );
 
       // 如果是用户发送了消息，则开始等到AI响应(如果不是用户提问，则不会去调用接口)
-      if (role == "user") {
-        // 如果是用户输入时，在列表中添加一个占位的消息，以便思考时的装圈和已加载的消息可以放到同一个list进行滑动
-        // 一定注意要记得AI响应后要删除此占位的消息
-        placeholderMessage.dateTime = DateTime.now();
-        messages.add(placeholderMessage);
+      // 如果是用户输入时，在列表中添加一个占位的消息，以便思考时的装圈和已加载的消息可以放到同一个list进行滑动
+      // 一定注意要记得AI响应后要删除此占位的消息
+      placeholderMessage.dateTime = DateTime.now();
+      messages.add(placeholderMessage);
 
-        // 不是腾讯，就是百度
-        _getLlmResponse();
-      }
+      _getCCResponse();
     });
   }
 
@@ -284,7 +259,7 @@ class _ChatBatState extends State<ChatBat> {
 
   // 根据不同的平台、选中的不同模型，调用对应的接口，得到回复
   // 虽然返回的响应通用了，但不同的平台和模型实际取值还是没有抽出来的
-  _getLlmResponse() async {
+  _getCCResponse() async {
     // 将已有的消息处理成Ernie支出的消息列表格式(构建查询条件时要删除占位的消息)
     List<CommonMessage> msgs = messages
         .where((e) => e.isPlaceholder != true)
@@ -294,87 +269,128 @@ class _ChatBatState extends State<ChatBat> {
             ))
         .toList();
 
-    // 等待请求响应
-    List<CommonRespBody> temp;
     // 2024-06-06 ??? 这里一定要确保存在模型名称，因为要作为http请求参数
-    var model = newLLMSpecs[selectedLlm]!.model;
+    var model = Free_CC_LLM_SPEC_MAP[selectedLlm]!.model;
 
-    // 2024-07-12 标题要大，不显示流式切换了，只有非流式的
-    if (selectedPlatform == CloudPlatform.baidu) {
-      temp = await getBaiduAigcResp(msgs,
-          model: model, stream: isStream, isUserConfig: false);
-    } else if (selectedPlatform == CloudPlatform.tencent) {
-      temp = await getTencentAigcResp(msgs,
-          model: model, stream: isStream, isUserConfig: false);
-    } else if (selectedPlatform == CloudPlatform.aliyun) {
-      temp = await getAliyunAigcResp(msgs,
-          model: model, stream: isStream, isUserConfig: false);
-    } else if (selectedPlatform == CloudPlatform.limited) {
-      // 目前限时限量的，其实也只是阿里云平台的
-      temp = await getAliyunAigcResp(msgs,
-          model: model, stream: isStream, isUserConfig: false);
-    } else if (selectedPlatform == CloudPlatform.siliconCloud) {
-      // 2024-07-04 新加硅动科技siliconFlow中免费的
-      temp = await getSiliconFlowAigcResp(msgs,
-          model: model, stream: isStream, isUserConfig: false);
+    // 在请求前创建当前响应的消息和文本内容，当前请求完之后，就重置为空
+    ChatMessage? currentStreamingMessage;
+    final StringBuffer messageBuffer = StringBuffer();
+
+    // 后续可手动终止响应时的写法
+    StreamWithCancel<CommonRespBody> temp;
+    if (selectedPlatform == FreeCP.baidu) {
+      temp = await baiduCCRespWithCancel(msgs, model: model, stream: isStream);
+    } else if (selectedPlatform == FreeCP.tencent) {
+      temp =
+          await tencentCCRespWitchCancel(msgs, model: model, stream: isStream);
+    } else if (selectedPlatform == FreeCP.aliyun) {
+      temp = await aliyunCCRespWithCancel(msgs, model: model, stream: isStream);
+    } else if (selectedPlatform == FreeCP.siliconCloud) {
+      temp = await siliconFlowCCRespWithCancel(msgs,
+          model: model, stream: isStream);
     } else {
       // 理论上不会存在其他的了
-      temp = await getBaiduAigcResp(msgs,
-          model: model, stream: isStream, isUserConfig: false);
+      temp = await baiduCCRespWithCancel(msgs, model: model, stream: isStream);
     }
 
-    // 得到回复后要删除表示加载中的占位消息
     if (!mounted) return;
     setState(() {
-      messages.removeWhere((e) => e.isPlaceholder == true);
+      respStream = temp;
     });
+    // 上面赋值了，这里应该可以监听到新的流了
+    respStream?.stream.listen(
+      (crb) {
+        // 得到回复后要删除表示加载中的占位消息
+        if (!mounted) return;
+        setState(() {
+          messages.removeWhere((e) => e.isPlaceholder == true);
+        });
 
-    // 得到AI回复之后，添加到列表中，也注明不是用户提问
-    var tempText = temp.map((e) => e.customReplyText).join();
-    if (temp.isNotEmpty && temp.first.errorCode != null) {
-      tempText = """接口报错:
-\ncode:${temp.first.errorCode} 
-\nmsg:${temp.first.errorMsg}
-\n请检查AppId和AppKey是否正确，或切换其他模型试试。
-""";
-    }
+        // 当前响应流处理完了，就不是AI响应中了
+        if (crb.customReplyText == '[DONE]') {
+          if (!mounted) return;
+          setState(() {
+            _saveToDb();
+            _userInputController.clear();
+            // 滚动到ListView的底部
+            _scrollController.animateTo(
+              _scrollController.position.maxScrollExtent,
+              curve: Curves.easeOut,
+              duration: const Duration(milliseconds: 300),
+            );
 
-    // 每次对话的结果流式返回，所以是个列表，就需要累加起来
-    int inputTokens = 0;
-    int outputTokens = 0;
-    int totalTokens = 0;
-    for (var e in temp) {
-      inputTokens += e.usage?.inputTokens ?? e.usage?.promptTokens ?? 0;
-      outputTokens += e.usage?.outputTokens ?? e.usage?.completionTokens ?? 0;
-      totalTokens += e.usage?.totalTokens ?? 0;
-    }
-    // 里面的promptTokens和completionTokens是百度这个特立独行的，在上面拼到一起了
-    var a = CommonUsage(
-      inputTokens: inputTokens,
-      outputTokens: outputTokens,
-      totalTokens: totalTokens,
+            currentStreamingMessage = null;
+            isBotThinking = false;
+          });
+        } else {
+          setState(() {
+            isBotThinking = true;
+
+            messageBuffer.write(crb.customReplyText);
+
+            // 只有第一次响应时才创建消息体，后续接收的响应流数据只更新当前的
+            if (currentStreamingMessage == null) {
+              currentStreamingMessage = ChatMessage(
+                messageId: const Uuid().v4(),
+                role: "assistant",
+                content: messageBuffer.toString(),
+                contentVoicePath: "",
+                dateTime: DateTime.now(),
+                inputTokens:
+                    crb.usage?.inputTokens ?? crb.usage?.promptTokens ?? 0,
+                outputTokens:
+                    crb.usage?.outputTokens ?? crb.usage?.completionTokens ?? 0,
+                totalTokens: crb.usage?.totalTokens ?? 0,
+              );
+
+              messages.add(currentStreamingMessage!);
+            } else {
+              currentStreamingMessage!.content = messageBuffer.toString();
+              // token的使用就是每条返回的就是当前使用的结果，所以最后一条就是最终结果，实时更新到最后一条
+              currentStreamingMessage!.inputTokens =
+                  (crb.usage?.inputTokens ?? crb.usage?.promptTokens ?? 0);
+              currentStreamingMessage!.outputTokens =
+                  (crb.usage?.outputTokens ?? crb.usage?.completionTokens ?? 0);
+              currentStreamingMessage!.totalTokens =
+                  (crb.usage?.totalTokens ?? 0);
+            }
+          });
+        }
+      },
+      // 非流式的时候，只有一条数据，永远不会触发上面监听时的DONE的情况
+      onDone: () {
+        if (!mounted) return;
+        setState(() {
+          _saveToDb();
+          _userInputController.clear();
+          // 滚动到ListView的底部
+          _scrollController.animateTo(
+            _scrollController.position.maxScrollExtent,
+            curve: Curves.easeOut,
+            duration: const Duration(milliseconds: 300),
+          );
+
+          currentStreamingMessage = null;
+          isBotThinking = false;
+        });
+      },
     );
-
-    _sendMessage(tempText, role: "assistant", usage: a);
   }
 
   /// 2024-05-31 暂时不根据token的返回来说了，临时直接显示整个对话不超过8千字
   /// 限量的有放在对象里面
   bool isMessageTooLong() =>
       messages.fold(0, (sum, msg) => sum + msg.content.length) >
-      newLLMSpecs[selectedLlm]!.contextLength;
+      Free_CC_LLM_SPEC_MAP[selectedLlm]!.contextLength;
 
   /// 构建用于下拉的平台列表(根据上层传入的值)
-  List<DropdownMenuItem<CloudPlatform?>> buildCloudPlatforms() {
-    return CloudPlatform.values
-        .where((e) => e != CloudPlatform.limited)
-        .toList()
-        .map((e) {
-      return DropdownMenuItem<CloudPlatform?>(
+  List<DropdownMenuItem<FreeCP?>> buildCloudPlatforms() {
+    return FreeCP.values.map((e) {
+      return DropdownMenuItem<FreeCP?>(
         value: e,
         alignment: AlignmentDirectional.center,
         child: Text(
-          cpNames[e]!,
+          FREE_CP_NAME_MAP[e]!,
           style: const TextStyle(color: Colors.blue),
         ),
       );
@@ -382,23 +398,18 @@ class _ChatBatState extends State<ChatBat> {
   }
 
   /// 当切换了云平台时，要同步切换选中的大模型
-  onCloudPlatformChanged(CloudPlatform? value) {
+  onCloudPlatformChanged(FreeCP? value) {
     // 如果平台被切换，则更新当前的平台为选中的平台，且重置模型为符合该平台的模型的第一个
     if (value != selectedPlatform) {
       // 更新被选中的平台为当前选中平台
-      selectedPlatform = value ?? CloudPlatform.baidu;
-
-      // 用于显示下拉的模型，也要根据入口来
-      // 先找到符合平台的模型（？？？理论上一定不为空，为空了就是有问题的数据）
-      var temp = PlatformLLM.values
-          .where((e) => e.name.startsWith(selectedPlatform.name))
-          .toList();
-
-      // 默认就是免费的了，模型仅是FREE结尾
-      temp = temp.where((e) => e.name.endsWith("FREE")).toList();
+      selectedPlatform = value ?? FreeCP.baidu;
 
       setState(() {
-        selectedLlm = temp.first;
+        // 切换平台后，修改选中的模型为该平台第一个
+        selectedLlm = FreeCCLLM.values
+            .where((e) => e.name.startsWith(selectedPlatform.name))
+            .toList()
+            .first;
         // 2024-06-15 切换平台或者模型应该清空当前对话，因为上下文丢失了。
         // 建立新对话就是把已有的对话清空就好(因为保存什么的在发送消息时就处理了)
         chatSession = null;
@@ -407,22 +418,15 @@ class _ChatBatState extends State<ChatBat> {
     }
   }
 
-  List<DropdownMenuItem<PlatformLLM>> buildPlatformLLMs() {
+  List<DropdownMenuItem<FreeCCLLM>> buildPlatformLLMs() {
     // 用于下拉的模型首先是需要以平台前缀命名的
-    var llms = PlatformLLM.values
-        .where((m) => m.name.startsWith(selectedPlatform.name));
-
-    text(ChatLLMSpec e) => e.name;
-
-    // 默认就是免费的了，模型仅是指定平台前缀+以FREE结尾
-    llms = llms.where((m) => m.name.endsWith("FREE")).toList();
-
-    return llms
-        .map((e) => DropdownMenuItem<PlatformLLM>(
+    return FreeCCLLM.values
+        .where((m) => m.name.startsWith(selectedPlatform.name))
+        .map((e) => DropdownMenuItem<FreeCCLLM>(
               value: e,
-              alignment: AlignmentDirectional.center,
+              alignment: AlignmentDirectional.centerStart,
               child: Text(
-                text(newLLMSpecs[e]!),
+                Free_CC_LLM_SPEC_MAP[e]!.name,
                 style: const TextStyle(color: Colors.blue),
               ),
             ))
@@ -438,7 +442,7 @@ class _ChatBatState extends State<ChatBat> {
       placeholderMessage.dateTime = DateTime.now();
       messages.add(placeholderMessage);
 
-      _getLlmResponse();
+      _getCCResponse();
     });
   }
 
@@ -455,6 +459,7 @@ class _ChatBatState extends State<ChatBat> {
         },
         onHistoryPressed: (BuildContext context) async {
           var list = await getHistoryChats();
+          if (!mounted) return;
           setState(() {
             chatHistory = list;
           });
@@ -478,7 +483,7 @@ class _ChatBatState extends State<ChatBat> {
               color: Colors.grey[300],
               child: Padding(
                 padding: EdgeInsets.only(left: 10.sp),
-                child: PlatAndLlmRow<CloudPlatform, PlatformLLM>(
+                child: PlatAndLlmRow<FreeCP, FreeCCLLM>(
                   selectedPlatform: selectedPlatform,
                   onCloudPlatformChanged: onCloudPlatformChanged,
                   selectedLlm: selectedLlm,
@@ -493,7 +498,7 @@ class _ChatBatState extends State<ChatBat> {
                   },
                   buildCloudPlatforms: buildCloudPlatforms,
                   buildPlatformLLMs: buildPlatformLLMs,
-                  specList: newLLMSpecs,
+                  specList: Free_CC_LLM_SPEC_MAP,
                   showToggleSwitch: true,
                   isStream: isStream,
                   onToggle: (index) {
@@ -516,7 +521,7 @@ class _ChatBatState extends State<ChatBat> {
             if (messages.isEmpty)
               ChatDefaultQuestionArea(
                 defaultQuestions: defaultQuestions,
-                onQuestionTap: _sendMessage,
+                onQuestionTap: _userSendMessage,
               ),
 
             /// 对话的标题区域
@@ -529,6 +534,7 @@ class _ChatBatState extends State<ChatBat> {
                   await _dbHelper.updateChatSession(e);
 
                   // 修改后更新标题
+                  if (!mounted) return;
                   setState(() {
                     chatSession = e;
                   });
@@ -542,6 +548,7 @@ class _ChatBatState extends State<ChatBat> {
             ChatListArea(
               messages: messages,
               scrollController: _scrollController,
+              isBotThinking: isBotThinking,
               regenerateLatestQuestion: regenerateLatestQuestion,
             ),
 
@@ -553,16 +560,15 @@ class _ChatBatState extends State<ChatBat> {
               controller: _userInputController,
               hintText: '可以向我提任何问题哦',
               isBotThinking: isBotThinking,
-              isMessageTooLong: isMessageTooLong,
               userInput: userInput,
-              onChanged: (text) {
+              onInpuChanged: (text) {
                 setState(() {
                   userInput = text.trim();
                 });
               },
               // onSendPressed 和 onSendSounds 理论上不会都触发的
               onSendPressed: () {
-                _sendMessage(userInput);
+                _userSendMessage(userInput);
                 setState(() {
                   userInput = "";
                 });
@@ -572,7 +578,7 @@ class _ChatBatState extends State<ChatBat> {
                 print("语音发送的玩意儿 $type $content");
 
                 if (type == SendContentType.text) {
-                  _sendMessage(content);
+                  _userSendMessage(content);
                 } else if (type == SendContentType.voice) {
                   //
 
@@ -587,11 +593,28 @@ class _ChatBatState extends State<ChatBat> {
                       await sendAudioToServer("$fullPathWithoutExtension.pcm");
                   // 注意：语言转换文本必须pcm格式，但是需要点击播放的语音则需要原本的m4a格式
                   // 都在同一个目录下同一路径不同扩展名
-                  _sendMessage(
+                  _userSendMessage(
                     transcription,
                     contentVoicePath: "$fullPathWithoutExtension.m4a",
                   );
                 }
+              },
+              // 2024-08-08 手动点击了终止
+              onStop: () async {
+                await respStream?.cancel();
+                if (!mounted) return;
+                setState(() {
+                  _saveToDb();
+                  _userInputController.clear();
+                  // 滚动到ListView的底部
+                  _scrollController.animateTo(
+                    _scrollController.position.maxScrollExtent,
+                    curve: Curves.easeOut,
+                    duration: const Duration(milliseconds: 300),
+                  );
+
+                  isBotThinking = false;
+                });
               },
             ),
           ],
@@ -613,6 +636,7 @@ class _ChatBatState extends State<ChatBat> {
           await _dbHelper.updateChatSession(e);
           // 修改成功后重新查询更新
           var list = await getHistoryChats();
+          if (!mounted) return;
           setState(() {
             chatHistory = list;
           });
@@ -622,6 +646,7 @@ class _ChatBatState extends State<ChatBat> {
           await _dbHelper.deleteChatById(e.uuid);
           // 然后重新查询并更新
           var list = await getHistoryChats();
+          if (!mounted) return;
           setState(() {
             chatHistory = list;
           });

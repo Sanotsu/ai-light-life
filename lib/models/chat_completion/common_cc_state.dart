@@ -2,8 +2,12 @@ import 'dart:convert';
 
 import 'package:intl/intl.dart';
 
-import '../common/constants.dart';
+import '../../common/constants.dart';
 import 'paid_llm/common_chat_completion_state.dart';
+
+///
+/// 这个文件是基础的文本对话相关功能会用到的模型
+///
 
 /// 人机对话的每一条消息的结果
 /// 对话页面就是包含一系列时间顺序排序后的对话消息的list
@@ -14,7 +18,8 @@ class ChatMessage {
   // 之前有个isFromUser来区分用户和AI助手，但没法保存system，所以直接改为role
   final String role;
   // 2024-07-17 之前是text，现在改为content
-  final String content; // 文本内容
+  // 2024-08-08 因为流式响应，要追加内容，所以不是final的
+  String content; // 文本内容
   // 2024-08-07 输入的文本可能是语言转的，保留语言文件地址
   String? contentVoicePath;
   // 2024-07-22 如果是rag的大模型，还会保存检索的索引
@@ -23,9 +28,10 @@ class ChatMessage {
   final String? imageUrl;
   final bool? isPlaceholder; // 是否是等待响应时的占位消息
   /// 2024-06-15 限时限量有token限制，所以存放每次对话的token消耗
-  final int? inputTokens;
-  final int? outputTokens;
-  final int? totalTokens;
+  /// 2024-08-08 因为流式响应，要追加内容，也要追加token数值，所以不是final的
+  int? inputTokens;
+  int? outputTokens;
+  int? totalTokens;
   // 2024-07-24 如果是多个模型在一个页面同时响应的话，则需要显示每个消息对应的模型名称
   // 具体是什么文本，根据需求来定
   String? modelLabel;

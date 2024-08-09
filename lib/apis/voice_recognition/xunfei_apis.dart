@@ -5,7 +5,7 @@ import 'dart:convert';
 import 'dart:async';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
-import '../../models/voice_reg/xunfei_voice_dictation.dart';
+import '../../models/voice_recognition/xunfei_voice_dictation.dart';
 import '../_self_keys.dart';
 import '../gen_access_token/xfyun_spark_signature.dart';
 

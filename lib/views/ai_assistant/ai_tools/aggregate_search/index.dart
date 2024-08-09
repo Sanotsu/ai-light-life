@@ -8,14 +8,14 @@ import 'package:intl/intl.dart';
 import 'package:path/path.dart' as path;
 import 'package:uuid/uuid.dart';
 
-import '../../../../apis/paid_cc_apis.dart';
+import '../../../../apis/chat_completion/paid_cc_apis.dart';
 import '../../../../apis/voice_recognition/xunfei_apis.dart';
 import '../../../../common/components/tool_widget.dart';
 import '../../../../common/constants.dart';
 import '../../../../common/db_tools/db_helper.dart';
-import '../../../../models/llm_chat_state.dart';
-import '../../../../models/paid_llm/common_chat_completion_state.dart';
-import '../../../../models/paid_llm/common_chat_model_spec.dart';
+import '../../../../models/chat_completion/common_cc_state.dart';
+import '../../../../models/chat_completion/paid_llm/common_chat_completion_state.dart';
+import '../../../../models/llm_spec/cc_llm_spec_paid.dart';
 import '../../_chat_screen_parts/chat_user_send_area_with_voice.dart';
 import '../../_components/message_item.dart';
 import '../../_chat_screen_parts/chat_appbar_area.dart';
@@ -448,7 +448,7 @@ class _AggregateSearchState extends State<AggregateSearch> {
               hintText: '可以向我提任何问题哦',
               isBotThinking: isBotThinking,
               userInput: userInput,
-              onChanged: (text) {
+              onInpuChanged: (text) {
                 setState(() {
                   userInput = text.trim();
                 });
@@ -459,7 +459,7 @@ class _AggregateSearchState extends State<AggregateSearch> {
                   userInput = "";
                 });
               },
-              isMessageTooLong: isMessageTooLong,
+
               // 点击了语音发送，可能是文件，也可能是语音转的文字
               onSendSounds: (type, content) async {
                 print("语音发送的玩意儿 $type $content");

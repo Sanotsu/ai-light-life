@@ -1,7 +1,7 @@
 // gesture_items.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import '../../../models/llm_chat_state.dart';
+import '../../../models/chat_completion/common_cc_state.dart';
 import 'history_button_widget.dart';
 
 ///

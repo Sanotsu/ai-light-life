@@ -10,11 +10,11 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
 
-import '../../../../apis/paid_cc_apis.dart';
+import '../../../../apis/chat_completion/paid_cc_apis.dart';
 import '../../../../common/components/tool_widget.dart';
-import '../../../../models/llm_chat_state.dart';
-import '../../../../models/paid_llm/common_chat_completion_state.dart';
-import '../../../../models/paid_llm/common_chat_model_spec.dart';
+import '../../../../models/chat_completion/common_cc_state.dart';
+import '../../../../models/chat_completion/paid_llm/common_chat_completion_state.dart';
+import '../../../../models/llm_spec/cc_llm_spec_paid.dart';
 import '../../_components/message_item.dart';
 import '../../_components/save_markdown_as_pdf.dart';
 import '../../_components/save_markdown_as_txt.dart';

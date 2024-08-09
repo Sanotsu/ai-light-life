@@ -16,8 +16,8 @@ import '../../../common/components/tool_widget.dart';
 import '../../../common/constants.dart';
 import '../../../common/db_tools/db_helper.dart';
 import '../../../models/ai_interface_state/aliyun_qwenvl_state.dart';
-import '../../../models/common_llm_info.dart';
-import '../../../models/llm_chat_state.dart';
+import '../../../models/llm_spec/cc_llm_spec_free.dart';
+import '../../../models/chat_completion/common_cc_state.dart';
 import '../_components/message_item.dart';
 
 ///
@@ -137,7 +137,7 @@ class _AliyunQwenVLScreenState extends State<AliyunQwenVLScreen> {
         messages: messages,
         // 2026-06-06 这里记录的也是各平台原始的大模型名称
         llmName: i2tLlmModels[Image2TextLLM.baiduFuyu8B]!,
-        cloudPlatformName: CloudPlatform.baidu.name,
+        cloudPlatformName: FreeCP.baidu.name,
         // 2026-06-06 对话历史默认带上类别
         chatType: "image2text",
         // 存base64显示时会一闪一闪，直接存缓存地址好了

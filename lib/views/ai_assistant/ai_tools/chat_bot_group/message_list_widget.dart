@@ -3,7 +3,7 @@ import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter/services.dart';
 
-import '../../../../models/llm_chat_state.dart';
+import '../../../../models/chat_completion/common_cc_state.dart';
 import '../../../../services/cus_get_storage.dart';
 import '../../_components/message_item.dart';
 

@@ -5,7 +5,6 @@ import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../../../services/cus_get_storage.dart';
-import '_sounds_message_button/sounds_input_demo_page.dart';
 import 'aggregate_search/index.dart';
 import 'chat_bot/index.dart';
 import 'chat_bot_group/index.dart';
@@ -239,19 +238,19 @@ class _AIToolIndexState extends State<AIToolIndex> {
                   },
                 ),
 
-                buildAIToolEntrance(
-                  "语音输入",
-                  icon: const Icon(Icons.newspaper),
-                  color: Colors.blue[100],
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const AudioSendScreen(),
-                      ),
-                    );
-                  },
-                ),
+                // buildAIToolEntrance(
+                //   "语音输入",
+                //   icon: const Icon(Icons.newspaper),
+                //   color: Colors.blue[100],
+                //   onTap: () {
+                //     Navigator.push(
+                //       context,
+                //       MaterialPageRoute(
+                //         builder: (context) => const AudioSendScreen(),
+                //       ),
+                //     );
+                //   },
+                // ),
 
                 // buildAIToolEntrance(
                 //   "功能\n占位(TODO)",

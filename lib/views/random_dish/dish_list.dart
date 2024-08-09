@@ -10,7 +10,7 @@ import '../../common/components/tool_widget.dart';
 import '../../common/constants.dart';
 import '../../common/db_tools/db_helper.dart';
 import '../../common/utils/tools.dart';
-import '../../models/dish.dart';
+import '../../models/base_model/dish.dart';
 
 import 'dish_detail.dart';
 import 'dish_json_import.dart';

@@ -13,12 +13,12 @@ import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:uuid/uuid.dart';
 
-import '../../../../apis/common_chat_apis.dart';
+import '../../../../apis/chat_completion/common_cc_apis.dart';
 import '../../../../common/components/tool_widget.dart';
 import '../../../../common/utils/tools.dart';
 import '../../../../models/ai_interface_state/platform_aigc_commom_state.dart';
-import '../../../../models/common_llm_info.dart';
-import '../../../../models/llm_chat_state.dart';
+import '../../../../models/llm_spec/cc_llm_spec_free.dart';
+import '../../../../models/chat_completion/common_cc_state.dart';
 import '../../_components/message_item.dart';
 import 'document_parser.dart';
 
@@ -57,6 +57,11 @@ class _DocumentSummaryState extends State<DocumentSummary> {
 2. 上传文档目前仅支持 pdf、txt、docx、doc 格式
 3. 上传的文档和手动输入的文档总内容不超过8000字符
 4. 输入的文档和总结可以上下滚动查看""";
+
+  // 当前正在响应的api返回流(放在全局为了可以手动取消)
+  StreamWithCancel<CommonRespBody>? respStream;
+  // 是否AI完成了响应(在请求中或者流式回复没有完全时，都为true)
+  bool isBotThinking = false;
 
   /// 选择文件并解析
   Future<void> _pickAndReadFile() async {
@@ -184,6 +189,8 @@ class _DocumentSummaryState extends State<DocumentSummary> {
         content: "正在处理中，请稍候  ",
         isPlaceholder: true,
       ));
+
+      isBotThinking = true;
     });
 
     // ？？？具体给大模型发送的指令，就不给用户展示了(文档解析可能不正确，内容也太多)
@@ -202,50 +209,130 @@ class _DocumentSummaryState extends State<DocumentSummary> {
       userInput = "";
     });
 
-    List<CommonRespBody> temp = await getBaiduAigcResp(
+    // 在请求前创建当前响应的消息和文本内容，当前请求完之后，就重置为空
+    ChatMessage? currentStreamingMessage;
+    final StringBuffer messageBuffer = StringBuffer();
+
+    // 后续可手动终止响应时的写法
+    StreamWithCancel<CommonRespBody> tempStream = await baiduCCRespWithCancel(
       msgs,
-      model: newLLMSpecs[PlatformLLM.baiduErnieSpeed128KFREE]!.model,
-      stream: false,
-      isUserConfig: false,
-      // 百度API的系统设置，是外部的参数，不是消息列表里面
-      system: "你是一个文档总结分析助手，请根据提供的文档内容回答问题，如果无法回答，请回答“无法回答”，不要回答其他内容。",
+      model: Free_CC_LLM_SPEC_MAP[FreeCCLLM.baidu_Ernie_Speed_128K]!.model,
+      stream: true,
     );
 
-    // 得到AI回复之后，添加到列表中，也注明不是用户提问
-    var tempText = temp.map((e) => e.customReplyText).join();
-    if (temp.isNotEmpty && temp.first.errorCode != null) {
-      tempText = """接口报错:
-\ncode:${temp.first.errorCode} 
-\nmsg:${temp.first.errorMsg}
-\n请检查AppId和AppKey是否正确，或切换其他模型试试。
-""";
-    }
-
-    // 每次对话的结果流式返回，所以是个列表，就需要累加起来
-    int inputTokens = 0;
-    int outputTokens = 0;
-    int totalTokens = 0;
-    for (var e in temp) {
-      inputTokens += e.usage?.inputTokens ?? e.usage?.promptTokens ?? 0;
-      outputTokens += e.usage?.outputTokens ?? e.usage?.completionTokens ?? 0;
-      totalTokens += e.usage?.totalTokens ?? 0;
-    }
-
+    if (!mounted) return;
     setState(() {
-      // 得到大模型响应后，先清除占位的等待对话，再添加大模型返回的内容
-      // 理论上messages只会有两条:1 用户输入和 2大模型占位/大模型实际响应
-      messages.removeWhere((element) => element.isPlaceholder == true);
-
-      messages.add(ChatMessage(
-        messageId: const Uuid().v4(),
-        role: "assistant",
-        content: tempText,
-        dateTime: DateTime.now(),
-        inputTokens: inputTokens,
-        outputTokens: outputTokens,
-        totalTokens: totalTokens,
-      ));
+      respStream = tempStream;
     });
+    // 上面赋值了，这里应该可以监听到新的流了
+    respStream?.stream.listen(
+      (crb) {
+        // 得到回复后要删除表示加载中的占位消息
+        if (!mounted) return;
+        setState(() {
+          messages.removeWhere((e) => e.isPlaceholder == true);
+        });
+
+        // 当前响应流处理完了，就不是AI响应中了
+        if (crb.customReplyText == '[DONE]') {
+          if (!mounted) return;
+          setState(() {
+            _userInputController.clear();
+            currentStreamingMessage = null;
+            isBotThinking = false;
+          });
+        } else {
+          setState(() {
+            isBotThinking = true;
+            messageBuffer.write(crb.customReplyText);
+            // 只有第一次响应时才创建消息体，后续接收的响应流数据只更新当前的
+            if (currentStreamingMessage == null) {
+              // 得到大模型响应后，先清除占位的等待对话，再添加大模型返回的内容
+              // 理论上messages只会有两条:1 用户输入和 2大模型占位/大模型实际响应
+              messages.removeWhere((element) => element.isPlaceholder == true);
+
+              currentStreamingMessage = ChatMessage(
+                messageId: const Uuid().v4(),
+                role: "assistant",
+                content: messageBuffer.toString(),
+                contentVoicePath: "",
+                dateTime: DateTime.now(),
+                inputTokens:
+                    crb.usage?.inputTokens ?? crb.usage?.promptTokens ?? 0,
+                outputTokens:
+                    crb.usage?.outputTokens ?? crb.usage?.completionTokens ?? 0,
+                totalTokens: crb.usage?.totalTokens ?? 0,
+              );
+
+              messages.add(currentStreamingMessage!);
+            } else {
+              currentStreamingMessage!.content = messageBuffer.toString();
+              // token的使用就是每条返回的就是当前使用的结果，所以最后一条就是最终结果，实时更新到最后一条
+              currentStreamingMessage!.inputTokens =
+                  (crb.usage?.inputTokens ?? crb.usage?.promptTokens ?? 0);
+              currentStreamingMessage!.outputTokens =
+                  (crb.usage?.outputTokens ?? crb.usage?.completionTokens ?? 0);
+              currentStreamingMessage!.totalTokens =
+                  (crb.usage?.totalTokens ?? 0);
+            }
+          });
+        }
+      },
+      // 非流式的时候，只有一条数据，永远不会触发上面监听时的DONE的情况
+      onDone: () {
+        if (!mounted) return;
+        setState(() {
+          _userInputController.clear();
+          currentStreamingMessage = null;
+          isBotThinking = false;
+        });
+      },
+    );
+
+//     List<CommonRespBody> temp = await getBaiduAigcResp(
+//       msgs,
+//       model: Free_CC_LLM_SPEC_MAP[FreeCCLLM.baidu_Ernie_Speed_128K]!.model,
+//       stream: false,
+//       isUserConfig: false,
+//       // 百度API的系统设置，是外部的参数，不是消息列表里面
+//       system: "你是一个文档总结分析助手，请根据提供的文档内容回答问题，如果无法回答，请回答“无法回答”，不要回答其他内容。",
+//     );
+
+//     // 得到AI回复之后，添加到列表中，也注明不是用户提问
+//     var tempText = temp.map((e) => e.customReplyText).join();
+//     if (temp.isNotEmpty && temp.first.errorCode != null) {
+//       tempText = """接口报错:
+// \ncode:${temp.first.errorCode}
+// \nmsg:${temp.first.errorMsg}
+// \n请检查AppId和AppKey是否正确，或切换其他模型试试。
+// """;
+//     }
+
+//     // 每次对话的结果流式返回，所以是个列表，就需要累加起来
+//     int inputTokens = 0;
+//     int outputTokens = 0;
+//     int totalTokens = 0;
+//     for (var e in temp) {
+//       inputTokens += e.usage?.inputTokens ?? e.usage?.promptTokens ?? 0;
+//       outputTokens += e.usage?.outputTokens ?? e.usage?.completionTokens ?? 0;
+//       totalTokens += e.usage?.totalTokens ?? 0;
+//     }
+
+//     setState(() {
+//       // 得到大模型响应后，先清除占位的等待对话，再添加大模型返回的内容
+//       // 理论上messages只会有两条:1 用户输入和 2大模型占位/大模型实际响应
+//       messages.removeWhere((element) => element.isPlaceholder == true);
+
+//       messages.add(ChatMessage(
+//         messageId: const Uuid().v4(),
+//         role: "assistant",
+//         content: tempText,
+//         dateTime: DateTime.now(),
+//         inputTokens: inputTokens,
+//         outputTokens: outputTokens,
+//         totalTokens: totalTokens,
+//       ));
+//     });
   }
 
   // 重新生成总结内容
@@ -463,6 +550,7 @@ class _DocumentSummaryState extends State<DocumentSummary> {
               child: _buildMessageArea(
                 messages,
                 index,
+                isBotThinking,
                 () => regenerateLatestQuestion(),
               ),
             ),
@@ -477,6 +565,7 @@ class _DocumentSummaryState extends State<DocumentSummary> {
 _buildMessageArea(
   List<ChatMessage> messages,
   int index,
+  isBotThinking,
   void Function()? onRegenPressed,
 ) {
   // 如果是用户输入，仅展示即可；否则可能会有其他功能按钮
@@ -494,19 +583,17 @@ _buildMessageArea(
                 message: messages[index],
                 isAvatarTop: true,
               ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  // 如果是最后一条，且不是占位对话，可能重新生成
-                  if ((index == messages.length - 1) &&
-                      messages[index].isPlaceholder != true)
+              // 如果是最后一条，且不是占位对话，可能重新生成
+              if ((index == messages.length - 1) &&
+                  messages[index].isPlaceholder != true &&
+                  !isBotThinking)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
                     TextButton(
                       onPressed: onRegenPressed,
                       child: const Text("重新生成"),
                     ),
-
-                  // 如果不是等待响应才可以点击复制该条回复
-                  if (messages[index].isPlaceholder != true)
                     TextButton(
                       onPressed: () {
                         Clipboard.setData(
@@ -521,10 +608,7 @@ _buildMessageArea(
                       },
                       child: const Text("复制"),
                     ),
-
-                  SizedBox(width: 10.sp),
-                  // 如果不是等待响应才显示token数量
-                  if (messages[index].isPlaceholder != true)
+                    SizedBox(width: 10.sp),
                     Text(
                       "token 总计: ${messages[index].totalTokens}\n输入: ${messages[index].inputTokens} 输出: ${messages[index].outputTokens}",
                       style: TextStyle(fontSize: 10.sp),
@@ -532,9 +616,9 @@ _buildMessageArea(
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.right,
                     ),
-                  SizedBox(width: 10.sp),
-                ],
-              ),
+                    SizedBox(width: 10.sp),
+                  ],
+                ),
               SizedBox(height: 10.sp),
             ],
           ),

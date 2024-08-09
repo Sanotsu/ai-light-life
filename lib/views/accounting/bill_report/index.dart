@@ -11,7 +11,7 @@ import 'package:syncfusion_flutter_charts/charts.dart';
 import '../../../common/components/tool_widget.dart';
 import '../../../common/constants.dart';
 import '../../../common/db_tools/db_helper.dart';
-import '../../../models/brief_accounting_state.dart';
+import '../../../models/base_model/brief_accounting_state.dart';
 
 /// 绘制图表时，用于展示数据需要的结构
 class ChartData {

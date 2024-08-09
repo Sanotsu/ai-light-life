@@ -4,7 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../common/components/tool_widget.dart';
 import '../../common/db_tools/db_helper.dart';
-import '../../models/dish.dart';
+import '../../models/base_model/dish.dart';
 
 import 'dish_modify.dart';
 

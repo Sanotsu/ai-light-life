@@ -1,6 +1,8 @@
 // ignore_for_file: constant_identifier_names
 
 ///
+/// 这里是付费的大模型通用
+///
 /// 定义云平台
 /// 2024-07-08 这里的AI助手，估计只需要这个付费的就好了
 ///

@@ -3,8 +3,8 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:toggle_switch/toggle_switch.dart';
 
 import '../../../common/components/tool_widget.dart';
-import '../../../models/common_llm_info.dart';
-import '../../../models/paid_llm/common_chat_model_spec.dart';
+import '../../../models/llm_spec/cc_llm_spec_free.dart';
+import '../../../models/llm_spec/cc_llm_spec_paid.dart';
 
 ///
 /// 构建平台和模型的下拉选择框
@@ -83,7 +83,7 @@ class _PlatAndLlmRowState<T, U> extends State<PlatAndLlmRow<T, U>> {
             cornerRadius: 5.sp,
             initialLabelIndex: widget.isStream == true ? 0 : 1,
             totalSwitches: 2,
-            labels: const ['更快', '更省'],
+            labels: const ['流式', '直出'],
             onToggle: widget.onToggle,
           ),
         if (widget.showToggleSwitch) SizedBox(width: 10.sp),
@@ -111,7 +111,7 @@ class _PlatAndLlmRowState<T, U> extends State<PlatAndLlmRow<T, U>> {
               "模型说明",
               (tempSpec.runtimeType == CCMSpec)
                   ? "${(tempSpec as CCMSpec).feature ?? ""}\n\n${tempSpec.useCase ?? ""}"
-                  : (tempSpec as ChatLLMSpec).spec ?? "<暂无规格说明>",
+                  : (tempSpec as FreeCCLLMSpec).spec,
               msgFontSize: 15.sp,
             );
           },

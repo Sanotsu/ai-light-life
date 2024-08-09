@@ -17,11 +17,12 @@ class ChatUserVoiceSendArea extends StatefulWidget {
   final String hintText;
   final bool isBotThinking;
   final String userInput;
-  final Function(String) onChanged;
+  final Function(String) onInpuChanged;
   final VoidCallback onSendPressed;
-  final bool Function()? isMessageTooLong;
-  // 2024-06-04 添加语音输入的支持，但不一定非要传入(但只要传入了，此时上方的 onSendPressed其实也没用了)
+  // 2024-08-04 添加语音输入的支持，但不一定非要传入(但只要传入了，此时上方的 onSendPressed其实也没用了)
   final Function(SendContentType, String)? onSendSounds;
+  // 2024-08-08 流式响应的时候，可能手动终止
+  final VoidCallback? onStop;
 
   const ChatUserVoiceSendArea({
     super.key,
@@ -29,10 +30,10 @@ class ChatUserVoiceSendArea extends StatefulWidget {
     required this.hintText,
     required this.isBotThinking,
     required this.userInput,
-    required this.onChanged,
+    required this.onInpuChanged,
     required this.onSendPressed,
-    this.isMessageTooLong,
     this.onSendSounds,
+    this.onStop,
   });
 
   @override
@@ -76,21 +77,8 @@ class _ChatUserVoiceSendAreaState extends State<ChatUserVoiceSendArea> {
                 // 高度56是和下面TextField一样高
                 height: 56.sp,
                 child: SoundsMessageButton(
-                  // key: _key,
-                  onChanged: (status) {
-                    print("onChanged-在组件里面--------$status");
-
-                    // // 120 是遮罩层的视图高度
-                    // _padding.value = EdgeInsets.symmetric(
-                    //   vertical: status == SoundsMessageStatus.none
-                    //       ? 0
-                    //       : (120 + 60 - (30 + 44) / 2) / 2 + 15,
-                    // );
-                  },
+                  onChanged: (status) {},
                   onSendSounds: widget.onSendSounds,
-                  // onSendSounds: (type, content) {
-                  //   print("点击了语音发送之后-在组件里面--------");
-                  // },
                 ),
               ),
             ),
@@ -104,44 +92,27 @@ class _ChatUserVoiceSendAreaState extends State<ChatUserVoiceSendArea> {
                 ),
                 maxLines: 3,
                 minLines: 1,
-                onChanged: widget.onChanged,
+                onChanged: widget.onInpuChanged,
               ),
             ),
-          (!isVoice)
+          // 如果是API响应中，可以点击终止
+          widget.isBotThinking
               ? IconButton(
-                  onPressed: widget.isBotThinking || widget.userInput.isEmpty
-                      ? null
-                      : () {
-                          // 有传长度限制函数、且限制的结果为true，才显示弹窗
-                          if (widget.isMessageTooLong != null &&
-                              widget.isMessageTooLong!()) {
-                            showDialog(
-                              context: context,
-                              builder: (BuildContext context) {
-                                return AlertDialog(
-                                  title: const Text('对话过长'),
-                                  content: const Text(
-                                    '注意，由于免费API的使用压力，单个聊天对话的总长度不能超过8000字，请新开对话，谢谢。',
-                                  ),
-                                  actions: <Widget>[
-                                    TextButton(
-                                      onPressed: () {
-                                        Navigator.of(context).pop();
-                                      },
-                                      child: const Text('确定'),
-                                    ),
-                                  ],
-                                );
-                              },
-                            );
-                          } else {
-                            FocusScope.of(context).unfocus();
-                            widget.onSendPressed();
-                          }
-                        },
-                  icon: const Icon(Icons.send),
+                  onPressed: widget.onStop,
+                  icon: const Icon(Icons.stop),
                 )
-              : SizedBox(width: 48.sp), // 图标按钮默认大小48*48
+              // 不是API响应，如果是文本输入，则显示输入按钮；如果是语音输入，则占位符
+              : (!isVoice)
+                  ? IconButton(
+                      onPressed: widget.userInput.isEmpty
+                          ? null
+                          : () {
+                              FocusScope.of(context).unfocus();
+                              widget.onSendPressed();
+                            },
+                      icon: const Icon(Icons.send),
+                    )
+                  : SizedBox(width: 48.sp), // 图标按钮默认大小48*48
         ],
       ),
     );

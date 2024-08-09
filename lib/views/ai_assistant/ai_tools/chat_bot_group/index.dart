@@ -8,16 +8,16 @@ import 'package:path/path.dart' as path;
 import 'package:uuid/uuid.dart';
 
 import '../../../../apis/common_chat_apis.dart';
-import '../../../../apis/paid_cc_apis.dart';
+import '../../../../apis/chat_completion/paid_cc_apis.dart';
 import '../../../../apis/voice_recognition/xunfei_apis.dart';
 import '../../../../common/components/tool_widget.dart';
 import '../../../../common/constants.dart';
 import '../../../../common/utils/tools.dart';
 import '../../../../models/ai_interface_state/platform_aigc_commom_state.dart';
-import '../../../../models/common_llm_info.dart';
-import '../../../../models/llm_chat_state.dart';
-import '../../../../models/paid_llm/common_chat_completion_state.dart';
-import '../../../../models/paid_llm/common_chat_model_spec.dart';
+import '../../../../models/llm_spec/cc_llm_spec_free.dart';
+import '../../../../models/chat_completion/common_cc_state.dart';
+import '../../../../models/chat_completion/paid_llm/common_chat_completion_state.dart';
+import '../../../../models/llm_spec/cc_llm_spec_paid.dart';
 import '../../_chat_screen_parts/chat_default_question_area.dart';
 import '../../_chat_screen_parts/chat_user_send_area_with_voice.dart';
 import '../_sounds_message_button/utils/sounds_recorder_controller.dart';
@@ -116,8 +116,8 @@ class _ChatBatGroupState extends State<ChatBatGroup> {
     CommonUsage? usage,
   }) {
     String model = "";
-    if (e.value.runtimeType == ChatLLMSpec) {
-      var spec = e.value as ChatLLMSpec;
+    if (e.value.runtimeType == FreeCCLLMSpec) {
+      var spec = e.value as FreeCCLLMSpec;
       model = spec.model;
     } else {
       var spec = e.value as CCMSpec;
@@ -208,8 +208,8 @@ class _ChatBatGroupState extends State<ChatBatGroup> {
         if (!mounted) return;
         setState(() {
           /// e.value 可能是 CCMSpec 也可能是 ChatLLMSpec ，但都有model属性
-          if (e.value.runtimeType == ChatLLMSpec) {
-            var spec = (e.value as ChatLLMSpec);
+          if (e.value.runtimeType == FreeCCLLMSpec) {
+            var spec = (e.value as FreeCCLLMSpec);
             // 各自模型有响应后，删除各自模型的分组占位消息，只有这里有删除的操作(如果不考虑重新生成的话)
             msgMap[spec.model]!.removeWhere((e) => e.isPlaceholder == true);
 
@@ -245,8 +245,8 @@ class _ChatBatGroupState extends State<ChatBatGroup> {
 // 获取AI的响应
   void getGroupData(CusLabel e) async {
     // 这个是免费的平台的规格信息
-    if (e.value.runtimeType == ChatLLMSpec) {
-      var spec = e.value as ChatLLMSpec;
+    if (e.value.runtimeType == FreeCCLLMSpec) {
+      var spec = e.value as FreeCCLLMSpec;
 
       // 发送给大模型的消息列表
       List<CommonMessage> msgs = msgMap[spec.model]!
@@ -256,13 +256,13 @@ class _ChatBatGroupState extends State<ChatBatGroup> {
 
       // 不同的平台接口不一样
       final platformHandlers = {
-        CloudPlatform.baidu.name: (msgs) =>
+        FreeCP.baidu.name: (msgs) =>
             getBaiduAigcResp(msgs, model: spec.model, isUserConfig: false),
-        CloudPlatform.tencent.name: (msgs) =>
+        FreeCP.tencent.name: (msgs) =>
             getTencentAigcResp(msgs, model: spec.model, isUserConfig: false),
-        CloudPlatform.aliyun.name: (msgs) =>
+        FreeCP.aliyun.name: (msgs) =>
             getAliyunAigcResp(msgs, model: spec.model, isUserConfig: false),
-        CloudPlatform.siliconCloud.name: (msgs) => getSiliconFlowAigcResp(msgs,
+        FreeCP.siliconCloud.name: (msgs) => getSiliconFlowAigcResp(msgs,
             model: spec.model, isUserConfig: false),
       };
 
@@ -592,7 +592,7 @@ class _ChatBatGroupState extends State<ChatBatGroup> {
               hintText: '可以向我提任何问题哦',
               isBotThinking: isBotThinking,
               userInput: userInput,
-              onChanged: (text) {
+              onInpuChanged: (text) {
                 setState(() {
                   userInput = text.trim();
                 });

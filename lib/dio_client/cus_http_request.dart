@@ -78,6 +78,7 @@ class HttpRequest {
     required String path, //接口地址
     required HttpMethod method, //请求方式
     Map<String, dynamic>? headers, // 可以自定义一些header
+    ResponseType? responseType, // 可以自定义返回类型(默认是json)
     dynamic data, //数据
     Map<String, dynamic>? queryParameters,
     bool showLoading = true, //加载过程
@@ -99,6 +100,7 @@ class HttpRequest {
     Options options = Options(
       method: methodValues[method],
       headers: headers,
+      responseType: responseType,
     );
 
     try {

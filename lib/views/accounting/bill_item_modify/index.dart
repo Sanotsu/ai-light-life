@@ -8,7 +8,7 @@ import 'package:uuid/uuid.dart';
 import '../../../common/components/tool_widget.dart';
 import '../../../common/constants.dart';
 import '../../../common/db_tools/db_helper.dart';
-import '../../../models/brief_accounting_state.dart';
+import '../../../models/base_model/brief_accounting_state.dart';
 
 ///
 /// 新增账单条目的简单布局：

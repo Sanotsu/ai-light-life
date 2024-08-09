@@ -14,12 +14,12 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:logger/logger.dart';
 import 'package:uuid/uuid.dart';
 
-import '../../../../apis/common_chat_apis.dart';
+import '../../../../apis/chat_completion/common_cc_apis.dart';
 import '../../../../common/components/tool_widget.dart';
 import '../../../../common/utils/tools.dart';
 import '../../../../models/ai_interface_state/platform_aigc_commom_state.dart';
-import '../../../../models/common_llm_info.dart';
-import '../../../../models/llm_chat_state.dart';
+import '../../../../models/llm_spec/cc_llm_spec_free.dart';
+import '../../../../models/chat_completion/common_cc_state.dart';
 import '../document_summary/document_parser.dart';
 import '../photo_translation/index.dart';
 
@@ -48,6 +48,9 @@ class _MultiTranslatorState extends State<MultiTranslator> {
 
   // 是否在翻译中
   bool isTranslating = false;
+
+  // 当前正在响应的api返回流(放在全局为了可以手动取消)
+  StreamWithCancel<CommonRespBody>? respStream;
 
   // 用户输入的文本控制器
   final _userInputController = TextEditingController();
@@ -188,49 +191,77 @@ class _MultiTranslatorState extends State<MultiTranslator> {
       ),
     ];
 
-    List<CommonRespBody> temp = await getBaiduAigcResp(
+    // 在请求前创建当前响应的消息和文本内容，当前请求完之后，就重置为空
+    ChatMessage? currentStreamingMessage;
+    final StringBuffer messageBuffer = StringBuffer();
+
+    // 后续可手动终止响应时的写法
+    StreamWithCancel<CommonRespBody> tempStream = await baiduCCRespWithCancel(
       msgs,
-      model: newLLMSpecs[PlatformLLM.baiduErnieSpeed128KFREE]!.model,
-      stream: false,
-      isUserConfig: false,
+      model: Free_CC_LLM_SPEC_MAP[FreeCCLLM.baidu_Ernie_Speed_128K]!.model,
+      stream: true,
       // 百度API的系统设置，是外部的参数，不是消息列表里面
       system: systemPrompt,
     );
 
-    // 得到AI回复之后，添加到列表中，也注明不是用户提问
-    var tempText = temp.map((e) => e.customReplyText).join();
-    if (temp.isNotEmpty && temp.first.errorCode != null) {
-      tempText = """接口报错:
-\ncode:${temp.first.errorCode} 
-\nmsg:${temp.first.errorMsg}
-\n请检查AppId和AppKey是否正确，或切换其他模型试试。
-""";
-    }
-
-    // 每次对话的结果流式返回，所以是个列表，就需要累加起来
-    int inputTokens = 0;
-    int outputTokens = 0;
-    int totalTokens = 0;
-    for (var e in temp) {
-      inputTokens += e.usage?.inputTokens ?? e.usage?.promptTokens ?? 0;
-      outputTokens += e.usage?.outputTokens ?? e.usage?.completionTokens ?? 0;
-      totalTokens += e.usage?.totalTokens ?? 0;
-    }
-
     if (!mounted) return;
     setState(() {
-      translateResult = ChatMessage(
-        messageId: const Uuid().v4(),
-        role: "assistant",
-        content: tempText,
-        dateTime: DateTime.now(),
-        inputTokens: inputTokens,
-        outputTokens: outputTokens,
-        totalTokens: totalTokens,
-      );
-
-      isTranslating = false;
+      respStream = tempStream;
     });
+    // 上面赋值了，这里应该可以监听到新的流了
+    respStream?.stream.listen(
+      (crb) {
+        // 当前响应流处理完了，就不是AI响应中了
+        if (crb.customReplyText == '[DONE]') {
+          if (!mounted) return;
+          setState(() {
+            _userInputController.clear();
+            currentStreamingMessage = null;
+            isTranslating = false;
+          });
+        } else {
+          setState(() {
+            isTranslating = true;
+            messageBuffer.write(crb.customReplyText);
+            // 只有第一次响应时才创建消息体，后续接收的响应流数据只更新当前的
+            if (currentStreamingMessage == null) {
+              currentStreamingMessage = ChatMessage(
+                messageId: const Uuid().v4(),
+                role: "assistant",
+                content: messageBuffer.toString(),
+                contentVoicePath: "",
+                dateTime: DateTime.now(),
+                inputTokens:
+                    crb.usage?.inputTokens ?? crb.usage?.promptTokens ?? 0,
+                outputTokens:
+                    crb.usage?.outputTokens ?? crb.usage?.completionTokens ?? 0,
+                totalTokens: crb.usage?.totalTokens ?? 0,
+              );
+
+              translateResult = currentStreamingMessage!;
+            } else {
+              currentStreamingMessage!.content = messageBuffer.toString();
+              // token的使用就是每条返回的就是当前使用的结果，所以最后一条就是最终结果，实时更新到最后一条
+              currentStreamingMessage!.inputTokens =
+                  (crb.usage?.inputTokens ?? crb.usage?.promptTokens ?? 0);
+              currentStreamingMessage!.outputTokens =
+                  (crb.usage?.outputTokens ?? crb.usage?.completionTokens ?? 0);
+              currentStreamingMessage!.totalTokens =
+                  (crb.usage?.totalTokens ?? 0);
+            }
+          });
+        }
+      },
+      // 非流式的时候，只有一条数据，永远不会触发上面监听时的DONE的情况
+      onDone: () {
+        if (!mounted) return;
+        setState(() {
+          _userInputController.clear();
+          currentStreamingMessage = null;
+          isTranslating = false;
+        });
+      },
+    );
   }
 
   @override
@@ -390,34 +421,6 @@ class _MultiTranslatorState extends State<MultiTranslator> {
         );
       },
     );
-    // showDialog(
-    //   context: context,
-    //   builder: (context) {
-    //     return AlertDialog(
-    //       title: Text(
-    //         "预览文档内容",
-    //         style: TextStyle(fontSize: 20.sp),
-    //       ),
-    //       content: SingleChildScrollView(
-    //         child: Text(_fileContent),
-    //       ),
-    //       actions: [
-    //         TextButton(
-    //           onPressed: () {
-    //             Navigator.of(context).pop(false);
-    //           },
-    //           child: const Text("取消"),
-    //         ),
-    //         TextButton(
-    //           onPressed: () {
-    //             Navigator.of(context).pop(true);
-    //           },
-    //           child: const Text("确定"),
-    //         ),
-    //       ],
-    //     );
-    //   },
-    // );
   }
 
   /// 用户发送消息的区域
@@ -544,7 +547,6 @@ class _MultiTranslatorState extends State<MultiTranslator> {
           padding: EdgeInsets.all(10.sp),
           child: Column(
             children: [
-              // SelectableText("${translateResult.content} "),
               MarkdownBody(
                 data: translateResult.content,
                 selectable: true,

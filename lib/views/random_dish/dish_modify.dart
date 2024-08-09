@@ -10,7 +10,7 @@ import '../../common/components/tool_widget.dart';
 import '../../common/constants.dart';
 import '../../common/db_tools/db_helper.dart';
 import '../../common/utils/tools.dart';
-import '../../models/dish.dart';
+import '../../models/base_model/dish.dart';
 
 class DishModify extends StatefulWidget {
   // 新增菜品不会传，但修改菜品会传

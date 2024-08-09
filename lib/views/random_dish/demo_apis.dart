@@ -7,7 +7,7 @@ import 'package:uuid/uuid.dart';
 import '../../common/components/tool_widget.dart';
 import '../../common/constants.dart';
 import '../../common/db_tools/db_helper.dart';
-import '../../models/dish.dart';
+import '../../models/base_model/dish.dart';
 
 final DBHelper _dbHelper = DBHelper();
 

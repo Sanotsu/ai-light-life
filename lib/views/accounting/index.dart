@@ -11,7 +11,7 @@ import 'package:month_picker_dialog/month_picker_dialog.dart';
 import '../../common/components/tool_widget.dart';
 import '../../common/constants.dart';
 import '../../common/db_tools/db_helper.dart';
-import '../../models/brief_accounting_state.dart';
+import '../../models/base_model/brief_accounting_state.dart';
 
 import 'bill_item_modify/index.dart';
 import 'bill_report/index.dart';

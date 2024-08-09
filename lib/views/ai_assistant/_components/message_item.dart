@@ -5,8 +5,8 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../common/constants.dart';
-import '../../../models/llm_chat_state.dart';
-import '../../../models/paid_llm/common_chat_completion_state.dart';
+import '../../../models/chat_completion/common_cc_state.dart';
+import '../../../models/chat_completion/paid_llm/common_chat_completion_state.dart';
 import 'voice_chat_bubble.dart';
 
 class MessageItem extends StatelessWidget {

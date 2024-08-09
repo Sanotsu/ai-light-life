@@ -8,13 +8,11 @@ import 'package:form_builder_validators/form_builder_validators.dart';
 
 import '../../../common/components/tool_widget.dart';
 import '../../../common/utils/tools.dart';
-import '../../../models/common_llm_info.dart';
+import '../../../models/llm_spec/cc_llm_spec_free.dart';
 import '../../../services/cus_get_storage.dart';
 import 'aliyun_qwenvl_screen.dart';
 import 'baidu_image2text_screen.dart';
 import 'aliyun_text2image_screen.dart';
-import 'cus_llm_config/user_cus_model_stepper.dart';
-import 'one_chat_screen.dart';
 
 class AgiLlmSample extends StatefulWidget {
   const AgiLlmSample({super.key});
@@ -269,7 +267,7 @@ class _AgiLlmSampleState extends State<AgiLlmSample> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    FormBuilderDropdown<CloudPlatform>(
+                    FormBuilderDropdown<FreeCP>(
                       name: 'platform',
                       validator: FormBuilderValidators.compose(
                           [FormBuilderValidators.required()]),
@@ -287,7 +285,7 @@ class _AgiLlmSampleState extends State<AgiLlmSample> {
                               BorderSide(color: Colors.blue, width: 2.0),
                         ),
                       ),
-                      items: CloudPlatform.values
+                      items: FreeCP.values
                           .where((e) => !e.name.startsWith("limited"))
                           .map((platform) => DropdownMenuItem(
                                 alignment: AlignmentDirectional.center,
@@ -300,21 +298,21 @@ class _AgiLlmSampleState extends State<AgiLlmSample> {
                         setState(() {
                           // 找到对应的平台和模型(因为配置的时候是用户下拉选择的，理论上这里一定存在，且只应该有一个)
 
-                          if (val == CloudPlatform.baidu) {
+                          if (val == FreeCP.baidu) {
                             // 初始化id或者key
                             _formKey.currentState?.fields['id']?.didChange(
                                 MyGetStorage().getBaiduCommonAppId());
                             _formKey.currentState?.fields['key']?.didChange(
                                 MyGetStorage().getBaiduCommonAppKey());
                           }
-                          if (val == CloudPlatform.aliyun) {
+                          if (val == FreeCP.aliyun) {
                             // 初始化id或者key
                             _formKey.currentState?.fields['id']?.didChange(
                                 MyGetStorage().getAliyunCommonAppId());
                             _formKey.currentState?.fields['key']?.didChange(
                                 MyGetStorage().getAliyunCommonAppKey());
                           }
-                          if (val == CloudPlatform.tencent) {
+                          if (val == FreeCP.tencent) {
                             // 初始化id或者key
                             _formKey.currentState?.fields['id']?.didChange(
                                 MyGetStorage().getTencentCommonAppId());
@@ -406,7 +404,7 @@ class _AgiLlmSampleState extends State<AgiLlmSample> {
         if (_formKey.currentState!.saveAndValidate()) {
           var temp = _formKey.currentState;
 
-          CloudPlatform cp = temp?.fields['platform']?.value;
+          FreeCP cp = temp?.fields['platform']?.value;
           String id = temp?.fields['id']?.value;
           String key = temp?.fields['key']?.value;
 
@@ -432,23 +430,7 @@ class _AgiLlmSampleState extends State<AgiLlmSample> {
         // 3, "图像理解
         // 4, "千问视觉
         // 5, 自行配置单个付费对话模型
-        if (type == 0) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const OneChatScreen()),
-          );
-        } else if (type == 1) {
-          if (isAliyunConfigured) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const OneChatScreen(isLimitedTest: true),
-              ),
-            );
-          } else {
-            commonHintDialog(context, "配置错误", "未配置阿里云平台的应用ID和KEY");
-          }
-        } else if (type == 2) {
+        if (type == 2) {
           if (isAliyunConfigured) {
             Navigator.push(
               context,
@@ -481,18 +463,6 @@ class _AgiLlmSampleState extends State<AgiLlmSample> {
           } else {
             commonHintDialog(context, "配置错误", "未配置阿里云平台的应用ID和KEY");
           }
-        } else if (type == 5) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const UserCusModelStepper(),
-            ),
-          );
-        } else {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const OneChatScreen()),
-          );
         }
       },
       child: Container(

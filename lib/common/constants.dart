@@ -3,8 +3,8 @@
 
 import 'dart:io';
 
-import '../models/common_llm_info.dart';
-import '../models/paid_llm/common_chat_model_spec.dart';
+import '../models/llm_spec/cc_llm_spec_free.dart';
+import '../models/llm_spec/cc_llm_spec_paid.dart';
 
 const constDatetimeFormat = "yyyy-MM-dd HH:mm:ss";
 const constDateFormat = "yyyy-MM-dd";
@@ -133,78 +133,78 @@ final CHAT_AUDIO_DIR =
 final BATTLE_MODEL_LIST = [
   CusLabel(
     cnLabel: "ERNIESpeed8K",
-    enLabel: CloudPlatform.baidu.name,
-    value: newLLMSpecs[PlatformLLM.baiduErnieSpeed8KFREE]!,
+    enLabel: FreeCP.baidu.name,
+    value: Free_CC_LLM_SPEC_MAP[FreeCCLLM.baidu_Ernie_Speed_8K]!,
   ),
   CusLabel(
     cnLabel: "ERNIESpeed128K",
-    enLabel: CloudPlatform.baidu.name,
-    value: newLLMSpecs[PlatformLLM.baiduErnieSpeed128KFREE]!,
+    enLabel: FreeCP.baidu.name,
+    value: Free_CC_LLM_SPEC_MAP[FreeCCLLM.baidu_Ernie_Speed_128K]!,
   ),
   CusLabel(
     cnLabel: "ERNIELite8K",
-    enLabel: CloudPlatform.baidu.name,
-    value: newLLMSpecs[PlatformLLM.baiduErnieLite8KFREE]!,
+    enLabel: FreeCP.baidu.name,
+    value: Free_CC_LLM_SPEC_MAP[FreeCCLLM.baidu_Ernie_Lite_8K]!,
   ),
   CusLabel(
     cnLabel: "ERNIETiny8K",
-    enLabel: CloudPlatform.baidu.name,
-    value: newLLMSpecs[PlatformLLM.baiduErnieTiny8KFREE]!,
+    enLabel: FreeCP.baidu.name,
+    value: Free_CC_LLM_SPEC_MAP[FreeCCLLM.baidu_Ernie_Tiny_8K]!,
   ),
   CusLabel(
     cnLabel: "通义千问开源版1.8B",
-    enLabel: CloudPlatform.aliyun.name,
-    value: newLLMSpecs[PlatformLLM.aliyunQwen1p8BChatFREE]!,
+    enLabel: FreeCP.aliyun.name,
+    value: Free_CC_LLM_SPEC_MAP[FreeCCLLM.aliyun_Qwen_1p8B_Chat]!,
   ),
   CusLabel(
     cnLabel: "通义千问1.5开源版1.8B",
-    enLabel: CloudPlatform.aliyun.name,
-    value: newLLMSpecs[PlatformLLM.aliyunQwen1p51p8BChatFREE]!,
+    enLabel: FreeCP.aliyun.name,
+    value: Free_CC_LLM_SPEC_MAP[FreeCCLLM.aliyun_Qwen1p5_1p8B_Chat]!,
   ),
   CusLabel(
     cnLabel: "通义千问1.5开源版0.5B",
-    enLabel: CloudPlatform.aliyun.name,
-    value: newLLMSpecs[PlatformLLM.aliyunQwen1p50p5BChatFREE]!,
+    enLabel: FreeCP.aliyun.name,
+    value: Free_CC_LLM_SPEC_MAP[FreeCCLLM.aliyun_Qwen1p5_0p5B_Chat]!,
   ),
   CusLabel(
     cnLabel: "混元Lite",
-    enLabel: CloudPlatform.tencent.name,
-    value: newLLMSpecs[PlatformLLM.tencentHunyuanLiteFREE]!,
+    enLabel: FreeCP.tencent.name,
+    value: Free_CC_LLM_SPEC_MAP[FreeCCLLM.tencent_Hunyuan_Lite]!,
   ),
   CusLabel(
     cnLabel: "通义千问2开源版7B",
-    enLabel: CloudPlatform.siliconCloud.name,
-    value: newLLMSpecs[PlatformLLM.siliconCloud_Qwen2_7B_Instruct_FREE]!,
+    enLabel: FreeCP.siliconCloud.name,
+    value: Free_CC_LLM_SPEC_MAP[FreeCCLLM.siliconCloud_Qwen2_7B_Instruct]!,
   ),
   CusLabel(
     cnLabel: "通义千问2开源版1.5B",
-    enLabel: CloudPlatform.siliconCloud.name,
-    value: newLLMSpecs[PlatformLLM.siliconCloud_Qwen2_1p5B_Instruct_FREE]!,
+    enLabel: FreeCP.siliconCloud.name,
+    value: Free_CC_LLM_SPEC_MAP[FreeCCLLM.siliconCloud_Qwen2_1p5B_Instruct]!,
   ),
   CusLabel(
     cnLabel: "通义千问1.5开源版7B",
-    enLabel: CloudPlatform.siliconCloud.name,
-    value: newLLMSpecs[PlatformLLM.siliconCloud_Qwen1p5_7B_Chat_FREE]!,
+    enLabel: FreeCP.siliconCloud.name,
+    value: Free_CC_LLM_SPEC_MAP[FreeCCLLM.siliconCloud_Qwen1p5_7B_Chat]!,
   ),
   CusLabel(
     cnLabel: "GLM4开源版9B",
-    enLabel: CloudPlatform.siliconCloud.name,
-    value: newLLMSpecs[PlatformLLM.siliconCloud_GLM4_9B_Chat_FREE]!,
+    enLabel: FreeCP.siliconCloud.name,
+    value: Free_CC_LLM_SPEC_MAP[FreeCCLLM.siliconCloud_GLM4_9B_Chat]!,
   ),
   CusLabel(
     cnLabel: "ChatGLM3开源版6B",
-    enLabel: CloudPlatform.siliconCloud.name,
-    value: newLLMSpecs[PlatformLLM.siliconCloud_ChatGLM3_6B_FREE]!,
+    enLabel: FreeCP.siliconCloud.name,
+    value: Free_CC_LLM_SPEC_MAP[FreeCCLLM.siliconCloud_ChatGLM3_6B]!,
   ),
   CusLabel(
     cnLabel: "零一万物1.5开源版9B",
-    enLabel: CloudPlatform.siliconCloud.name,
-    value: newLLMSpecs[PlatformLLM.siliconCloud_Yi1p5_9B_Chat_16K_FREE]!,
+    enLabel: FreeCP.siliconCloud.name,
+    value: Free_CC_LLM_SPEC_MAP[FreeCCLLM.siliconCloud_Yi1p5_9B_Chat_16K]!,
   ),
   CusLabel(
     cnLabel: "零一万物1.5开源版6B",
-    enLabel: CloudPlatform.siliconCloud.name,
-    value: newLLMSpecs[PlatformLLM.siliconCloud_Yi1p5_6B_Chat_FREE]!,
+    enLabel: FreeCP.siliconCloud.name,
+    value: Free_CC_LLM_SPEC_MAP[FreeCCLLM.siliconCloud_Yi1p5_6B_Chat]!,
   ),
   CusLabel(
     cnLabel: "YiSpark",

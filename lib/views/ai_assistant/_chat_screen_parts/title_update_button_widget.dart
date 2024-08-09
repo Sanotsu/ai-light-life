@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
-import '../../../models/llm_chat_state.dart';
+import '../../../models/chat_completion/common_cc_state.dart';
 
 ///
 /// 对话页面中的修改标题按钮

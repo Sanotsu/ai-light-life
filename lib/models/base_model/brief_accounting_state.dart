@@ -3,7 +3,7 @@
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
-import '../common/constants.dart';
+import '../../common/constants.dart';
 
 /// 2024-05-22
 /// brief_accounting 数据库目前就就1个主要的基础表

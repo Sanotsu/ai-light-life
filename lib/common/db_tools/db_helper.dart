@@ -8,9 +8,9 @@ import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 import 'package:path_provider/path_provider.dart';
 
-import '../../models/brief_accounting_state.dart';
-import '../../models/dish.dart';
-import '../../models/llm_chat_state.dart';
+import '../../models/base_model/brief_accounting_state.dart';
+import '../../models/base_model/dish.dart';
+import '../../models/chat_completion/common_cc_state.dart';
 import '../../models/llm_text2image_state.dart';
 import '../constants.dart';
 import 'ddl_ai_light_life.dart';

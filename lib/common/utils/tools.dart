@@ -6,7 +6,7 @@ import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../apis/_self_keys.dart';
-import '../../models/common_llm_info.dart';
+import '../../models/llm_spec/cc_llm_spec_free.dart';
 import '../../services/cus_get_storage.dart';
 import '../constants.dart';
 
@@ -145,11 +145,11 @@ String getTimePeriod() {
 }
 
 // 保存指定平台应用配置的id和key
-setIdAndKeyFromPlatform(CloudPlatform cp, String? id, String? key) async {
-  if (cp == CloudPlatform.baidu) {
+setIdAndKeyFromPlatform(FreeCP cp, String? id, String? key) async {
+  if (cp == FreeCP.baidu) {
     await MyGetStorage().setBaiduCommonAppId(id);
     await MyGetStorage().setBaiduCommonAppKey(key);
-  } else if (cp == CloudPlatform.aliyun) {
+  } else if (cp == FreeCP.aliyun) {
     await MyGetStorage().setAliyunCommonAppId(id);
     await MyGetStorage().setAliyunCommonAppKey(key);
   } else {
@@ -159,15 +159,15 @@ setIdAndKeyFromPlatform(CloudPlatform cp, String? id, String? key) async {
 }
 
 // 通过传入的平台，获取该平台应用配置的id和key
-Map<String, String?> getIdAndKeyFromPlatform(CloudPlatform cp) {
+Map<String, String?> getIdAndKeyFromPlatform(FreeCP cp) {
   String? id;
   String? key;
 
-  if (cp == CloudPlatform.baidu) {
+  if (cp == FreeCP.baidu) {
     // 初始化id或者key
     id = MyGetStorage().getBaiduCommonAppId();
     key = MyGetStorage().getBaiduCommonAppKey();
-  } else if (cp == CloudPlatform.aliyun) {
+  } else if (cp == FreeCP.aliyun) {
     id = MyGetStorage().getAliyunCommonAppId();
     key = MyGetStorage().getAliyunCommonAppKey();
   } else {
